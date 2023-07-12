@@ -108,6 +108,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         del self.items
         self.items = []
         self.plotter.clear()
+        self.plotter.remove_segments()
         self.measurement_is_opened = False
         self.btn_peaktool.setEnabled(False)
         self.combobox_xaxis.setEnabled(False)
