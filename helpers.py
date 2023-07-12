@@ -1,0 +1,78 @@
+import numpy as np
+import itertools
+import sympy
+import matplotlib.pyplot as plt
+
+LINEAR_TYPE = 0
+BEZIER_TYPE = 1
+
+colors = itertools.cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
+
+def get_next_color():
+    return next(colors)
+
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx
+
+
+def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
+    baseline_y = []
+    if baselinetype == LINEAR_TYPE:
+        print("* making linear baseline")
+        x1 = xdata[i1]
+        x2 = xdata[i2]
+        y1 = ydata[i1]
+        y2 = ydata[i2]
+        slope = (y2 - y1) / (x2 - x1)
+        intercept = y1 - x1 * slope
+        x = sympy.Symbol('x')
+        y_expr = intercept + slope * x
+    elif baselinetype == BEZIER_TYPE:
+        print("* making bezier baseline")
+        x1prev = xdata[i1 - 1]
+        x1 = xdata[i1]
+        y1prev = ydata[i1 - 1]
+        y1 = ydata[i1]
+        b1 = (y1 - y1prev) / (x1 - x1prev)
+        a1 = y1 - x1 * b1
+
+        x3prev = xdata[i2 + 1]
+        x3 = xdata[i2]
+        y3prev = ydata[i2 + 1]
+        y3 = ydata[i2]
+        b3 = (y3 - y3prev) / (x3 - x3prev)
+        a3 = y3 - x3 * b3
+
+        x2 = (a3 - a1) / (b1 - b3)
+        y2 = a1 + b1 * x2
+
+        # print(x1, x2, x3, y1, y2, y3)
+
+        baseline_y = []
+        tdata = []
+        t, x = sympy.symbols('t x')
+        fx = ((1 - t) ** 2) * x1 + 2 * (1 - t) * t * x2 + (t ** 2) * x3
+        y = ((1 - t) ** 2) * y1 + 2 * (1 - t) * t * y2 + (t ** 2) * y3
+
+        poly = sympy.Poly(fx, t)
+        # print(poly)
+        coeffs = poly.coeffs()
+        a = coeffs[0]
+        b = coeffs[1]
+        c = coeffs[2] - x
+        D = (b ** 2) - 4 * a * c
+
+        t_expr = (-b + (D ** (1 / 2))) / (2 * a)
+        y_expr = y.subs(t, t_expr)
+    else:
+        print('\n* ERROR: none/wrong baselinetype provided\n')
+        return
+    print("* baseline expression: " + str(y_expr))
+    for item in xdata[i1:i2]:
+        ya = float(
+            y_expr.subs(x, item)
+        )
+        baseline_y.append(ya)
+    return np.array(baseline_y, dtype=float), y_expr
