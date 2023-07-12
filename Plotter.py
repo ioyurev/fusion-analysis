@@ -36,6 +36,10 @@ class Plotter:
         self.selectedSelector_limit_x2: float
         self.units: list[str] = []
     
+    def remove_segments(self):
+        del self.segments
+        self.segments = []
+
     def replot(self, xaxis: str, yaxis: str):
         self.clear()
         print('* перерисовываем график')
