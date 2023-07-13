@@ -9,8 +9,8 @@ def warning_message(message):
     print(f'* Предупреждение. {message}')
     error_dialog = QtWidgets.QMessageBox()
     error_dialog.setIcon(QtWidgets.QMessageBox.Warning)
-    # error_dialog.setText("Произошла ошибка!")
-    error_dialog.setInformativeText(message)
+    error_dialog.setText(message)
+    # error_dialog.setInformativeText(message)
     error_dialog.setWindowTitle("Предупреждение")
     error_dialog.exec_()
 
@@ -24,6 +24,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     checkbox_grid: QtWidgets.QCheckBox
     action_open: QtWidgets.QAction
     action_close: QtWidgets.QAction
+    list_segments : QtWidgets.QListWidget
 
     def __init__(self):
         print('* загрузка интерфейса')
@@ -57,11 +58,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # список сегментов
         self.list_segments : QtWidgets.QListWidget = self.findChild(QtWidgets.QListWidget, 'listWidget')
         self.list_segments.itemChanged.connect(self.on_item_changed)
+        self.list_segments.itemSelectionChanged.connect(self.on_item_selection_changed)
+        # self.list_segments.clicked.connect(self.on_item_clicked)
         self.items: list[QtWidgets.QListWidgetItem] = []
         self.measurement_is_opened = False
         self.comboboxes_is_set = False
         # QtWidgets.QStatusBar
     
+    # def on_item_clicked(self, event):
+    #     # print(item)
+    #     if not self.list_segments.indexAt(event.pos()).isValid():
+    #         print("очистка")
+    #         self.list_segments.clearSelection()
+
+    def on_item_selection_changed(self):
+        selected_items = self.list_segments.selectedItems()
+        if len(selected_items) == 1:
+            if selected_items[0].checkState():
+                index = self.list_segments.row(selected_items[0])
+                self.plotter.pickSegment(index)
+            else:
+                self.plotter.pickSegment(None)
+
     def on_checkbox_grid_changed(self, state):
         self.plotter.gridSetVisible(state)
 
@@ -103,18 +121,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.plotter.peaktool_start()
 
     def peaktool_chech_is_valid(self):
-        if self.plotter.pickedSegment == None:
+        if self.plotter.pickedSegment is None:
             warning_message("Cегмент не выбран.")
             return False
         if self.combobox_yaxis.currentText() != 'DTA':
-            warning_message('Неправильно выбрана ось ординат! Должна быть DTA.')
+            warning_message('Неправильно выбрана ось ординат!\nДолжна быть DTA.')
             return False
-        if self.combobox_xaxis.currentText() == 'Time':
-            pass
-        elif self.combobox_xaxis.currentText() == 'Temp.':
+        xaxis = self.combobox_xaxis.currentText()
+        if xaxis in ('Time', 'Temp.'):
             pass
         else:
-            warning_message('Неправильно выбрана ось абцисс! Должна быть Time или Temp.')
+            warning_message('Неправильно выбрана ось абцисс!\nДолжна быть Time или Temp.')
             return False
         return True
     # обработчик закрытия измерения

@@ -1,11 +1,15 @@
 import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
+# from matplotlib.axes import Axes
+from matplotlib.patches import Polygon
 from matplotlib.lines import Line2D
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,
     NavigationToolbar2QT as NavigationToolbar)
 from helpers import find_nearest, make_peakbaseline, np, get_next_color
 import pandas as pd
+import matplotlib.patheffects as path_effects
+
+PATH_EFFECT = [path_effects.Stroke(linewidth=4, foreground='black'), path_effects.Normal()]
 
 class Segment:
     line: Line2D
@@ -19,10 +23,28 @@ class Segment:
         self.lw = 1.5
         self.peaks = []
     
-    def add_peak(self, t1, t2):
+    def setVisible(self, visible):
+        self.line.set_visible(visible)
+        self.line.set_picker(visible)
+        if visible:
+            self.line.set_pickradius(5)
+        for peak in self.peaks:
+            peak.setVisible(visible)
+
+    def addPeak(self, t1, t2):
         print("* добавляем пик")
         self.peaks.append(Peak(self, t1, t2))
+        if self.index == self.plotter.pickedSegment:
+            self.peaks[-1].setPickEffect(True)
     
+    def setPickEffect(self, bool):
+        if bool:
+            self.line.set_path_effects(PATH_EFFECT)
+        else:
+            self.line.set_path_effects(None)
+        for peak in self.peaks:
+            peak.setPickEffect(bool)
+
     def draw(self):
         print("* отрисовка сегмента")
         xaxis = self.plotter.headers[self.plotter.parent.combobox_xaxis.currentIndex()]
@@ -31,14 +53,63 @@ class Segment:
         # if len(self.peaks) > 0:
         peak: Peak
         for peak in self.peaks:
-            peak.update_xdata_to_draw()
+            peak.updateXdata()
             peak.draw()
+
+class Peak:
+    polygon: Polygon
+
+    def __init__(self, segment: Segment, t1, t2) -> None:
+        self.segment = segment
+        xdata = self.segment.df['Time'].to_list()
+        ydata = self.segment.df['DTA'].to_list()
+        # print(type(xdata))
+        self.i1 = find_nearest(xdata, t1)
+        self.i2 = find_nearest(xdata, t2)
+        self.updateXdata()
+        baseline, self.baseline_expr = make_peakbaseline(
+            baselinetype=0,
+            i1=self.i1, i2=self.i2,
+            xdata=xdata,
+            ydata=ydata
+        )
+        self.curve_ydata = ydata[self.i1:self.i2]
+        self.baseline_ydata = list(reversed(baseline))
+        self.draw()
+
+    def setVisible(self, visible):
+        self.polygon.set(visible=visible)
+
+    def setPickEffect(self, bool):
+        if bool:
+            self.polygon.set_path_effects(PATH_EFFECT)
+        else:
+            self.polygon.set_path_effects(None)
+
+    def updateXdata(self):
+        header = self.segment.plotter.headers[self.segment.plotter.parent.combobox_xaxis.currentIndex()]
+        self.curve_xdata = self.segment.df[header][self.i1:self.i2].to_list()
+        self.baseline_xdata = list(reversed(self.curve_xdata))
+
+    def draw(self):
+        xaxis_header = self.segment.plotter.headers[self.segment.plotter.parent.combobox_xaxis.currentIndex()]
+        yaxis_header = self.segment.plotter.headers[self.segment.plotter.parent.combobox_yaxis.currentIndex()]
+        if yaxis_header == "DTA" and (xaxis_header in ("Time", "Temp.")):
+            print("* отрисовка пика")
+            xdata = self.curve_xdata + self.baseline_xdata
+            ydata = self.curve_ydata + self.baseline_ydata
+            # print(xdata[0], ydata[0])
+            self.polygon, = self.segment.plotter._ax.fill(
+                    xdata,
+                    ydata,
+                    hatch = '//',
+                    edgecolor=self.segment.color, facecolor='none',
+                    lw=1
+                )
 
 class Plotter:
     headers: list[str] = None
     units: list[str] = None
-    lines: list[Line2D] = None
-    segments: list[Segment] = []
     pickedSegment: int = None
     selectedSelector: Line2D = None
     selectedSelector_limit_x1: float
@@ -56,7 +127,7 @@ class Plotter:
         self.canvas.mpl_connect('motion_notify_event', self.on_move)
         self.toolbar = NavigationToolbar(self.canvas, None)
         self.segments: list[Segment] = []
-        self.lines = []
+        self.lines: list[Line2D] = None
         self.segments_color = []
         self.segments_lw = []
         self.pickMode = 0 # 0 - сегменты, 1 - селекторы
@@ -72,7 +143,6 @@ class Plotter:
         print(f"* ставим оси {xaxis} и {yaxis}")
         del self.lines
         self.lines = []
-        peak: Peak
         for segment in self.segments:
             segment.draw()
             # segment.line, = self._ax.plot(segment.df[xaxis], segment.df[yaxis], color=segment.color, lw=segment.lw)
@@ -84,8 +154,7 @@ class Plotter:
             segment.line.set_pickradius(5)
             self.lines.append(segment.line)
         self._ax.grid(visible=self.parent.checkbox_grid.checkState())
-        if self.pickedSegment != None:
-            self.on_pick_segment(self.segments[self.pickedSegment].line)
+        self.pickSegment(self.pickedSegment)
         self.canvas.draw()
     
     def move_selector(self, x):
@@ -118,7 +187,9 @@ class Plotter:
         line: Line2D = event.artist
         self.picked = True
         if self.pickMode == 0:
-            self.on_pick_segment(line)
+            index = self.lines.index(line)
+            self.parent.list_segments.setCurrentItem(self.parent.list_segments.item(index))
+            self.pickSegment(index)
         elif self.pickMode == 1:
             self.on_pick_selector(line)
 
@@ -129,18 +200,15 @@ class Plotter:
         self.selectedSelector_limit_x1 = self.lines[self.pickedSegment].get_xdata()[0]
         self.selectedSelector_limit_x2 = self.lines[self.pickedSegment].get_xdata()[-1]
 
-    def on_pick_segment(self, line):
-        # устанавливаем цвета всех линий, которые были ранее
-        for index, segment in enumerate(self.segments):
-            segment.line.set_color(self.segments_color[index])
-            segment.line.set_linewidth(self.segments_lw[index])
-        # устанавливаем цвет выбранной линии
-        line.set_color('black')
-        line.set_linewidth(2)
-        self.pickedSegment = self.lines.index(line)
-        # self.parent.statusBar.showMessage(f'* выбрана линия с индексом {self.selectedSegment}')
-        print(f'* выбрана линия с индексом {self.pickedSegment}')
+    def pickSegment(self, index):
+        self.pickedSegment = index
+        if index is None:
+            return
+        for segment in self.segments:
+            segment.setPickEffect(False)
+        self.segments[index].setPickEffect(True)
         self.canvas.draw()
+        print(f'* выбрана линия с индексом {index}')
 
     def rememberLinesProperties(self):
         print("* запоминаем исходные свойства линий")
@@ -156,7 +224,8 @@ class Plotter:
     def segmentVisible(self, index, visible):
         print(f"* меняем видиимость сегмента {index}")
         # print(self.segments)
-        self.segments[index].line.set_visible(visible)
+        segment = self.segments[index]
+        segment.setVisible(visible)
 
     def clear(self):
         print("* очищаем график")
@@ -210,48 +279,8 @@ class Plotter:
         for line in self.lines:
             line.set_picker(True)
             line.set_pickradius(5)
-        self.segments[self.pickedSegment].add_peak(
+        self.segments[self.pickedSegment].addPeak(
             self.parent.spinbox_T1.value(),
             self.parent.spinbox_T2.value()
             )
         self.canvas.draw()
-
-class Peak:
-    def __init__(self, segment: Segment, t1, t2) -> None:
-        self.segment = segment
-        xdata = self.segment.df['Time'].to_list()
-        ydata = self.segment.df['DTA'].to_list()
-        # print(type(xdata))
-        self.i1 = find_nearest(xdata, t1)
-        self.i2 = find_nearest(xdata, t2)
-        self.update_xdata_to_draw()
-        baseline, self.baseline_expr = make_peakbaseline(
-            baselinetype=0,
-            i1=self.i1, i2=self.i2,
-            xdata=xdata,
-            ydata=ydata
-        )
-        self.curve_ydata = ydata[self.i1:self.i2]
-        self.baseline_ydata = list(reversed(baseline))
-        self.draw()
-
-    def update_xdata_to_draw(self):
-        header = self.segment.plotter.headers[self.segment.plotter.parent.combobox_xaxis.currentIndex()]
-        self.curve_xdata = self.segment.df[header][self.i1:self.i2].to_list()
-        self.baseline_xdata = list(reversed(self.curve_xdata))
-
-    def draw(self):
-        xaxis_header = self.segment.plotter.headers[self.segment.plotter.parent.combobox_xaxis.currentIndex()]
-        yaxis_header = self.segment.plotter.headers[self.segment.plotter.parent.combobox_yaxis.currentIndex()]
-        if yaxis_header == "DTA" and ((xaxis_header == "Time") or (xaxis_header == "Temp.")):
-            print("* отрисовка пика")
-            xdata = self.curve_xdata + self.baseline_xdata
-            ydata = self.curve_ydata + self.baseline_ydata
-            # print(xdata[0], ydata[0])
-            self.segment.plotter._ax.fill(
-                    xdata,
-                    ydata,
-                    hatch = '//',
-                    edgecolor=self.segment.color, facecolor='none',
-                    lw=1
-                )
