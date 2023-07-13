@@ -5,6 +5,15 @@ from libn2f import STAFile
 
 Ui_MainWindow, QMainWindow = uic.loadUiType('assets/MainWindow.ui')
 
+def warning_message(message):
+    print(f'* Предупреждение. {message}')
+    error_dialog = QtWidgets.QMessageBox()
+    error_dialog.setIcon(QtWidgets.QMessageBox.Warning)
+    # error_dialog.setText("Произошла ошибка!")
+    error_dialog.setInformativeText(message)
+    error_dialog.setWindowTitle("Предупреждение")
+    error_dialog.exec_()
+
 class MainWindow(QMainWindow, Ui_MainWindow):
     btn_peaktool : QtWidgets.QPushButton
     btn_ok : QtWidgets.QPushButton
@@ -35,8 +44,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.action_close = self.findChild(QtWidgets.QAction, 'action_close')
         self.action_close.triggered.connect(self.on_click_close)
         
-        # self.btn_peaktool.clicked.connect(self.on_click_peaktool_start)
-        # self.btn_ok.clicked.connect(self.on_click_peaktool_done)
+        self.btn_peaktool.clicked.connect(self.on_click_peaktool_start)
+        self.btn_ok.clicked.connect(self.on_click_peaktool_done)
         self.checkbox_grid.stateChanged.connect(self.on_checkbox_grid_changed)
         self.combobox_xaxis.currentIndexChanged.connect(self.on_combo_box_changed)
         self.combobox_yaxis.currentIndexChanged.connect(self.on_combo_box_changed)
@@ -76,27 +85,38 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # print("Selected item:", current_text)
 
     def on_click_peaktool_done(self):
-        print("* инструмент выделения пика применен")
-        # TODO
         self.btn_peaktool.setEnabled(True)
         self.btn_ok.setEnabled(False)
         self.spinbox_T1.setEnabled(False)
         self.spinbox_T2.setEnabled(False)
         self.plotter.peaktool_done()
+        print("* инструмент выделения пика применен")
         # self.plotter.selectedSegment = None
 
     def on_click_peaktool_start(self):
-        # TODO
-        print("* инструмент выделения пика запущен")
-        if self.plotter.selectedSegment != None:
+        if self.peaktool_chech_is_valid():
+            print("* инструмент выделения пика запущен")
             self.btn_peaktool.setEnabled(False)
             self.btn_ok.setEnabled(True)
             self.spinbox_T1.setEnabled(True)
             self.spinbox_T2.setEnabled(True)
             self.plotter.peaktool_start()
-        else:
-            print("* но сегмент не выбран")
 
+    def peaktool_chech_is_valid(self):
+        if self.plotter.pickedSegment == None:
+            warning_message("Cегмент не выбран.")
+            return False
+        if self.combobox_yaxis.currentText() != 'DTA':
+            warning_message('Неправильно выбрана ось ординат! Должна быть DTA.')
+            return False
+        if self.combobox_xaxis.currentText() == 'Time':
+            pass
+        elif self.combobox_xaxis.currentText() == 'Temp.':
+            pass
+        else:
+            warning_message('Неправильно выбрана ось абцисс! Должна быть Time или Temp.')
+            return False
+        return True
     # обработчик закрытия измерения
     def on_click_close(self):
         print("* нажата кнопка закрытия измерения")
@@ -122,7 +142,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             t1 = round(df["Temp."].values[0])
             t2 = round(df["Temp."].values[-1])
             # добавляем сегмент к плоттеру
-            self.plotter.addSegment(df)
+            self.plotter.addSegment(df, index)
             # добавляем сегмент в список интерфейса
             self.items.append(QtWidgets.QListWidgetItem(f'{t1} - {t2}', self.list_segments))
             self.items[index].setFlags(self.items[index].flags() | QtCore.Qt.ItemIsUserCheckable)
@@ -134,7 +154,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.plotter.units = stafile.units
         del stafile
         # self.measurement_is_opened = True
-
     # обработчик открытия измерения
     def on_click_open(self):
         print("* нажата кнопка открытия измерения")
@@ -143,6 +162,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.action_close.setEnabled(True)
         options = QtWidgets.QFileDialog.Options()
         file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', '', 'All Files (*);;Text Files (*.txt)', options=options)
+        print(f"* открыт файл {file_name}")
         # создаем сегменты и добавляем их в список
         self.add_segments(file_name)
         # добавляем доступные параметры в комбобоксы

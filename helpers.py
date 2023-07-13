@@ -19,6 +19,8 @@ def find_nearest(array, value):
 
 def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
     baseline_y = []
+    x = sympy.Symbol('x')
+    # t, x = sympy.symbols('t x')
     if baselinetype == LINEAR_TYPE:
         print("* making linear baseline")
         x1 = xdata[i1]
@@ -27,7 +29,6 @@ def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
         y2 = ydata[i2]
         slope = (y2 - y1) / (x2 - x1)
         intercept = y1 - x1 * slope
-        x = sympy.Symbol('x')
         y_expr = intercept + slope * x
     elif baselinetype == BEZIER_TYPE:
         print("* making bezier baseline")
@@ -48,31 +49,26 @@ def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
         x2 = (a3 - a1) / (b1 - b3)
         y2 = a1 + b1 * x2
 
-        # print(x1, x2, x3, y1, y2, y3)
+        # fx = ((1 - t) ** 2) * x1 + 2 * (1 - t) * t * x2 + (t ** 2) * x3
+        # y = ((1 - t) ** 2) * y1 + 2 * (1 - t) * t * y2 + (t ** 2) * y3
 
-        baseline_y = []
-        tdata = []
-        t, x = sympy.symbols('t x')
-        fx = ((1 - t) ** 2) * x1 + 2 * (1 - t) * t * x2 + (t ** 2) * x3
-        y = ((1 - t) ** 2) * y1 + 2 * (1 - t) * t * y2 + (t ** 2) * y3
-
-        poly = sympy.Poly(fx, t)
-        # print(poly)
-        coeffs = poly.coeffs()
-        a = coeffs[0]
-        b = coeffs[1]
-        c = coeffs[2] - x
+        # poly = sympy.Poly(fx, t)
+        # coeffs = poly.coeffs()
+        # a = coeffs[0]
+        # b = coeffs[1]
+        # c = coeffs[2] - x
+        a = x1 - 2 * x2 + x3
+        b = 2 * (x2 -x1)
+        c = x1 - x
         D = (b ** 2) - 4 * a * c
 
         t_expr = (-b + (D ** (1 / 2))) / (2 * a)
-        y_expr = y.subs(t, t_expr)
+        y_expr = ((1 - t_expr) ** 2) * y1 + 2 * (1 - t_expr) * t_expr * y2 + (t_expr ** 2) * y3
     else:
         print('\n* ERROR: none/wrong baselinetype provided\n')
         return
     print("* baseline expression: " + str(y_expr))
-    for item in xdata[i1:i2]:
-        ya = float(
-            y_expr.subs(x, item)
-        )
-        baseline_y.append(ya)
+    f = sympy.lambdify(x, y_expr, 'numpy')
+    xdata = np.asarray(xdata)
+    baseline_y = f(xdata[i1:i2])
     return np.array(baseline_y, dtype=float), y_expr
