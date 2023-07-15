@@ -2,6 +2,8 @@ import numpy as np
 import itertools
 import sympy
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.lines import Line2D
 
 LINEAR_TYPE = 0
 BEZIER_TYPE = 1
@@ -16,6 +18,11 @@ def find_nearest(array, value):
     idx = (np.abs(array - value)).argmin()
     return idx
 
+def derivative(xdata, ydata):
+    # print('* считаем производную')
+    return np.insert(
+        np.diff(ydata) / np.diff(xdata), 0, 0, axis=0
+    )
 
 def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
     baseline_y = []

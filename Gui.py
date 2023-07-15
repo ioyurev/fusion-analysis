@@ -17,11 +17,13 @@ def warning_message(message):
 class MainWindow(QMainWindow, Ui_MainWindow):
     btn_peaktool : QtWidgets.QPushButton
     btn_ok : QtWidgets.QPushButton
+    btn_cancel : QtWidgets.QPushButton
     spinbox_T1 : QtWidgets.QSpinBox
     spinbox_T2 : QtWidgets.QSpinBox
     combobox_xaxis: QtWidgets.QComboBox
     combobox_yaxis: QtWidgets.QComboBox
     checkbox_grid: QtWidgets.QCheckBox
+    # checkox_derivative: QtWidgets.QCheckBox
     action_open: QtWidgets.QAction
     action_close: QtWidgets.QAction
     list_segments : QtWidgets.QListWidget
@@ -46,10 +48,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.action_close.triggered.connect(self.on_click_close)
         
         self.btn_peaktool.clicked.connect(self.on_click_peaktool_start)
-        self.btn_ok.clicked.connect(self.on_click_peaktool_done)
+        self.btn_ok.clicked.connect(lambda: self.on_click_peaktool_done(apply=True))
+        self.btn_cancel.clicked.connect(lambda: self.on_click_peaktool_done(apply=False))
         self.checkbox_grid.stateChanged.connect(self.on_checkbox_grid_changed)
-        self.combobox_xaxis.currentIndexChanged.connect(self.on_combo_box_changed)
-        self.combobox_yaxis.currentIndexChanged.connect(self.on_combo_box_changed)
+        # self.checkox_derivative.stateChanged.connect(self.on_checkbox_derivative_changed)
+        self.combobox_xaxis.currentIndexChanged.connect(self.on_combobox_changed)
+        self.combobox_yaxis.currentIndexChanged.connect(self.on_combobox_changed)
 
         # стили CSS!
         # with open('toolbar.css') as f:
@@ -71,6 +75,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     #         print("очистка")
     #         self.list_segments.clearSelection()
 
+    def toolsSetEnabled(self, enabled):
+        self.btn_peaktool.setEnabled(enabled)
+        self.combobox_xaxis.setEnabled(enabled)
+        self.combobox_yaxis.setEnabled(enabled)
+        self.checkbox_grid.setEnabled(enabled)
+        # self.checkox_derivative.setEnabled(enabled)
+
     def on_item_selection_changed(self):
         selected_items = self.list_segments.selectedItems()
         if len(selected_items) == 1:
@@ -83,39 +94,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_checkbox_grid_changed(self, state):
         self.plotter.gridSetVisible(state)
 
-    def on_combo_box_changed(self, index):
+    # def on_checkbox_derivative_changed(self, state):
+    #     self.plotter.derivativeSetVisible(state)
+
+    def on_combobox_changed(self, index):
         if self.comboboxes_is_set:
-            items_check_state = []
+            self.plotter.updateAxes()
+            arrb = []
             for i in range(self.list_segments.count()):
-                items_check_state.append(self.list_segments.item(i).checkState())
-            self.plotter.replot(
-                self.combobox_xaxis.currentText(),
-                self.combobox_yaxis.currentText(),
-            )
-            self.recheck_items(items_check_state)
+                arrb.append(self.list_segments.item(i).checkState())
+            self.plotter.segmentsVisible(arrb)
 
-    def recheck_items(self, items_check_state):
-        for i, check in enumerate(items_check_state):
-            self.plotter.segmentVisible(i, check)
-        self.plotter.canvas.draw()
-
-        # current_text = self.combo_box.currentText()
-        # print("Selected item:", current_text)
-
-    def on_click_peaktool_done(self):
+    def on_click_peaktool_done(self, apply: bool):
         self.btn_peaktool.setEnabled(True)
         self.btn_ok.setEnabled(False)
+        self.btn_cancel.setEnabled(False)
         self.spinbox_T1.setEnabled(False)
         self.spinbox_T2.setEnabled(False)
-        self.plotter.peaktool_done()
+        self.plotter.peaktool_done(apply=apply)
         print("* инструмент выделения пика применен")
-        # self.plotter.selectedSegment = None
 
     def on_click_peaktool_start(self):
         if self.peaktool_chech_is_valid():
             print("* инструмент выделения пика запущен")
             self.btn_peaktool.setEnabled(False)
             self.btn_ok.setEnabled(True)
+            self.btn_cancel.setEnabled(True)
             self.spinbox_T1.setEnabled(True)
             self.spinbox_T2.setEnabled(True)
             self.plotter.peaktool_start()
@@ -134,8 +138,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             warning_message('Неправильно выбрана ось абцисс!\nДолжна быть Time или Temp.')
             return False
         return True
-    # обработчик закрытия измерения
+    
     def on_click_close(self):
+        # обработчик закрытия измерения
         print("* нажата кнопка закрытия измерения")
         # переключаем кнопки
         self.action_open.setEnabled(True)
@@ -147,12 +152,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.plotter.clear()
         self.plotter.remove_segments()
         self.measurement_is_opened = False
-        self.btn_peaktool.setEnabled(False)
-        self.combobox_xaxis.setEnabled(False)
-        self.combobox_yaxis.setEnabled(False)
-        self.checkbox_grid.setEnabled(False)
+        self.toolsSetEnabled(False)
 
-    def add_segments(self, filepath):
+    def addSegments(self, filepath):
         stafile = STAFile(filepath)
         for index, df in enumerate(stafile.segments):
             # пределы сегмента
@@ -168,51 +170,49 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.items[index].setIcon(QtGui.QIcon('assets/icon_heat.png'))
             else:
                 self.items[index].setIcon(QtGui.QIcon('assets/icon_cool.png'))
-        self.plotter.units = stafile.units
+        # self.plotter.units = stafile.units
         del stafile
-        # self.measurement_is_opened = True
-    # обработчик открытия измерения
+        
     def on_click_open(self):
+        # обработчик открытия измерения
         print("* нажата кнопка открытия измерения")
+        options = QtWidgets.QFileDialog.Options()
+        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', '', 'All Files (*);;Text Files (*.txt)', options=options)
+        if file_name == '':
+            return
+        print(f"* открыт файл {file_name}")
         # переключаем кнопки
         self.action_open.setEnabled(False)
         self.action_close.setEnabled(True)
-        options = QtWidgets.QFileDialog.Options()
-        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', '', 'All Files (*);;Text Files (*.txt)', options=options)
-        print(f"* открыт файл {file_name}")
         # создаем сегменты и добавляем их в список
-        self.add_segments(file_name)
+        self.addSegments(file_name)
         # добавляем доступные параметры в комбобоксы
-        self.plotter.headers = self.plotter.segments[0].df.columns
-        for header in self.plotter.headers:
+        xaxes = ('Time', 'Temp.')
+        yaxes = list(self.plotter.segments[0].df.columns)
+        yaxes.remove('Time')
+        yaxes.remove('Temp.')
+
+        for header in xaxes:
             self.combobox_xaxis.addItem(header)
+        for header in yaxes:
             self.combobox_yaxis.addItem(header)
+
         self.combobox_xaxis.setCurrentText('Time')
         self.combobox_yaxis.setCurrentText('DTA')
         self.comboboxes_is_set = True
-        self.combobox_xaxis.setEnabled(True)
-        self.combobox_yaxis.setEnabled(True)
-        self.checkbox_grid.setEnabled(True)
-
+        self.toolsSetEnabled(True)
         # рисуем график
-        self.plotter.replot(
+        self.plotter.plot(
             self.combobox_xaxis.currentText(),
             self.combobox_yaxis.currentText(),
         )
-        
-        self.plotter.rememberLinesProperties()
         self.measurement_is_opened = True
-        self.btn_peaktool.setEnabled(True)
 
     def on_item_changed(self, item: QtWidgets.QListWidgetItem):
         if self.measurement_is_opened:
-            # print("* изменение состояния элемента списка")
-            # Обработчик изменения состояния флажка
             index = self.list_segments.row(item)
             state = item.checkState()
-            # print(self.plotter.segments)
             self.plotter.segmentVisible(index, state)
-            # self.plotter.lines[index].set_visible(state)
             self.plotter.canvas.draw()
 
 
