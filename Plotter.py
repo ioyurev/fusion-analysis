@@ -1,169 +1,119 @@
+from Segment import Segment, Line2D
 import matplotlib.pyplot as plt
-# from matplotlib.axes import Axes
-from matplotlib.patches import Polygon
-from matplotlib.lines import Line2D
+from matplotlib.axes import Axes
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,
     NavigationToolbar2QT as NavigationToolbar)
-from helpers import find_nearest, make_peakbaseline, np, get_next_color
-import pandas as pd
-import matplotlib.patheffects as path_effects
 
-PATH_EFFECT = [path_effects.Stroke(linewidth=4, foreground='black'), path_effects.Normal()]
-
-class Segment:
-    line: Line2D
-    index: int
-
-    def __init__(self, df: pd.DataFrame, plotter, index) -> None:
-        self.index = index
-        self.plotter = plotter
-        self.df = df    
-        self.color = get_next_color()
-        self.lw = 1.5
-        self.peaks = []
-    
-    def setVisible(self, visible):
-        self.line.set_visible(visible)
-        self.line.set_picker(visible)
-        if visible:
-            self.line.set_pickradius(5)
-        for peak in self.peaks:
-            peak.setVisible(visible)
-
-    def addPeak(self, t1, t2):
-        print("* добавляем пик")
-        self.peaks.append(Peak(self, t1, t2))
-        if self.index == self.plotter.pickedSegment:
-            self.peaks[-1].setPickEffect(True)
-    
-    def setPickEffect(self, bool):
-        if bool:
-            self.line.set_path_effects(PATH_EFFECT)
-        else:
-            self.line.set_path_effects(None)
-        for peak in self.peaks:
-            peak.setPickEffect(bool)
-
-    def draw(self):
-        print("* отрисовка сегмента")
-        xaxis = self.plotter.headers[self.plotter.parent.combobox_xaxis.currentIndex()]
-        yaxis = self.plotter.headers[self.plotter.parent.combobox_yaxis.currentIndex()]
-        self.line, = self.plotter._ax.plot(self.df[xaxis], self.df[yaxis], color=self.color, lw=self.lw)
-        # if len(self.peaks) > 0:
-        peak: Peak
-        for peak in self.peaks:
-            peak.updateXdata()
-            peak.draw()
-
-class Peak:
-    polygon: Polygon
-
-    def __init__(self, segment: Segment, t1, t2) -> None:
-        self.segment = segment
-        xdata = self.segment.df['Time'].to_list()
-        ydata = self.segment.df['DTA'].to_list()
-        # print(type(xdata))
-        self.i1 = find_nearest(xdata, t1)
-        self.i2 = find_nearest(xdata, t2)
-        self.updateXdata()
-        baseline, self.baseline_expr = make_peakbaseline(
-            baselinetype=0,
-            i1=self.i1, i2=self.i2,
-            xdata=xdata,
-            ydata=ydata
-        )
-        self.curve_ydata = ydata[self.i1:self.i2]
-        self.baseline_ydata = list(reversed(baseline))
-        self.draw()
-
-    def setVisible(self, visible):
-        self.polygon.set(visible=visible)
-
-    def setPickEffect(self, bool):
-        if bool:
-            self.polygon.set_path_effects(PATH_EFFECT)
-        else:
-            self.polygon.set_path_effects(None)
-
-    def updateXdata(self):
-        header = self.segment.plotter.headers[self.segment.plotter.parent.combobox_xaxis.currentIndex()]
-        self.curve_xdata = self.segment.df[header][self.i1:self.i2].to_list()
-        self.baseline_xdata = list(reversed(self.curve_xdata))
-
-    def draw(self):
-        xaxis_header = self.segment.plotter.headers[self.segment.plotter.parent.combobox_xaxis.currentIndex()]
-        yaxis_header = self.segment.plotter.headers[self.segment.plotter.parent.combobox_yaxis.currentIndex()]
-        if yaxis_header == "DTA" and (xaxis_header in ("Time", "Temp.")):
-            print("* отрисовка пика")
-            xdata = self.curve_xdata + self.baseline_xdata
-            ydata = self.curve_ydata + self.baseline_ydata
-            # print(xdata[0], ydata[0])
-            self.polygon, = self.segment.plotter._ax.fill(
-                    xdata,
-                    ydata,
-                    hatch = '//',
-                    edgecolor=self.segment.color, facecolor='none',
-                    lw=1
-                )
 
 class Plotter:
-    headers: list[str] = None
-    units: list[str] = None
+    # headers: list[str] = None
+    # units: list[str] = None
     pickedSegment: int = None
-    selectedSelector: Line2D = None
-    selectedSelector_limit_x1: float
-    selectedSelector_limit_x2: float
+    pickedSelector: Line2D = None
+    pickedSelector_limit_x1: float
+    pickedSelector_limit_x2: float
 
     def __init__(self, parent) -> None:
         print("* инициализация плоттера")
         self.parent = parent
-        self._fig = plt.figure()
-        self._fig.tight_layout()
-        self._ax = self._fig.gca()
-        self.canvas = FigureCanvas(self._fig)
+        self.fig = plt.figure()
+        # self.fig.tight_layout()
+        gs = self.fig.add_gridspec(2, hspace=0, height_ratios=[3, 1])
+        # self.ax, self.ax_ddta = self.fig.subplots(2, sharex=True, height_ratios=[3, 1])
+        self.ax, self.ax_ddta = gs.subplots(sharex=True)
+        self.ax: Axes
+        self.ax_ddta: Axes
+        self.ax_ddta.autoscale(enable=True, axis='y', tight=True)
+        # self.ax_ddta = self.fig.gca()
+        # self.ax = self.ax_ddta.twinx()
+        self.canvas = FigureCanvas(self.fig)
         self.canvas.mpl_connect('pick_event', self.on_pick)
-        self.canvas.mpl_connect('button_release_event', self.on_unpick)
+        self.canvas.mpl_connect('button_release_event', self.on_button_release)
         self.canvas.mpl_connect('motion_notify_event', self.on_move)
+        # self.canvas.mpl_connect('scroll_event', self.on_zoom)
         self.toolbar = NavigationToolbar(self.canvas, None)
         self.segments: list[Segment] = []
-        self.lines: list[Line2D] = None
+        # self.lines: list[Line2D] = None
+        # self.lines_ddta: list[Line2D] = None
         self.segments_color = []
         self.segments_lw = []
         self.pickMode = 0 # 0 - сегменты, 1 - селекторы
         self.picked = False
 
+    def axesIsValidForPeaks(self):
+        return self.getCurrentYaxis() == "DTA" and (self.getCurrentXaxis() in ("Time", "Temp."))
+
+    def getCurrentXaxis(self) -> str:
+        return self.parent.combobox_xaxis.currentText()
+
+    def getCurrentYaxis(self) -> str:
+        return self.parent.combobox_yaxis.currentText()
+
+    def updateAxes(self):
+        xaxis = self.getCurrentXaxis()
+        yaxis = self.getCurrentYaxis()
+        self.ax_ddta.set_xlabel(f'{xaxis}')#/{self.units[xi]}')
+        self.ax.set_ylabel(f'{yaxis}')#/{self.units[yi]}')
+        xmax = []
+        xmin = []
+        ymax = []
+        ymin = []
+        peaks_visible = self.axesIsValidForPeaks()
+        for segment in self.segments:
+            segment.set_axes(xaxis=xaxis, yaxis=yaxis)
+            if peaks_visible:
+                segment.peaksSetData(xaxis=xaxis)
+            segment.set_visible_peaks(peaks_visible)
+            xmax.append(segment.xmax)
+            xmin.append(segment.xmin)
+            ymax.append(segment.ymax)
+            ymin.append(segment.ymin)
+        x_max = max(xmax)
+        x_min = min(xmin)
+        y_max = max(ymax)
+        y_min = min(ymin)
+        rx = x_max - x_min
+        ry = y_max - y_min
+        self.ax.set_xlim(xmin=x_min-rx*0.05, xmax=x_max+rx*0.05)
+        self.ax.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
+        self.canvas.draw()
+
     def remove_segments(self):
         del self.segments
         self.segments = []
 
-    def replot(self, xaxis: str, yaxis: str):
+    def plot(self, xaxis: str, yaxis: str):
         self.clear()
-        print('* перерисовываем график')
+        print('* рисуем график')
         print(f"* ставим оси {xaxis} и {yaxis}")
-        del self.lines
-        self.lines = []
         for segment in self.segments:
-            segment.draw()
-            # segment.line, = self._ax.plot(segment.df[xaxis], segment.df[yaxis], color=segment.color, lw=segment.lw)
-            xi = self.parent.combobox_xaxis.currentIndex()
-            yi = self.parent.combobox_yaxis.currentIndex()
-            self._ax.set_xlabel(f'{self.headers[xi]}/{self.units[xi]}')
-            self._ax.set_ylabel(f'{self.headers[yi]}/{self.units[yi]}')
-            segment.line.set_picker(True)
-            segment.line.set_pickradius(5)
-            self.lines.append(segment.line)
-        self._ax.grid(visible=self.parent.checkbox_grid.checkState())
+            segment.set_axes(xaxis=xaxis, yaxis=yaxis)
+            self.ax.add_line(segment)
+            self.ax_ddta.add_line(segment.dsegment)
+            # segment.line, = self.ax.plot(segment.df[xaxis], segment.df[yaxis], color=segment.color, lw=segment.lw)
+            # xi = self.parent.combobox_xaxis.currentIndex()
+            # yi = self.parent.combobox_yaxis.currentIndex()
+            self.ax_ddta.set_xlabel(f'{xaxis}')#/{self.units[xi]}')
+            self.ax.set_ylabel(f'{yaxis}')#/{self.units[yi]}')
+            self.ax_ddta.set_ylabel(f'dDTA/dT')
+            # segment.set_picker(True)
+            # segment.set_pickradius(5)
+            # self.lines.append(segment.line)
+            # self.lines_ddta.append(segment.line_ddta)
+        self.ax.autoscale_view()
+        self.ax_ddta.autoscale_view()
+        self.ax.grid(visible=self.parent.checkbox_grid.checkState())
         self.pickSegment(self.pickedSegment)
         self.canvas.draw()
     
     def move_selector(self, x):
-        if self.selectedSelector_limit_x1< x < self.selectedSelector_limit_x2:
-            self.selectedSelector.set_xdata(x)
-            self._fig.canvas.draw_idle()
-            if self.selectedSelector is self.selector1:
+        if self.pickedSelector_limit_x1< x < self.pickedSelector_limit_x2:
+            self.pickedSelector.set_xdata(x)
+            self.fig.canvas.draw_idle()
+            if self.pickedSelector is self.selector1:
                 self.parent.spinbox_T1.setValue(x)
-            elif self.selectedSelector is self.selector2:
+            elif self.pickedSelector is self.selector2:
                 self.parent.spinbox_T2.setValue(x)
 
     def on_move(self, event):
@@ -171,7 +121,7 @@ class Plotter:
             self.on_move_selector(event)
 
     def on_move_selector(self, event):
-        if self.selectedSelector != None:
+        if self.pickedSelector != None:
             if event.inaxes:
                 x = event.xdata
                 self.move_selector(x)
@@ -180,25 +130,27 @@ class Plotter:
         if self.picked:
             if self.pickMode == 1:
                 # print("* селектор отпущен")
-                self.selectedSelector = None
+                self.pickedSelector = None
             self.picked = False
 
+    def on_button_release(self, event):
+        self.on_unpick(event)
+
     def on_pick(self, event):
-        line: Line2D = event.artist
+        line: Segment = event.artist
         self.picked = True
         if self.pickMode == 0:
-            index = self.lines.index(line)
+            index = line.index
             self.parent.list_segments.setCurrentItem(self.parent.list_segments.item(index))
             self.pickSegment(index)
         elif self.pickMode == 1:
-            self.on_pick_selector(line)
+            self.pickSelector(line)
 
-    def on_pick_selector(self, line):
+    def pickSelector(self, line):
         # print("* выбран селектор")
-        self.selectedSelector = line
-        # print(line)
-        self.selectedSelector_limit_x1 = self.lines[self.pickedSegment].get_xdata()[0]
-        self.selectedSelector_limit_x2 = self.lines[self.pickedSegment].get_xdata()[-1]
+        self.pickedSelector = line
+        self.pickedSelector_limit_x1 = self.segments[self.pickedSegment].xmin
+        self.pickedSelector_limit_x2 = self.segments[self.pickedSegment].xmax
 
     def pickSegment(self, index):
         self.pickedSegment = index
@@ -208,79 +160,66 @@ class Plotter:
             segment.setPickEffect(False)
         self.segments[index].setPickEffect(True)
         self.canvas.draw()
-        print(f'* выбрана линия с индексом {index}')
-
-    def rememberLinesProperties(self):
-        print("* запоминаем исходные свойства линий")
-        for segment in self.segments:
-            self.segments_color.append(segment.color)
-            self.segments_lw.append(segment.lw)
-        # print(self.lines_lw)
+        # print(f'* выбрана линия с индексом {index}')
 
     def addSegment(self, df, index):
         print(f"* добавляем сегмент {len(self.segments)}")
-        self.segments.append(Segment(df, self, index))
+        self.segments.append(Segment(df=df, plotter=self, index=index))
+
+    def segmentsVisible(self, arrb: list[bool]):
+        segment: Segment
+        for i, segment in enumerate(self.segments):
+            segment.set_visible(arrb[i])
 
     def segmentVisible(self, index, visible):
-        print(f"* меняем видиимость сегмента {index}")
-        # print(self.segments)
-        segment = self.segments[index]
-        segment.setVisible(visible)
+        self.segments[index].set_visible(visible)
 
     def clear(self):
         print("* очищаем график")
-        self._ax.clear()
-        # del self.segments
-        # self.segments: list[Segment] = []
+        self.ax.clear()
+        self.ax_ddta.clear()
         self.canvas.draw()
 
     def gridSetVisible(self, visible):
         print("* меняем видимость сетки")
-        self._ax.grid(visible=visible)
+        self.ax.grid(visible=visible)
         self.canvas.draw()
 
     def peaktool_start(self):
         self.pickMode = 1
         segment = self.segments[self.pickedSegment]
-        xdata = segment.df[self.parent.combobox_xaxis.currentText()].to_list()
-        # ydata = segment.df[self.parent.combobox_yaxis.currentText()].to_list()
-        x0 = xdata[0]
-        x1 = xdata[-1]
+        x0 = segment.xmin
+        x1 = segment.xmax
         self.parent.spinbox_T1.setRange(x0, x1)
         self.parent.spinbox_T2.setRange(x0, x1)
-        # print("* ограничение селекторов")
-        # print(x0, x1)
         r = x1 - x0
         t1 = round(x0 + r/3, 1)
         t2 = round(x0 + 2*r/3, 1)
-        # print("* координаты селекторов")
-        self.selector1 = self._ax.axvline(t1, lw=0.5, color='black')
-        self.selector2 = self._ax.axvline(t2, lw=0.5, color='black')
-        # print("* созданые новые селекторы")
-        # print(self.selector1, self.selector2)
+        self.selector1 = self.ax.axvline(t1, lw=0.5, color='black')
+        self.selector2 = self.ax.axvline(t2, lw=0.5, color='black')
         self.selector1.set_antialiased(False)
         self.selector2.set_antialiased(False)
         self.parent.spinbox_T1.setValue(t1)
         self.parent.spinbox_T2.setValue(t2)
-        for line in self.lines:
-            line.set_picker(False)
+        for segment in self.segments:
+            segment.set_picker(False)
         self.selector1.set_picker(True)
         self.selector2.set_picker(True)
         self.selector1.set_pickradius(5)
         self.selector2.set_pickradius(5)
         self.canvas.draw()
 
-    def peaktool_done(self):
+    def peaktool_done(self, apply: bool):
         self.pickMode = 0
         self.selector1.remove()
         self.selector2.remove()
         del self.selector1
         del self.selector2
-        for line in self.lines:
-            line.set_picker(True)
-            line.set_pickradius(5)
-        self.segments[self.pickedSegment].addPeak(
-            self.parent.spinbox_T1.value(),
-            self.parent.spinbox_T2.value()
-            )
+        for segment in self.segments:
+            segment.set_visible(True)
+        if apply:
+            self.segments[self.pickedSegment].addPeak(
+                self.parent.spinbox_T1.value(),
+                self.parent.spinbox_T2.value()
+                )
         self.canvas.draw()
