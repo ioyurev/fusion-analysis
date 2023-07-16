@@ -1,6 +1,8 @@
-from helpers import find_nearest, make_peakbaseline, np, get_next_color, derivative, PolyArea, swap_values
+from helpers import find_nearest, make_peakbaseline, np, get_next_color, derivative, PolyArea, swap_values, sround
 import matplotlib.patheffects as path_effects
 from matplotlib.patches import Polygon
+# from matplotlib.offsetbox import DraggableAnnotation
+from matplotlib.text import Annotation
 from matplotlib.lines import Line2D
 import pandas as pd
 
@@ -81,7 +83,7 @@ class Segment(Line2D):
                 peak.setPickEffect(bool)
 
 class Peak(Polygon):
-    def __init__(self, segment, t1, t2, *args, **kwargs) -> None:
+    def __init__(self, segment: Segment, t1, t2, *args, **kwargs) -> None:
         self.segment = segment
         curve_xdata = self.segment.df['Time'].to_list()
         curve_ydata = self.segment.df['DTA'].to_list()
@@ -103,10 +105,20 @@ class Peak(Polygon):
         ydata = list(self.curve_ydata) + list(self.baseline_ydata)
         data = np.array([xdata, ydata]).transpose()
         super().__init__(data, hatch = '//', edgecolor=self.segment._color, facecolor='none', lw=1, *args, **kwargs)
-        self.set_data(self.segment.plotter.getCurrentXaxis())
-        # self.area = PathPatch(Path(self.get_xy())).get_path().area * 60
-        self.area = PolyArea(self.get_xy())
+        self.area = PolyArea(self.get_xy()) * 60
         print(f"* площадь пика {self.area}")
+        self.anni = len(self.baseline_xdata) // 2
+        xy = (self.baseline_xdata[self.anni], self.baseline_ydata[self.anni])
+        if self.baseline_ydata[self.anni] < self.curve_ydata[self.anni]:
+            up = -1
+        else:
+            up = 1
+        ylim = self.segment.plotter.ax.get_ylim()
+        ry = ylim[1] - ylim[0]
+        self.ann: Annotation = self.segment.plotter.ax.annotate(text=f'Площадь: {sround(self.area, 3)}', xy=xy, xytext=(0, self.baseline_ydata[self.anni]+up*ry*0.05),
+                                         arrowprops=dict(arrowstyle="-", color=self.segment._color), color=self.segment._color)
+        # self.ann_drag: DraggableAnnotation = self.ann.draggable()
+        self.set_data(self.segment.plotter.getCurrentXaxis())
 
     def updateXdata(self, xaxis):
         self.curve_xdata = self.segment.df[xaxis][self.i1:self.i2].to_list()
@@ -117,6 +129,8 @@ class Peak(Polygon):
         self.set_xy(list(zip(
             self.curve_xdata + self.baseline_xdata,
             self.curve_ydata + self.baseline_ydata)))
+        self.ann.set(x=self.baseline_xdata[self.anni])
+        self.ann.xy = (self.baseline_xdata[self.anni], self.ann.xy[1])
         self.segment.plotter.canvas.draw_idle()
 
     def setPickEffect(self, bool):

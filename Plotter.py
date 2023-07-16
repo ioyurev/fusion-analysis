@@ -1,4 +1,4 @@
-from Segment import Segment, Line2D
+from Segment import Segment, Line2D, Annotation
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.backends.backend_qt5agg import (
@@ -140,7 +140,9 @@ class Plotter:
         self.on_unpick(event)
 
     def on_pick(self, event):
-        line: Segment = event.artist
+        line = event.artist
+        if isinstance(line, Annotation):
+            return
         self.picked = True
         if self.pickMode == 0:
             index = line.index

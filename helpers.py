@@ -2,13 +2,15 @@ import numpy as np
 import itertools
 import sympy
 import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
-from matplotlib.lines import Line2D
+import math
 
 LINEAR_TYPE = 0
 BEZIER_TYPE = 1
 
 colors = itertools.cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
+
+def sround(x, n: int):
+    return round(x, -int(math.floor(math.log10(abs(x)))) + (n - 1))
 
 def swap_values(a, b):
     t = a
