@@ -27,6 +27,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     action_open: QtWidgets.QAction
     action_close: QtWidgets.QAction
     list_segments : QtWidgets.QListWidget
+    checkbox_autoscale: QtWidgets.QCheckBox
 
     def __init__(self):
         print('* загрузка интерфейса')
@@ -51,7 +52,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_ok.clicked.connect(lambda: self.on_click_peaktool_done(apply=True))
         self.btn_cancel.clicked.connect(lambda: self.on_click_peaktool_done(apply=False))
         self.checkbox_grid.stateChanged.connect(self.on_checkbox_grid_changed)
-        # self.checkox_derivative.stateChanged.connect(self.on_checkbox_derivative_changed)
+        self.checkbox_autoscale.stateChanged.connect(self.on_checkbox_autoscale_changed)
         self.combobox_xaxis.currentIndexChanged.connect(self.on_combobox_changed)
         self.combobox_yaxis.currentIndexChanged.connect(self.on_combobox_changed)
 
@@ -69,18 +70,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.comboboxes_is_set = False
         # QtWidgets.QStatusBar
     
-    # def on_item_clicked(self, event):
-    #     # print(item)
-    #     if not self.list_segments.indexAt(event.pos()).isValid():
-    #         print("очистка")
-    #         self.list_segments.clearSelection()
+    def on_checkbox_autoscale_changed(self, state):
+        if state:
+            self.plotter.autoscale()
 
     def toolsSetEnabled(self, enabled):
         self.btn_peaktool.setEnabled(enabled)
         self.combobox_xaxis.setEnabled(enabled)
         self.combobox_yaxis.setEnabled(enabled)
         self.checkbox_grid.setEnabled(enabled)
-        # self.checkox_derivative.setEnabled(enabled)
+        self.checkbox_autoscale.setEnabled(enabled)
 
     def on_item_selection_changed(self):
         selected_items = self.list_segments.selectedItems()
@@ -93,9 +92,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_checkbox_grid_changed(self, state):
         self.plotter.gridSetVisible(state)
-
-    # def on_checkbox_derivative_changed(self, state):
-    #     self.plotter.derivativeSetVisible(state)
 
     def on_combobox_changed(self, index):
         if self.comboboxes_is_set:
@@ -214,6 +210,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             state = item.checkState()
             self.plotter.segmentVisible(index, state)
             self.plotter.canvas.draw()
+            if self.checkbox_autoscale.checkState():
+                self.plotter.autoscale()
+                # self.plotter.ax_ddta.autoscale(True)
 
 
 if __name__ == '__main__':
