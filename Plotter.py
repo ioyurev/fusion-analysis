@@ -40,28 +40,32 @@ class Plotter:
         self.segments_lw = []
         self.pickMode = 0 # 0 - сегменты, 1 - селекторы
         self.picked = False
+        self.set_visible(False)
+
+    def set_visible(self, visible: bool):
+        self.ax.set_visible(visible)
+        self.ax_ddta.set_visible(visible)
+        self.canvas.draw()
 
     def autoscale(self):
-        xmax = []
-        xmin = []
-        ymax = []
-        ymin = []
-        for segment in self.segments:
-            if segment.get_visible():
-                xmax.append(segment.xmax)
-                xmin.append(segment.xmin)
-                ymax.append(segment.ymax)
-                ymin.append(segment.ymin)
-        if xmax:
-            x_max = max(xmax)
-            x_min = min(xmin)
-            y_max = max(ymax)
-            y_min = min(ymin)
-            rx = x_max - x_min
-            ry = y_max - y_min
-            self.ax.set_xlim(xmin=x_min-rx*0.05, xmax=x_max+rx*0.05)
-            self.ax.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
-            self.canvas.draw()
+        visible_segments = [segment for segment in self.segments if segment.get_visible()]
+        if not visible_segments:
+            return
+        
+        x_values = [segment.xmax for segment in visible_segments] + [segment.xmin for segment in visible_segments]
+        y_values = [segment.ymax for segment in visible_segments] + [segment.ymin for segment in visible_segments]
+        
+        x_max = max(x_values)
+        x_min = min(x_values)
+        y_max = max(y_values)
+        y_min = min(y_values)
+        
+        rx = x_max - x_min
+        ry = y_max - y_min
+        
+        self.ax.set_xlim(xmin=x_min-rx*0.05, xmax=x_max+rx*0.05)
+        self.ax.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
+        self.canvas.draw()
 
     def axesIsValidForPeaks(self):
         return self.getCurrentYaxis() == "DTA" and (self.getCurrentXaxis() in ("Time", "Temp."))
@@ -86,8 +90,7 @@ class Plotter:
         self.autoscale()
 
     def remove_segments(self):
-        del self.segments
-        self.segments = []
+        self.segments.clear()
 
     def plot(self, xaxis: str, yaxis: str):
         self.clear()
@@ -103,8 +106,7 @@ class Plotter:
             self.ax_ddta.set_xlabel(f'{xaxis}')#/{self.units[xi]}')
             self.ax.set_ylabel(f'{yaxis}')#/{self.units[yi]}')
             self.ax_ddta.set_ylabel(f'dDTA/dT')
-            # segment.set_picker(True)
-            # segment.set_pickradius(5)
+            # segment.set_picker(5)
             # self.lines.append(segment.line)
             # self.lines_ddta.append(segment.line_ddta)
         self.ax.autoscale_view()
@@ -211,22 +213,13 @@ class Plotter:
         self.selector2 = self.ax.axvline(t2, lw=0.5, color='black')
         self.selector1_ddta = self.ax_ddta.axvline(t1, lw=0.5, color='black')
         self.selector2_ddta = self.ax_ddta.axvline(t2, lw=0.5, color='black')
-        self.selector1.set_antialiased(False)
-        self.selector2.set_antialiased(False)
-        self.selector1_ddta.set_antialiased(False)
-        self.selector2_ddta.set_antialiased(False)
         self.parent.spinbox_T1.setValue(t1)
         self.parent.spinbox_T2.setValue(t2)
         for segment in self.segments:
             segment.set_picker(False)
-        self.selector1.set_picker(True)
-        self.selector2.set_picker(True)
-        self.selector1_ddta.set_picker(True)
-        self.selector2_ddta.set_picker(True)
-        self.selector1.set_pickradius(5)
-        self.selector2.set_pickradius(5)
-        self.selector1_ddta.set_pickradius(5)
-        self.selector2_ddta.set_pickradius(5)
+        for selector in [self.selector1, self.selector2, self.selector1_ddta, self.selector2_ddta]:
+            selector.set_picker(5)
+            selector.set_antialiased(False)
         self.canvas.draw()
 
     def peaktool_done(self, apply: bool):
@@ -236,7 +229,7 @@ class Plotter:
             del line
         for segment in self.segments:
             if segment.get_visible():
-                segment.make_pickable(True)
+                segment.set_picker(5)
         if apply:
             self.segments[self.pickedSegment].addPeak(
                 self.parent.spinbox_T1.value(),

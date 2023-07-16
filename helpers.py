@@ -13,10 +13,7 @@ def sround(x, n: int):
     return round(x, -int(math.floor(math.log10(abs(x)))) + (n - 1))
 
 def swap_values(a, b):
-    t = a
-    a = b
-    b = t
-    return a, b
+    return b, a
 
 def PolyArea(vertices):
     # print(vertices)
