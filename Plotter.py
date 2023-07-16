@@ -41,6 +41,28 @@ class Plotter:
         self.pickMode = 0 # 0 - сегменты, 1 - селекторы
         self.picked = False
 
+    def autoscale(self):
+        xmax = []
+        xmin = []
+        ymax = []
+        ymin = []
+        for segment in self.segments:
+            if segment.get_visible():
+                xmax.append(segment.xmax)
+                xmin.append(segment.xmin)
+                ymax.append(segment.ymax)
+                ymin.append(segment.ymin)
+        if xmax:
+            x_max = max(xmax)
+            x_min = min(xmin)
+            y_max = max(ymax)
+            y_min = min(ymin)
+            rx = x_max - x_min
+            ry = y_max - y_min
+            self.ax.set_xlim(xmin=x_min-rx*0.05, xmax=x_max+rx*0.05)
+            self.ax.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
+            self.canvas.draw()
+
     def axesIsValidForPeaks(self):
         return self.getCurrentYaxis() == "DTA" and (self.getCurrentXaxis() in ("Time", "Temp."))
 
@@ -55,29 +77,13 @@ class Plotter:
         yaxis = self.getCurrentYaxis()
         self.ax_ddta.set_xlabel(f'{xaxis}')#/{self.units[xi]}')
         self.ax.set_ylabel(f'{yaxis}')#/{self.units[yi]}')
-        xmax = []
-        xmin = []
-        ymax = []
-        ymin = []
         peaks_visible = self.axesIsValidForPeaks()
         for segment in self.segments:
             segment.set_axes(xaxis=xaxis, yaxis=yaxis)
             if peaks_visible:
                 segment.peaksSetData(xaxis=xaxis)
             segment.set_visible_peaks(peaks_visible)
-            xmax.append(segment.xmax)
-            xmin.append(segment.xmin)
-            ymax.append(segment.ymax)
-            ymin.append(segment.ymin)
-        x_max = max(xmax)
-        x_min = min(xmin)
-        y_max = max(ymax)
-        y_min = min(ymin)
-        rx = x_max - x_min
-        ry = y_max - y_min
-        self.ax.set_xlim(xmin=x_min-rx*0.05, xmax=x_max+rx*0.05)
-        self.ax.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
-        self.canvas.draw()
+        self.autoscale()
 
     def remove_segments(self):
         del self.segments

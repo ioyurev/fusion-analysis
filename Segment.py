@@ -1,7 +1,7 @@
 from helpers import find_nearest, make_peakbaseline, np, get_next_color, derivative, PolyArea, swap_values, sround
 import matplotlib.patheffects as path_effects
 from matplotlib.patches import Polygon
-# from matplotlib.offsetbox import DraggableAnnotation
+from matplotlib.offsetbox import DraggableAnnotation
 from matplotlib.text import Annotation
 from matplotlib.lines import Line2D
 import pandas as pd
@@ -117,12 +117,17 @@ class Peak(Polygon):
         ry = ylim[1] - ylim[0]
         self.ann: Annotation = self.segment.plotter.ax.annotate(text=f'Площадь: {sround(self.area, 3)}', xy=xy, xytext=(0, self.baseline_ydata[self.anni]+up*ry*0.05),
                                          arrowprops=dict(arrowstyle="-", color=self.segment._color), color=self.segment._color)
-        # self.ann_drag: DraggableAnnotation = self.ann.draggable()
+        self.ann_drag: DraggableAnnotation = self.ann.draggable()
         self.set_data(self.segment.plotter.getCurrentXaxis())
 
     def updateXdata(self, xaxis):
         self.curve_xdata = self.segment.df[xaxis][self.i1:self.i2].to_list()
         self.baseline_xdata = list(reversed(self.curve_xdata))
+
+    def set_visible(self, b: bool) -> None:
+        self.ann.set_visible(b)
+        # self.ann.set_picker(b)
+        return super().set_visible(b)
 
     def set_data(self, xaxis):
         self.updateXdata(xaxis)
