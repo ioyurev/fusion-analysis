@@ -42,12 +42,7 @@ class Segment(Line2D):
         super().set_visible(visible)
         self.dsegment.set_visible(visible)
         self.set_visible_peaks(visible)
-        self.make_pickable(visible)
-    
-    def make_pickable(self, bool):
-        self.set_picker(bool)
-        if bool:
-            self.set_pickradius(5)
+        self.set_picker(5 if visible else visible)
 
     def set_visible_peaks(self, visible: bool):
         peak: Peak
