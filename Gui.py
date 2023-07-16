@@ -95,7 +95,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         selected_items = self.list_segments.selectedItems()
         if len(selected_items) == 1 and selected_items[0].checkState():
             index = self.list_segments.row(selected_items[0])
-            self.plotter.pickSegment(index)
+            self.plotter.pickSegment(self.plotter.segments[index])
         else:
             self.plotter.pickSegment(None)
 

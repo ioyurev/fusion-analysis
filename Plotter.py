@@ -1,4 +1,4 @@
-from Segment import Segment, Line2D, Annotation
+from Segment import Segment, Line2D, Annotation, Peak
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.backends.backend_qt5agg import (
@@ -13,6 +13,7 @@ class Plotter:
     pickedSelector: Line2D = None
     pickedSelector_limit_x1: float
     pickedSelector_limit_x2: float
+    pickedPeak: Peak = None
 
     def __init__(self, parent) -> None:
         print("* инициализация плоттера")
@@ -112,7 +113,7 @@ class Plotter:
         self.ax.autoscale_view()
         self.ax_ddta.autoscale_view()
         self.ax.grid(visible=self.parent.checkbox_grid.checkState())
-        self.pickSegment(self.pickedSegment)
+        # self.pickSegment(self.pickedSegment)
         self.canvas.draw()
     
     def move_selector(self, x):
@@ -153,11 +154,23 @@ class Plotter:
             return
         self.picked = True
         if self.pickMode == 0:
-            index = line.index
-            self.parent.list_segments.setCurrentItem(self.parent.list_segments.item(index))
-            self.pickSegment(index)
+            if isinstance(line, Segment):
+                self.pickSegment(line)
+            elif isinstance(line, Peak):
+                self.pickPeak(line)
         elif self.pickMode == 1:
             self.pickSelector(line)
+
+    def pickPeak(self, line: Peak):
+        # print("* выбран пик")
+        self.pickedSegment = None
+        self.pickedSelector = None
+        self.pickedPeak = line
+        for segment in self.segments:
+            segment.setPickEffect(False)
+        line.setPickEffect(True)
+        self.parent.list_segments.clearSelection()
+        self.canvas.draw()
 
     def pickSelector(self, line):
         # print("* выбран селектор")
@@ -165,13 +178,19 @@ class Plotter:
         self.pickedSelector_limit_x1 = self.segments[self.pickedSegment].xmin
         self.pickedSelector_limit_x2 = self.segments[self.pickedSegment].xmax
 
-    def pickSegment(self, index):
-        self.pickedSegment = index
-        if index is None:
+    def pickSegment(self, line: Segment):
+        if line is None:
+            self.pickedSegment = None
             return
+        index = line.index
+        self.parent.list_segments.setCurrentItem(self.parent.list_segments.item(index))
+        self.pickedSegment = index
         for segment in self.segments:
             segment.setPickEffect(False)
         self.segments[index].setPickEffect(True)
+        if self.pickedPeak:
+            self.pickedPeak.setPickEffect(False)
+        self.pickedPeak = None
         self.canvas.draw()
         # print(f'* выбрана линия с индексом {index}')
 

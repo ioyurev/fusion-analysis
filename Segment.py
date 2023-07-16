@@ -65,17 +65,18 @@ class Segment(Line2D):
         print("* добавляем пик")
         self.peaks.append(Peak(segment=self, t1=t1, t2=t2))
         self.plotter.ax.add_patch(self.peaks[-1])
-        if self.index == self.plotter.pickedSegment:
-            self.peaks[-1].setPickEffect(True)
+        # if self.index == self.plotter.pickedSegment:
+        #     self.peaks[-1].setPickEffect(True)
     
     def setPickEffect(self, bool):
         if bool:
             self.set_path_effects(PATH_EFFECT)
         else:
             self.set_path_effects(None)
-        if self.peaks:
-            for peak in self.peaks:
-                peak.setPickEffect(bool)
+        # peak: Peak
+        # if self.peaks:
+        #     for peak in self.peaks:
+        #         peak.setPickEffect(bool)
 
 class Peak(Polygon):
     def __init__(self, segment: Segment, t1, t2, *args, **kwargs) -> None:
@@ -114,12 +115,14 @@ class Peak(Polygon):
                                          arrowprops=dict(arrowstyle="-", color=self.segment._color), color=self.segment._color)
         self.ann_drag: DraggableAnnotation = self.ann.draggable()
         self.set_data(self.segment.plotter.getCurrentXaxis())
+        self.set_picker(5)
 
     def updateXdata(self, xaxis):
         self.curve_xdata = self.segment.df[xaxis][self.i1:self.i2].to_list()
         self.baseline_xdata = list(reversed(self.curve_xdata))
 
     def set_visible(self, b: bool) -> None:
+        self.set_picker(5 if b else b)
         self.ann.set_visible(b)
         # self.ann.set_picker(b)
         return super().set_visible(b)
