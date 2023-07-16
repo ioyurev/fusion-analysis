@@ -10,6 +10,19 @@ BEZIER_TYPE = 1
 
 colors = itertools.cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
 
+def swap_values(a, b):
+    t = a
+    a = b
+    b = t
+    return a, b
+
+def PolyArea(vertices):
+    # print(vertices)
+    # x, y = np.split(vertices, 2, axis=1)
+    x, y = np.transpose(vertices)
+    # source: https://stackoverflow.com/a/30408825/11709825
+    return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
+
 def get_next_color():
     return next(colors)
 

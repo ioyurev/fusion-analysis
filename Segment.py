@@ -1,4 +1,4 @@
-from helpers import find_nearest, make_peakbaseline, np, get_next_color, derivative
+from helpers import find_nearest, make_peakbaseline, np, get_next_color, derivative, PolyArea, swap_values
 import matplotlib.patheffects as path_effects
 from matplotlib.patches import Polygon
 from matplotlib.lines import Line2D
@@ -40,21 +40,18 @@ class Segment(Line2D):
         super().set_visible(visible)
         self.dsegment.set_visible(visible)
         self.set_visible_peaks(visible)
-        self.set_picker(visible)
-        # self.line_ddta.set_visible(visible)
-        if visible:
-            self.set_pickradius(5)
+        self.make_pickable(visible)
     
+    def make_pickable(self, bool):
+        self.set_picker(bool)
+        if bool:
+            self.set_pickradius(5)
+
     def set_visible_peaks(self, visible: bool):
         peak: Peak
         if self.peaks:
             for peak in self.peaks:
                 peak.set_visible(visible)
-        #     if visible:
-        #         if not self.plotter.axesIsValidForPeaks():
-        #             visible = False
-        #         print(f'* меняем видимость пиков на {visible}')
-        
 
     def set_axes(self, xaxis: str, yaxis: str):
         self.xaxis = xaxis
@@ -79,16 +76,20 @@ class Segment(Line2D):
             self.set_path_effects(PATH_EFFECT)
         else:
             self.set_path_effects(None)
-        for peak in self.peaks:
-            peak.setPickEffect(bool)
+        if self.peaks:
+            for peak in self.peaks:
+                peak.setPickEffect(bool)
 
 class Peak(Polygon):
     def __init__(self, segment, t1, t2, *args, **kwargs) -> None:
         self.segment = segment
         curve_xdata = self.segment.df['Time'].to_list()
         curve_ydata = self.segment.df['DTA'].to_list()
-        self.i1 = find_nearest(curve_xdata, t1)
-        self.i2 = find_nearest(curve_xdata, t2)
+        segment_xdata = self.segment.get_xdata()
+        self.i1 = find_nearest(segment_xdata, t1)
+        self.i2 = find_nearest(segment_xdata, t2)
+        if self.i1 > self.i2:
+            self.i1, self.i2 = swap_values(self.i1, self.i2)
         self.updateXdata('Time')
         baseline, self.baseline_expr = make_peakbaseline(
             baselinetype=0,
@@ -98,12 +99,14 @@ class Peak(Polygon):
             )
         self.curve_ydata = curve_ydata[self.i1:self.i2]
         self.baseline_ydata = list(reversed(baseline))
-        super().__init__(
-            list(zip(
-                self.curve_xdata + self.baseline_xdata,
-                self.curve_ydata + self.baseline_ydata)
-                ),
-            hatch = '//', edgecolor=self.segment._color, facecolor='none', lw=1, *args, **kwargs)
+        xdata = list(self.curve_xdata) + list(self.baseline_xdata)
+        ydata = list(self.curve_ydata) + list(self.baseline_ydata)
+        data = np.array([xdata, ydata]).transpose()
+        super().__init__(data, hatch = '//', edgecolor=self.segment._color, facecolor='none', lw=1, *args, **kwargs)
+        self.set_data(self.segment.plotter.getCurrentXaxis())
+        # self.area = PathPatch(Path(self.get_xy())).get_path().area * 60
+        self.area = PolyArea(self.get_xy())
+        print(f"* площадь пика {self.area}")
 
     def updateXdata(self, xaxis):
         self.curve_xdata = self.segment.df[xaxis][self.i1:self.i2].to_list()

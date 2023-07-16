@@ -109,11 +109,14 @@ class Plotter:
     
     def move_selector(self, x):
         if self.pickedSelector_limit_x1< x < self.pickedSelector_limit_x2:
-            self.pickedSelector.set_xdata(x)
             self.fig.canvas.draw_idle()
-            if self.pickedSelector is self.selector1:
+            if self.pickedSelector in (self.selector1, self.selector1_ddta):
+                self.selector1.set_xdata(x)
+                self.selector1_ddta.set_xdata(x)
                 self.parent.spinbox_T1.setValue(x)
-            elif self.pickedSelector is self.selector2:
+            elif self.pickedSelector in (self.selector2, self.selector2_ddta):
+                self.selector2.set_xdata(x)
+                self.selector2_ddta.set_xdata(x)
                 self.parent.spinbox_T2.setValue(x)
 
     def on_move(self, event):
@@ -183,6 +186,7 @@ class Plotter:
     def gridSetVisible(self, visible):
         print("* меняем видимость сетки")
         self.ax.grid(visible=visible)
+        self.ax_ddta.grid(visible=visible)
         self.canvas.draw()
 
     def peaktool_start(self):
@@ -197,26 +201,34 @@ class Plotter:
         t2 = round(x0 + 2*r/3, 1)
         self.selector1 = self.ax.axvline(t1, lw=0.5, color='black')
         self.selector2 = self.ax.axvline(t2, lw=0.5, color='black')
+        self.selector1_ddta = self.ax_ddta.axvline(t1, lw=0.5, color='black')
+        self.selector2_ddta = self.ax_ddta.axvline(t2, lw=0.5, color='black')
         self.selector1.set_antialiased(False)
         self.selector2.set_antialiased(False)
+        self.selector1_ddta.set_antialiased(False)
+        self.selector2_ddta.set_antialiased(False)
         self.parent.spinbox_T1.setValue(t1)
         self.parent.spinbox_T2.setValue(t2)
         for segment in self.segments:
             segment.set_picker(False)
         self.selector1.set_picker(True)
         self.selector2.set_picker(True)
+        self.selector1_ddta.set_picker(True)
+        self.selector2_ddta.set_picker(True)
         self.selector1.set_pickradius(5)
         self.selector2.set_pickradius(5)
+        self.selector1_ddta.set_pickradius(5)
+        self.selector2_ddta.set_pickradius(5)
         self.canvas.draw()
 
     def peaktool_done(self, apply: bool):
         self.pickMode = 0
-        self.selector1.remove()
-        self.selector2.remove()
-        del self.selector1
-        del self.selector2
+        for line in (self.selector1, self.selector2, self.selector1_ddta, self.selector2_ddta):
+            line.remove()
+            del line
         for segment in self.segments:
-            segment.set_visible(True)
+            if segment.get_visible():
+                segment.make_pickable(True)
         if apply:
             self.segments[self.pickedSegment].addPeak(
                 self.parent.spinbox_T1.value(),
