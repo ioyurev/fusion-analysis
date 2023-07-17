@@ -114,9 +114,14 @@ class Peak(Polygon):
         ry = ylim[1] - ylim[0]
         self.ann: Annotation = self.segment.plotter.ax.annotate(text=f'Площадь: {str(self.area).replace(" / ", "/")}', xy=xy, xytext=(0, self.baseline_ydata[self.anni]+up*ry*0.05),
                                          arrowprops=dict(arrowstyle="-", color=self.segment._color), color=self.segment._color)
-        self.ann_drag: DraggableAnnotation = self.ann.draggable()
+        self.ann.draggable()
         self.set_data(self.segment.plotter.getCurrentXaxis())
         self.set_picker(5)
+
+    def remove(self):
+        self.segment.peaks.remove(self)
+        self.ann.remove()
+        super().remove()
 
     def updateXdata(self, xaxis):
         self.curve_xdata = self.segment.df[xaxis][self.i1:self.i2].to_list()

@@ -44,6 +44,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.action_close = self.findChild(QtWidgets.QAction, 'action_close')
         self.action_close.triggered.connect(self.on_click_close)
         
+        self.cm_peak = QtWidgets.QMenu(self)
+        self.cm_peak_remove = QtWidgets.QAction('Удалить')
+        self.cm_peak_remove.triggered.connect(self.plotter.removePeak)
+        self.cm_peak.addAction(self.cm_peak_remove)
+        # self.cm_peak.setTitle('Пик')
+
         self.btn_peaktool.clicked.connect(self.on_click_peaktool_start)
         self.btn_ok.clicked.connect(lambda: self.on_click_peaktool_done(apply=True))
         self.btn_cancel.clicked.connect(lambda: self.on_click_peaktool_done(apply=False))

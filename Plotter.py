@@ -4,7 +4,8 @@ from matplotlib.axes import Axes
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,
     NavigationToolbar2QT as NavigationToolbar)
-
+from matplotlib.backend_bases import MouseEvent, PickEvent
+from PyQt5 import QtCore
 
 class Plotter:
     # headers: list[str] = None
@@ -42,6 +43,9 @@ class Plotter:
         self.pickMode = 0 # 0 - сегменты, 1 - селекторы
         self.picked = False
         self.set_visible(False)
+
+    def getHeight(self):
+        return int(self.canvas.get_renderer().height)
 
     def set_xlabel(self, xaxis: str):
         self.ax_ddta.set_xlabel(f'{xaxis}, {self.get_units(xaxis)}')#, {self.segments[0].df[xaxis].units.to_compact()}')
@@ -135,7 +139,7 @@ class Plotter:
                 self.selector2_ddta.set_xdata(x)
                 self.parent.spinbox_T2.setValue(x)
 
-    def on_move(self, event):
+    def on_move(self, event: MouseEvent):
         if self.pickMode == 1:
             self.on_move_selector(event)
 
@@ -152,10 +156,10 @@ class Plotter:
                 self.pickedSelector = None
             self.picked = False
 
-    def on_button_release(self, event):
+    def on_button_release(self, event: MouseEvent):
         self.on_unpick(event)
 
-    def on_pick(self, event):
+    def on_pick(self, event: PickEvent):
         line = event.artist
         if isinstance(line, Annotation):
             return
@@ -163,10 +167,29 @@ class Plotter:
         if self.pickMode == 0:
             if isinstance(line, Segment):
                 self.pickSegment(line)
+                if event.mouseevent.button == 3:
+                    self.segmentContextMenu(event)
             elif isinstance(line, Peak):
                 self.pickPeak(line)
+                if event.mouseevent.button == 3:
+                    self.peakContextMenu(event)
         elif self.pickMode == 1:
             self.pickSelector(line)
+
+    def peakContextMenu(self, event: PickEvent):
+        peak = event.artist
+        self.parent.cm_peak.setTitle(f"Пик. {peak.area}")
+        point = QtCore.QPoint(event.mouseevent.x, self.getHeight()-event.mouseevent.y)
+        self.parent.cm_peak.popup(self.canvas.mapToGlobal(point))
+
+    def removePeak(self):
+        self.pickedPeak.remove()
+        self.pickedPeak = None
+        self.canvas.draw()
+
+    def segmentContextMenu(self, event: PickEvent):
+        # TODO: вызов контекстное меню сегмента
+        pass
 
     def pickPeak(self, line: Peak):
         # print("* выбран пик")
