@@ -8,7 +8,7 @@ from matplotlib.backends.backend_qt5agg import (
 
 class Plotter:
     # headers: list[str] = None
-    # units: list[str] = None
+    units: dict
     pickedSegment: int = None
     pickedSelector: Line2D = None
     pickedSelector_limit_x1: float
@@ -42,6 +42,19 @@ class Plotter:
         self.pickMode = 0 # 0 - сегменты, 1 - селекторы
         self.picked = False
         self.set_visible(False)
+
+    def set_xlabel(self, xaxis: str):
+        self.ax_ddta.set_xlabel(f'{xaxis}, {self.get_units(xaxis)}')#, {self.segments[0].df[xaxis].units.to_compact()}')
+
+    def set_ylabel(self, yaxis: str):
+        self.ax.set_ylabel(f'{yaxis}, {self.get_units(yaxis)}')#, {self.segments[0].df[yaxis].units.to_compact()}')
+
+    def get_units(self, axis: str):
+        unit = str(self.units[axis])
+        # убрать пробелы перед и после / в unit
+        if '/' in unit:
+            unit = unit.replace(' ', '')
+        return unit
 
     def set_visible(self, visible: bool):
         self.ax.set_visible(visible)
@@ -80,8 +93,8 @@ class Plotter:
     def updateAxes(self):
         xaxis = self.getCurrentXaxis()
         yaxis = self.getCurrentYaxis()
-        self.ax_ddta.set_xlabel(f'{xaxis}')#/{self.units[xi]}')
-        self.ax.set_ylabel(f'{yaxis}')#/{self.units[yi]}')
+        self.set_xlabel(xaxis)
+        self.set_ylabel(yaxis)
         peaks_visible = self.axesIsValidForPeaks()
         for segment in self.segments:
             segment.set_axes(xaxis=xaxis, yaxis=yaxis)
@@ -101,15 +114,9 @@ class Plotter:
             segment.set_axes(xaxis=xaxis, yaxis=yaxis)
             self.ax.add_line(segment)
             self.ax_ddta.add_line(segment.dsegment)
-            # segment.line, = self.ax.plot(segment.df[xaxis], segment.df[yaxis], color=segment.color, lw=segment.lw)
-            # xi = self.parent.combobox_xaxis.currentIndex()
-            # yi = self.parent.combobox_yaxis.currentIndex()
-            self.ax_ddta.set_xlabel(f'{xaxis}')#/{self.units[xi]}')
-            self.ax.set_ylabel(f'{yaxis}')#/{self.units[yi]}')
-            self.ax_ddta.set_ylabel(f'dDTA/dT')
-            # segment.set_picker(5)
-            # self.lines.append(segment.line)
-            # self.lines_ddta.append(segment.line_ddta)
+        self.set_xlabel(xaxis)
+        self.set_ylabel(yaxis)
+        self.ax_ddta.set_ylabel(f'dDTA/dT')
         self.ax.autoscale_view()
         self.ax_ddta.autoscale_view()
         self.ax.grid(visible=self.parent.checkbox_grid.checkState())

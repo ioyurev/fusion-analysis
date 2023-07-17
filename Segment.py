@@ -5,6 +5,7 @@ from matplotlib.offsetbox import DraggableAnnotation
 from matplotlib.text import Annotation
 from matplotlib.lines import Line2D
 import pandas as pd
+from libn2f import UREG
 
 PATH_EFFECT = [path_effects.Stroke(linewidth=4, foreground='black'), path_effects.Normal()]
 
@@ -101,7 +102,7 @@ class Peak(Polygon):
         ydata = list(self.curve_ydata) + list(self.baseline_ydata)
         data = np.array([xdata, ydata]).transpose()
         super().__init__(data, hatch = '//', edgecolor=self.segment._color, facecolor='none', lw=1, *args, **kwargs)
-        self.area = PolyArea(self.get_xy()) * 60
+        self.area = sround(PolyArea(self.get_xy()), 3)* 60 * UREG('J/g')
         print(f"* площадь пика {self.area}")
         self.anni = len(self.baseline_xdata) // 2
         xy = (self.baseline_xdata[self.anni], self.baseline_ydata[self.anni])
@@ -111,7 +112,7 @@ class Peak(Polygon):
             up = 1
         ylim = self.segment.plotter.ax.get_ylim()
         ry = ylim[1] - ylim[0]
-        self.ann: Annotation = self.segment.plotter.ax.annotate(text=f'Площадь: {sround(self.area, 3)}', xy=xy, xytext=(0, self.baseline_ydata[self.anni]+up*ry*0.05),
+        self.ann: Annotation = self.segment.plotter.ax.annotate(text=f'Площадь: {str(self.area).replace(" / ", "/")}', xy=xy, xytext=(0, self.baseline_ydata[self.anni]+up*ry*0.05),
                                          arrowprops=dict(arrowstyle="-", color=self.segment._color), color=self.segment._color)
         self.ann_drag: DraggableAnnotation = self.ann.draggable()
         self.set_data(self.segment.plotter.getCurrentXaxis())

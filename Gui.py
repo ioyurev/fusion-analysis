@@ -173,7 +173,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.items[index].setIcon(QtGui.QIcon('assets/icon_heat.png'))
             else:
                 self.items[index].setIcon(QtGui.QIcon('assets/icon_cool.png'))
-        # self.plotter.units = stafile.units
+        self.plotter.units = stafile.units
         del stafile
         
     def on_click_open(self):

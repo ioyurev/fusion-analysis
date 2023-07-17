@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
+import pint
 
+UREG = pint.UnitRegistry()
+UREG.default_format  = '~'
 
 def _lines_to_infodict(lines) -> dict:
     info = dict()
@@ -30,30 +33,31 @@ class STAFile:
         self.isMultiSegment = '-' in self.info['SEGMENT']
         self.segments = []
         for val in rawdf['Segment'].unique():
-            self.segments.append(rawdf[rawdf['Segment'] == val])
+            self.segments.append(rawdf[rawdf['Segment'] == val].drop(columns=['Segment']))
     
     def _lines_to_df(self, lines, sep, dec):
         self.headers: str = lines[0][2:-1].split(sep)
-        self.units = []
-        params = []
+        self.units = dict()
+        self.params = []
         col: str
+        # print(self.headers)
         for col in self.headers:
+            # print(col)
             if '/' in col:
                 param, unit = col.split('/', maxsplit=1)
-                params.append(param)
-                # if "(" in unit  and ")" in unit:
-                #     self.units.append(unit[1:-1])
-                # else:
-                self.units.append(unit)
+                self.params.append(param)
+                self.units[param] = UREG.parse_units(unit)
             else:
-                params.append(col)
-                self.units.append(None)
+                # print(param)
+                self.params.append(col)
+                self.units[col] = UREG.dimensionless
+        # print(self.units)
         values = []
         for line in lines[1:-1]:
             values.append(line.split(sep))
         np_values = np.array(values).transpose()
         df = pd.DataFrame()
-        for index, param in enumerate(params):
+        for index, param in enumerate(self.params):
             df[param] = pd.Series(np_values[index], dtype=float)
         return df
 
