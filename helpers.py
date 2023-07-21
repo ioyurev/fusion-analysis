@@ -9,6 +9,28 @@ BEZIER_TYPE = 1
 
 colors = itertools.cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
 
+def baseline_temp(data_temp, data_dta):
+    x = sympy.Symbol('x')
+    coeff = np.polyfit(data_temp, data_dta, 3)
+    temp_expr = coeff[0] * x**3 + coeff[1] * x**2 + coeff[2] * x + coeff[3]
+    return temp_expr
+
+def calc_peakonset(t1, t2, data_t: list, data_dta: list, data_ddta: list, expr_baseline):   
+    x = sympy.Symbol('x')
+    i1 = find_nearest(data_t, t1)
+    i2 = find_nearest(data_t, t2)
+    if i1 > i2:
+        i1, i2 = swap_values(i1, i2)
+    bt = max(data_ddta[i1:i2])
+    index = data_ddta.index(bt)
+    xt = data_t[index]
+    yt = data_dta[index]
+    at = yt - bt * xt
+    expr_tangent = at + bt * x
+    xi = float(sympy.nsolve(expr_tangent - expr_baseline, x, xt))
+    yi = float(expr_tangent.subs(x, xi))
+    return xi, yi, xt, yt
+
 def sround(x, n: int):
     return round(x, -int(math.floor(math.log10(abs(x)))) + (n - 1))
 
@@ -41,7 +63,7 @@ def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
     x = sympy.Symbol('x')
     # t, x = sympy.symbols('t x')
     if baselinetype == LINEAR_TYPE:
-        print("* making linear baseline")
+        print("* базовая линия линейная")
         x1 = xdata[i1]
         x2 = xdata[i2]
         y1 = ydata[i1]
@@ -50,7 +72,7 @@ def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
         intercept = y1 - x1 * slope
         y_expr = intercept + slope * x
     elif baselinetype == BEZIER_TYPE:
-        print("* making bezier baseline")
+        print("* базовая линия безье")
         x1prev = xdata[i1 - 1]
         x1 = xdata[i1]
         y1prev = ydata[i1 - 1]
@@ -68,26 +90,19 @@ def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
         x2 = (a3 - a1) / (b1 - b3)
         y2 = a1 + b1 * x2
 
-        # fx = ((1 - t) ** 2) * x1 + 2 * (1 - t) * t * x2 + (t ** 2) * x3
-        # y = ((1 - t) ** 2) * y1 + 2 * (1 - t) * t * y2 + (t ** 2) * y3
-
-        # poly = sympy.Poly(fx, t)
-        # coeffs = poly.coeffs()
-        # a = coeffs[0]
-        # b = coeffs[1]
-        # c = coeffs[2] - x
         a = x1 - 2 * x2 + x3
         b = 2 * (x2 -x1)
         c = x1 - x
-        D = (b ** 2) - 4 * a * c
+        d = (b ** 2) - 4 * a * c
 
-        t_expr = (-b + (D ** (1 / 2))) / (2 * a)
+        t_expr = (-b + (d ** (1 / 2))) / (2 * a)
         y_expr = ((1 - t_expr) ** 2) * y1 + 2 * (1 - t_expr) * t_expr * y2 + (t_expr ** 2) * y3
     else:
         print('\n* ERROR: none/wrong baselinetype provided\n')
         return
-    print("* baseline expression: " + str(y_expr))
+    print("* уравнение базовой линии: " + str(y_expr))
     f = sympy.lambdify(x, y_expr, 'numpy')
     xdata = np.asarray(xdata)
     baseline_y = f(xdata[i1:i2])
-    return np.array(baseline_y, dtype=float), y_expr
+    # print(type(y_expr))
+    return baseline_y, y_expr

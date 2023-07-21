@@ -1,29 +1,50 @@
 import sys
-from PyQt5 import uic, QtWidgets, QtCore, QtGui
+from PySide6 import QtWidgets, QtCore, QtGui, QtUiTools
 from Plotter import Plotter
 from libn2f import STAFile
 
-Ui_MainWindow, QMainWindow = uic.loadUiType('assets/MainWindow.ui')
+Ui_MainWindow, QMainWindow = QtUiTools.loadUiType('MainWindow.ui')
 
 def warning_message(message):
     print(f'* Предупреждение. {message}')
     QtWidgets.QMessageBox.warning(None, "Предупреждение", message)
 
+def layoutSetVisible(layout: QtWidgets.QLayout, visible: bool):
+    for i in range(layout.count()):
+        widget = layout.itemAt(i).widget()
+        if widget is not None:
+            widget.setVisible(visible)
+            widget.show() if visible else widget.hide()
+
+def layoutSetEnabled(layout: QtWidgets.QLayout, enabled: bool):
+    for i in range(layout.count()):
+        widget = layout.itemAt(i).widget()
+        if widget is not None:
+            widget.setEnabled(enabled)
+
+
 class MainWindow(QMainWindow, Ui_MainWindow):
     btn_peaktool : QtWidgets.QPushButton
-    btn_ok : QtWidgets.QPushButton
-    btn_cancel : QtWidgets.QPushButton
+    btn_peaktool_ok : QtWidgets.QPushButton
+    btn_peaktool_cancel : QtWidgets.QPushButton
     spinbox_T1 : QtWidgets.QSpinBox
     spinbox_T2 : QtWidgets.QSpinBox
     combobox_xaxis: QtWidgets.QComboBox
     combobox_yaxis: QtWidgets.QComboBox
     checkbox_grid: QtWidgets.QCheckBox
     # checkox_derivative: QtWidgets.QCheckBox
-    action_open: QtWidgets.QAction
-    action_close: QtWidgets.QAction
+    action_open: QtGui.QAction
+    action_close: QtGui.QAction
     list_segments : QtWidgets.QListWidget
     checkbox_autoscale: QtWidgets.QCheckBox
-    toolLayout: QtWidgets.QGridLayout
+    leftpanel: QtWidgets.QGridLayout
+    peaktoolLayout: QtWidgets.QGridLayout
+    onsettoolLayout: QtWidgets.QGridLayout
+    combobox_baselinetype: QtWidgets.QComboBox
+    btn_onsettool: QtWidgets.QPushButton
+    btn_endtool: QtWidgets.QPushButton
+    btn_onsettool_ok: QtWidgets.QPushButton
+    btn_onsettool_cancel: QtWidgets.QPushButton
 
     def __init__(self):
         print('* загрузка интерфейса')
@@ -39,27 +60,31 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.plotLayout.addWidget(self.plotter.canvas)
         self.plotLayout.addWidget(self.plotter.toolbar)
         # находим виджеты и добавляем им обработчики событий
-        self.action_open = self.findChild(QtWidgets.QAction, 'action_open')
+        self.action_open = self.findChild(QtGui.QAction, 'action_open')
         self.action_open.triggered.connect(self.on_click_open)
-        self.action_close = self.findChild(QtWidgets.QAction, 'action_close')
+        self.action_close = self.findChild(QtGui.QAction, 'action_close')
         self.action_close.triggered.connect(self.on_click_close)
         
         self.cm_peak = QtWidgets.QMenu(self)
-        self.cm_peak_remove = QtWidgets.QAction('Удалить')
+        self.cm_peak_remove = QtGui.QAction('Удалить')
         self.cm_peak_remove.triggered.connect(self.plotter.removePeak)
         self.cm_peak.addAction(self.cm_peak_remove)
         # self.cm_peak.setTitle('Пик')
 
         self.btn_peaktool.clicked.connect(self.on_click_peaktool_start)
-        self.btn_ok.clicked.connect(lambda: self.on_click_peaktool_done(apply=True))
-        self.btn_cancel.clicked.connect(lambda: self.on_click_peaktool_done(apply=False))
+        self.btn_peaktool_ok.clicked.connect(lambda: self.on_click_peaktool_done(apply=True))
+        self.btn_peaktool_cancel.clicked.connect(lambda: self.on_click_peaktool_done(apply=False))
+        self.btn_onsettool.clicked.connect(self.on_click_onsettool_start)
+        self.btn_onsettool_ok.clicked.connect(lambda: self.on_click_onsettool_done(apply=True))
+        self.btn_onsettool_cancel.clicked.connect(lambda: self.on_click_onsettool_done(apply=False))
         self.checkbox_grid.stateChanged.connect(self.on_checkbox_grid_changed)
         self.checkbox_autoscale.stateChanged.connect(self.on_checkbox_autoscale_changed)
         self.combobox_xaxis.currentIndexChanged.connect(self.on_combobox_changed)
         self.combobox_yaxis.currentIndexChanged.connect(self.on_combobox_changed)
         # self.spinbox_T1.valueChanged.connect(self.on_spinbox_T1_changed)
 
-        self.toolLayoutSetVisible(False)
+        layoutSetVisible(self.peaktoolLayout, False)
+        layoutSetVisible(self.onsettoolLayout, False)
 
         # стили CSS!
         # with open('toolbar.css') as f:
@@ -80,78 +105,94 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     #     if self.peaktool_initialized:
     #         self.plotter.move_selector(value)
 
-    def toolLayoutSetVisible(self, visible):
-        widgets = [self.toolLayout.itemAt(i).widget() for i in range(self.toolLayout.count())]
-        for widget in widgets:
-            if widget is not None:
-                widget.setVisible(visible)
+    def on_click_onsettool_start(self):
+        if self.onsettool_check_is_valid():
+            print("* инструмент нахождения начала пика запущен")
+            self.plotter.onsettool_start()
+            layoutSetVisible(self.onsettoolLayout, True)
+            layoutSetEnabled(self.leftpanel, False)
+            self.onsettools_initialized = True
+
+    def on_click_onsettool_done(self, apply: bool):
+        self.plotter.onsettool_done(apply=apply)
+        layoutSetVisible(self.onsettoolLayout, False)
+        layoutSetEnabled(self.leftpanel, True)
+        self.peaktool_initialized = False
 
     def on_checkbox_autoscale_changed(self, state):
-        if state:
+        if state == QtCore.Qt.Checked:
             self.plotter.autoscale()
-
-    def toolsSetEnabled(self, enabled):
-        self.btn_peaktool.setEnabled(enabled)
-        self.combobox_xaxis.setEnabled(enabled)
-        self.combobox_yaxis.setEnabled(enabled)
-        self.checkbox_grid.setEnabled(enabled)
-        self.checkbox_autoscale.setEnabled(enabled)
 
     def on_item_selection_changed(self):
         selected_items = self.list_segments.selectedItems()
         if len(selected_items) == 1 and selected_items[0].checkState():
             index = self.list_segments.row(selected_items[0])
+            self.on_pick_segment(True)
             self.plotter.pickSegment(self.plotter.segments[index])
         else:
             self.plotter.pickSegment(None)
+            self.on_pick_segment(False)
 
     def on_checkbox_grid_changed(self, state):
-        self.plotter.gridSetVisible(state)
+        if state == 2:
+            self.plotter.gridSetVisible(True)
+        elif state == 0:
+            self.plotter.gridSetVisible(False)
 
     def on_combobox_changed(self, index):
         if self.comboboxes_is_set:
             self.plotter.updateAxes()
-            arrb = [self.list_segments.item(i).checkState() for i in range(self.list_segments.count())]
+            arrb = [True if self.list_segments.item(i).checkState() == QtCore.Qt.Checked else False for i in range(self.list_segments.count())]
             self.plotter.segmentsVisible(arrb)
 
     def on_click_peaktool_done(self, apply: bool):
-        self.btn_peaktool.setEnabled(True)
-        self.btn_ok.setEnabled(False)
-        self.btn_cancel.setEnabled(False)
-        self.spinbox_T1.setEnabled(False)
-        self.spinbox_T2.setEnabled(False)
         self.plotter.peaktool_done(apply=apply)
-        self.toolLayoutSetVisible(False)
+        layoutSetVisible(self.peaktoolLayout, False)
+        layoutSetEnabled(self.leftpanel, True)
         self.peaktool_initialized = False
         print("* инструмент выделения пика применен")
 
     def on_click_peaktool_start(self):
-        if self.peaktool_chech_is_valid():
+        if self.peaktool_check_is_valid():
             print("* инструмент выделения пика запущен")
-            self.btn_peaktool.setEnabled(False)
-            self.btn_ok.setEnabled(True)
-            self.btn_cancel.setEnabled(True)
-            self.spinbox_T1.setEnabled(True)
-            self.spinbox_T2.setEnabled(True)
             self.plotter.peaktool_start()
-            self.toolLayoutSetVisible(True)
+            layoutSetVisible(self.peaktoolLayout, True)
+            layoutSetEnabled(self.leftpanel, False)
             self.peaktool_initialized = True
 
-    def peaktool_chech_is_valid(self):
+    def onsettool_check_is_valid(self):
+        if self.plotter.pickedPeak is None:
+            warning_message("Пик не выбран.")
+            return False
+        if self.chech_xaxis() and self.check_yaxis():
+            pass
+        else:
+            return False
+        return True
+
+    def peaktool_check_is_valid(self):
         if self.plotter.pickedSegment is None:
             warning_message("Cегмент не выбран.")
             return False
-        if self.combobox_yaxis.currentText() != 'DTA':
-            warning_message('Неправильно выбрана ось ординат!\nДолжна быть DTA.')
-            return False
-        xaxis = self.combobox_xaxis.currentText()
-        if xaxis in ('Time', 'Temp.'):
+        if self.chech_xaxis() and self.check_yaxis():
             pass
         else:
-            warning_message('Неправильно выбрана ось абцисс!\nДолжна быть Time или Temp.')
             return False
         return True
     
+    def check_yaxis(self):
+        if self.combobox_yaxis.currentText() != 'DTA':
+            warning_message('Неправильно выбрана ось ординат!\nДолжна быть DTA.')
+            return False
+        return True
+
+    def chech_xaxis(self):
+        if self.combobox_xaxis.currentText() in ('Time', 'Temp.'):
+            return True
+        else:
+            warning_message('Неправильно выбрана ось абцисс!\nДолжна быть Time или Temp.')
+            return False
+
     def on_click_close(self):
         self.action_open.setEnabled(True)
         self.action_close.setEnabled(False)
@@ -208,7 +249,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.combobox_xaxis.setCurrentText('Time')
         self.combobox_yaxis.setCurrentText('DTA')
         self.comboboxes_is_set = True
-        self.toolsSetEnabled(True)
+        layoutSetEnabled(self.leftpanel, True)
         # рисуем график
         self.plotter.plot(
             self.combobox_xaxis.currentText(),
@@ -220,16 +261,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_item_changed(self, item: QtWidgets.QListWidgetItem):
         if self.measurement_is_opened:
             index = self.list_segments.row(item)
-            state = item.checkState()
+            state = item.checkState() == QtCore.Qt.Checked
             self.plotter.segmentVisible(index, state)
-            self.plotter.canvas.draw()
-            if self.checkbox_autoscale.checkState():
+            if self.checkbox_autoscale.checkState() == QtCore.Qt.Checked:
                 self.plotter.autoscale()
-                # self.plotter.ax_ddta.autoscale(True)
+            else:
+                self.plotter.canvas.draw()
 
+    def on_pick_segment(self, state):
+        self.btn_peaktool.setEnabled(state)
+
+    def on_pick_peak(self, state):
+        self.btn_onsettool.setEnabled(state)
+        self.btn_endtool.setEnabled(state)
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     form = MainWindow()
     form.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

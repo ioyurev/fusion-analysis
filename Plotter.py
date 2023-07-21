@@ -5,7 +5,7 @@ from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,
     NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.backend_bases import MouseEvent, PickEvent
-from PyQt5 import QtCore
+from PySide6 import QtCore
 
 class Plotter:
     # headers: list[str] = None
@@ -41,6 +41,7 @@ class Plotter:
         self.segments_color = []
         self.segments_lw = []
         self.pickMode = 0 # 0 - сегменты, 1 - селекторы
+        self.selectMode = None # 0 - peaktool, 1 - onsettool
         self.picked = False
         self.set_visible(False)
 
@@ -123,8 +124,6 @@ class Plotter:
         self.ax_ddta.set_ylabel(f'dDTA/dT')
         self.ax.autoscale_view()
         self.ax_ddta.autoscale_view()
-        self.ax.grid(visible=self.parent.checkbox_grid.checkState())
-        # self.pickSegment(self.pickedSegment)
         self.canvas.draw()
     
     def move_selector(self, x):
@@ -166,11 +165,15 @@ class Plotter:
         self.picked = True
         if self.pickMode == 0:
             if isinstance(line, Segment):
+                self.parent.on_pick_segment(True)
+                self.parent.on_pick_peak(False)
                 self.pickSegment(line)
                 if event.mouseevent.button == 3:
                     self.segmentContextMenu(event)
             elif isinstance(line, Peak):
                 self.pickPeak(line)
+                self.parent.on_pick_segment(False)
+                self.parent.on_pick_peak(True)
                 if event.mouseevent.button == 3:
                     self.peakContextMenu(event)
         elif self.pickMode == 1:
@@ -183,6 +186,7 @@ class Plotter:
         self.parent.cm_peak.popup(self.canvas.mapToGlobal(point))
 
     def removePeak(self):
+        print("* удаляем пик")
         self.pickedPeak.remove()
         self.pickedPeak = None
         self.canvas.draw()
@@ -205,8 +209,12 @@ class Plotter:
     def pickSelector(self, line):
         # print("* выбран селектор")
         self.pickedSelector = line
-        self.pickedSelector_limit_x1 = self.segments[self.pickedSegment].xmin
-        self.pickedSelector_limit_x2 = self.segments[self.pickedSegment].xmax
+        if self.selectMode == 0:
+            self.pickedSelector_limit_x1 = self.segments[self.pickedSegment].xmin
+            self.pickedSelector_limit_x2 = self.segments[self.pickedSegment].xmax
+        elif self.selectMode == 1:
+            self.pickedSelector_limit_x1 = self.pickedPeak.baseline_data_t[0]
+            self.pickedSelector_limit_x2 = self.pickedPeak.baseline_data_t[-1]
 
     def pickSegment(self, line: Segment):
         if line is None:
@@ -225,7 +233,7 @@ class Plotter:
         # print(f'* выбрана линия с индексом {index}')
 
     def addSegment(self, df, index):
-        print(f"* добавляем сегмент {len(self.segments)}")
+        # print(f"* добавляем сегмент {len(self.segments)}")
         self.segments.append(Segment(df=df, plotter=self, index=index))
 
     def segmentsVisible(self, arrb: list[bool]):
@@ -233,19 +241,51 @@ class Plotter:
         for i, segment in enumerate(self.segments):
             segment.set_visible(arrb[i])
 
-    def segmentVisible(self, index, visible):
+    def segmentVisible(self, index: int, visible: bool):
         self.segments[index].set_visible(visible)
 
     def clear(self):
-        print("* очищаем график")
         self.ax.clear()
         self.ax_ddta.clear()
         self.canvas.draw()
 
-    def gridSetVisible(self, visible):
-        print("* меняем видимость сетки")
+    def gridSetVisible(self, visible: bool):
         self.ax.grid(visible=visible)
         self.ax_ddta.grid(visible=visible)
+        self.canvas.draw()
+
+    def onsettool_done(self, apply: bool):
+        self.pickMode = 0
+        for line in (self.selector1, self.selector2, self.selector1_ddta, self.selector2_ddta):
+            line.remove()
+            del line
+        for segment in self.segments:
+            if segment.get_visible():
+                segment.set_picker(5)
+        if apply:
+            self.pickedPeak.onset(t1=self.parent.spinbox_onsettool_T1.value(), t2=self.parent.spinbox_onsettool_T2.value())
+            self.canvas.draw()
+
+    def onsettool_start(self):
+        self.pickMode = 1
+        peak = self.pickedPeak
+        x0 = min(peak.baseline_data_t)
+        x1 = max(peak.baseline_data_t)
+        ci = len(peak.baseline_data_t) // 2
+        xc = peak.baseline_data_t[ci]
+        self.parent.spinbox_onsettool_T1.setRange(x0, x1)
+        self.parent.spinbox_onsettool_T2.setRange(x0, x1)
+
+        self.spawn_selectors(t1=x0, t2=xc, selectMode=1)
+
+        self.parent.spinbox_onsettool_T1.setValue(x0)
+        self.parent.spinbox_onsettool_T2.setValue(xc)
+
+        for segment in self.segments:
+            segment.set_picker(False)
+        for selector in [self.selector1, self.selector2, self.selector1_ddta, self.selector2_ddta]:
+            selector.set_picker(5)
+            selector.set_antialiased(False)
         self.canvas.draw()
 
     def peaktool_start(self):
@@ -258,10 +298,7 @@ class Plotter:
         r = x1 - x0
         t1 = round(x0 + r/3, 1)
         t2 = round(x0 + 2*r/3, 1)
-        self.selector1 = self.ax.axvline(t1, lw=0.5, color='black')
-        self.selector2 = self.ax.axvline(t2, lw=0.5, color='black')
-        self.selector1_ddta = self.ax_ddta.axvline(t1, lw=0.5, color='black')
-        self.selector2_ddta = self.ax_ddta.axvline(t2, lw=0.5, color='black')
+        self.spawn_selectors(t1=t1, t2=t2, selectMode=0)
         self.parent.spinbox_T1.setValue(t1)
         self.parent.spinbox_T2.setValue(t2)
         for segment in self.segments:
@@ -270,6 +307,13 @@ class Plotter:
             selector.set_picker(5)
             selector.set_antialiased(False)
         self.canvas.draw()
+
+    def spawn_selectors(self, t1, t2, selectMode):
+        self.selectMode = selectMode
+        self.selector1 = self.ax.axvline(t1, lw=0.5, color='black')
+        self.selector2 = self.ax.axvline(t2, lw=0.5, color='black')
+        self.selector1_ddta = self.ax_ddta.axvline(t1, lw=0.5, color='black')
+        self.selector2_ddta = self.ax_ddta.axvline(t2, lw=0.5, color='black')
 
     def peaktool_done(self, apply: bool):
         self.pickMode = 0
