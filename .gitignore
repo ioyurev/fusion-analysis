@@ -1,6 +1,7 @@
 __pycache__
 examples
 deployment
-pysidedeploy.spec
 *.exe
 .venv
+Gui.build
+Gui.dsit

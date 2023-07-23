@@ -1,11 +1,11 @@
-from Segment import Segment, Line2D, Annotation, Peak
+from PySide6 import QtCore
+from Segment import Segment, Line2D, Peak, MyAnn, OnsetLine
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,
     NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.backend_bases import MouseEvent, PickEvent
-from PySide6 import QtCore
 
 class Plotter:
     # headers: list[str] = None
@@ -160,8 +160,9 @@ class Plotter:
 
     def on_pick(self, event: PickEvent):
         line = event.artist
-        if isinstance(line, Annotation):
-            return
+        if isinstance(line, MyAnn):
+            if event.mouseevent.button == 3:
+                    self.peakAnnContextMenu(event)
         self.picked = True
         if self.pickMode == 0:
             if isinstance(line, Segment):
@@ -175,17 +176,22 @@ class Plotter:
                 self.parent.on_pick_segment(False)
                 self.parent.on_pick_peak(True)
                 if event.mouseevent.button == 3:
-                    self.peakContextMenu(event)
+                    self.peakContextMenu(peak=event.artist, x=event.mouseevent.x, y=self.getHeight()-event.mouseevent.y)
         elif self.pickMode == 1:
             self.pickSelector(line)
 
-    def peakContextMenu(self, event: PickEvent):
-        peak = event.artist
-        x = event.mouseevent.x
-        y = self.getHeight()-event.mouseevent.y
+    def peakContextMenu(self, peak: Peak, x: int, y: int):
         point = QtCore.QPoint(x, y)
         pos = self.canvas.mapToGlobal(point)
         self.parent.on_click_cm_peak(peak=peak, pos=pos)
+
+    def peakAnnContextMenu(self, event: PickEvent):
+        event.artist: MyAnn
+        parent = event.artist.parent
+        if isinstance(parent, Peak):
+            self.peakContextMenu(peak=parent, x=event.mouseevent.x, y=self.getHeight()-event.mouseevent.y)
+        elif isinstance(parent, OnsetLine):
+            print("ПКМ на аннотации линии начала пика!")
 
     def removePeak(self):
         print("* удаляем пик")
@@ -195,7 +201,7 @@ class Plotter:
 
     def segmentContextMenu(self, event: PickEvent):
         # TODO: вызов контекстное меню сегмента
-        pass
+        print("ПКМ по сегменту!")
 
     def pickPeak(self, line: Peak):
         # print("* выбран пик")

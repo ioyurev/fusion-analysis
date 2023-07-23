@@ -111,8 +111,9 @@ class Peak(Polygon):
             up = 1
         ylim = self.segment.plotter.ax.get_ylim()
         ry = ylim[1] - ylim[0]
-        self.ann: Annotation = self.segment.plotter.ax.annotate(text=f'Площадь: {str(self.area).replace(" / ", "/")}', xy=xy, xytext=(0, self.baseline_data_dta[self.anni]+up*ry*0.05),
+        self.ann = MyAnn(parent=self, text=f'Площадь: {str(self.area).replace(" / ", "/")}', xy=xy, xytext=(0, self.baseline_data_dta[self.anni]+up*ry*0.05),
                                          arrowprops=dict(arrowstyle="-", color=self.segment._color), color=self.segment._color)
+        self.segment.plotter.ax.add_artist(self.ann)
         self.ann.draggable()
         self.set_data(self.segment.plotter.getCurrentXaxis())
         self.set_picker(5)
@@ -189,9 +190,9 @@ class OnsetLine(Line2D):
             x = xdata[0] * 60
         elif peak.segment.xaxis == 'Temp.':
             x = round(xdata[0])
-        self.ann: Annotation = self.peak.segment.plotter.ax.annotate(
-            text=f'Начало: {x}', xy=xy, xytext=xy,
+        self.ann = MyAnn(parent=self, text=f'Начало: {x}', xy=xy, xytext=xy,
             arrowprops=dict(arrowstyle="-", color=self.peak.segment._color), color=self.peak.segment._color)
+        self.peak.segment.plotter.ax.add_artist(self.ann)
         self.ann.draggable()
 
     def updateXdata(self) -> None:
@@ -207,3 +208,9 @@ class OnsetLine(Line2D):
     def remove(self) -> None:
         self.ann.remove()
         return super().remove()
+
+class MyAnn(Annotation):
+    def __init__(self, parent, *args, **kwargs) -> None:
+        self.parent: Peak | OnsetLine = parent
+        super().__init__(*args, **kwargs)
+        self.set_picker(5)
