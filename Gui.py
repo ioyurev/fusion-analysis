@@ -1,6 +1,6 @@
 import sys
 from PySide6 import QtWidgets, QtCore, QtGui, QtUiTools
-from Plotter import Plotter
+from Plotter import Plotter, Peak
 from libn2f import STAFile
 
 Ui_MainWindow, QMainWindow = QtUiTools.loadUiType('MainWindow.ui')
@@ -21,7 +21,6 @@ def layoutSetEnabled(layout: QtWidgets.QLayout, enabled: bool):
         widget = layout.itemAt(i).widget()
         if widget is not None:
             widget.setEnabled(enabled)
-
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     btn_peaktool : QtWidgets.QPushButton
@@ -66,10 +65,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.action_close.triggered.connect(self.on_click_close)
         
         self.cm_peak = QtWidgets.QMenu(self)
+        self.cm_peak_name = QtGui.QAction()
+        self.cm_peak_name.setEnabled(False)
         self.cm_peak_remove = QtGui.QAction('Удалить')
         self.cm_peak_remove.triggered.connect(self.plotter.removePeak)
-        self.cm_peak.addAction(self.cm_peak_remove)
-        # self.cm_peak.setTitle('Пик')
 
         self.btn_peaktool.clicked.connect(self.on_click_peaktool_start)
         self.btn_peaktool_ok.clicked.connect(lambda: self.on_click_peaktool_done(apply=True))
@@ -104,6 +103,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # def on_spinbox_T1_changed(self, value):
     #     if self.peaktool_initialized:
     #         self.plotter.move_selector(value)
+
+    def on_click_cm_peak(self, peak: Peak, pos):
+        self.cm_peak_name.setText(f"Пик {peak.area}")
+        self.cm_peak.addAction(self.cm_peak_name)
+        self.cm_peak.addAction(self.cm_peak_remove)
+        self.cm_peak.popup(pos)
 
     def on_click_onsettool_start(self):
         if self.onsettool_check_is_valid():
@@ -201,7 +206,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.plotter.clear()
         self.plotter.remove_segments()
         self.measurement_is_opened = False
-        self.toolsSetEnabled(False)
+        layoutSetEnabled(self.leftpanel, False)
         self.plotter.set_visible(False)
 
     def addSegments(self, filepath):

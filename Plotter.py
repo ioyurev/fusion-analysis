@@ -181,9 +181,11 @@ class Plotter:
 
     def peakContextMenu(self, event: PickEvent):
         peak = event.artist
-        self.parent.cm_peak.setTitle(f"Пик. {peak.area}")
-        point = QtCore.QPoint(event.mouseevent.x, self.getHeight()-event.mouseevent.y)
-        self.parent.cm_peak.popup(self.canvas.mapToGlobal(point))
+        x = event.mouseevent.x
+        y = self.getHeight()-event.mouseevent.y
+        point = QtCore.QPoint(x, y)
+        pos = self.canvas.mapToGlobal(point)
+        self.parent.on_click_cm_peak(peak=peak, pos=pos)
 
     def removePeak(self):
         print("* удаляем пик")
@@ -215,6 +217,8 @@ class Plotter:
         elif self.selectMode == 1:
             self.pickedSelector_limit_x1 = self.pickedPeak.baseline_data_t[0]
             self.pickedSelector_limit_x2 = self.pickedPeak.baseline_data_t[-1]
+            if self.pickedSelector_limit_x1 > self.pickedSelector_limit_x2:
+                self.pickedSelector_limit_x1, self.pickedSelector_limit_x2 = self.pickedSelector_limit_x2, self.pickedSelector_limit_x1
 
     def pickSegment(self, line: Segment):
         if line is None:

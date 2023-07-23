@@ -140,6 +140,8 @@ class Peak(Polygon):
     def remove(self):
         self.segment.peaks.remove(self)
         self.ann.remove()
+        for line in self.onset_lines:
+            line.remove()
         super().remove()
 
     def updateXdata(self, xaxis):
@@ -201,3 +203,7 @@ class OnsetLine(Line2D):
     def set_visible(self, b: bool) -> None:
         self.ann.set_visible(b)
         return super().set_visible(b)
+    
+    def remove(self) -> None:
+        self.ann.remove()
+        return super().remove()

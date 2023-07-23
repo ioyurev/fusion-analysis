@@ -21,6 +21,12 @@ def calc_peakonset(t1, t2, data_t: list, data_dta: list, data_ddta: list, expr_b
     i2 = find_nearest(data_t, t2)
     if i1 > i2:
         i1, i2 = swap_values(i1, i2)
+    
+    fig, ax = plt.subplots()
+    ax.plot(data_t[i1:i2], data_dta[i1:i2])
+    ax.plot(data_t[i1:i2], data_ddta[i1:i2])
+    fig.show()
+
     bt = max(data_ddta[i1:i2])
     index = data_ddta.index(bt)
     xt = data_t[index]
