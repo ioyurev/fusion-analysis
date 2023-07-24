@@ -72,9 +72,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_peaktool.clicked.connect(self.on_click_peaktool_start)
         self.btn_peaktool_ok.clicked.connect(lambda: self.on_click_peaktool_done(apply=True))
         self.btn_peaktool_cancel.clicked.connect(lambda: self.on_click_peaktool_done(apply=False))
-        self.btn_onsettool.clicked.connect(self.on_click_onsettool_start)
+        self.btn_onsettool.clicked.connect(lambda: self.on_click_onsettool_start())
         self.btn_onsettool_ok.clicked.connect(lambda: self.on_click_onsettool_done(apply=True))
         self.btn_onsettool_cancel.clicked.connect(lambda: self.on_click_onsettool_done(apply=False))
+
+        # self.btn_endtool.clicked.connect(lambda: self.on_click_onsettool_start())
+
         self.checkbox_grid.stateChanged.connect(self.on_checkbox_grid_changed)
         self.checkbox_autoscale.stateChanged.connect(self.on_checkbox_autoscale_changed)
         self.combobox_xaxis.currentIndexChanged.connect(self.on_combobox_changed)
@@ -215,7 +218,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             t1 = round(df["Temp."].values[0])
             t2 = round(df["Temp."].values[-1])
             # добавляем сегмент к плоттеру
-            self.plotter.addSegment(df, index)
+            self.plotter.addSegment(df=df, index=index, Type=stafile.segments_type[index])
             # добавляем сегмент в список интерфейса
             self.items.append(QtWidgets.QListWidgetItem(f'{t1} - {t2}', self.list_segments))
             self.items[index].setFlags(self.items[index].flags() | QtCore.Qt.ItemIsUserCheckable)
@@ -225,6 +228,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             else:
                 self.items[index].setIcon(QtGui.QIcon('assets/icon_cool.png'))
         self.plotter.units = stafile.units
+        if '+' in stafile.info['EXO']:
+            self.plotter.measurement_exo = 1
+        elif '-' in stafile.info['EXO']:
+            self.plotter.measurement_exo = 0
+        else:
+            raise RuntimeError(f'Значение EXO {stafile.info["EXO"]} не распознано.')
         del stafile
         
     def on_click_open(self):
@@ -260,6 +269,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.combobox_yaxis.currentText(),
         )
         self.measurement_is_opened = True
+        self.plotter.set_exo()
         self.plotter.set_visible(True)
 
     def on_item_changed(self, item: QtWidgets.QListWidgetItem):

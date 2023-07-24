@@ -8,6 +8,19 @@ import math
 LINEAR_TYPE = 0
 BEZIER_TYPE = 1
 
+def xand_gate(a, b):
+    """
+    Возвращает True, если оба аргумента равны False или True, иначе возвращает False.
+
+    Args:
+        a (bool): Первый аргумент.
+        b (bool): Второй аргумент.
+
+    Returns:
+        bool: Результат операции XAND.
+    """
+    return (not a and not b) or (a and b)
+
 def baseline_temp(data_temp, data_dta):
     x = Symbol('x')
     coeff = np.polyfit(data_temp, data_dta, 3)
@@ -36,7 +49,7 @@ def calc_peakonset(t1, t2, data_t: list, data_dta: list, data_ddta: list, expr_b
     bi = find_nearest(data_t, xi)
     return ci, bi
 
-def sround(x, n: int):
+def sround(x: float, n: int):
     return round(x, -int(math.floor(math.log10(abs(x)))) + (n - 1))
 
 def swap_values(a, b):

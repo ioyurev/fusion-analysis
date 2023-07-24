@@ -2,8 +2,10 @@ import numpy as np
 import pandas as pd
 import pint
 
-UREG = pint.UnitRegistry()
+UREG: pint.UnitRegistry = pint.UnitRegistry()
 UREG.default_format  = '~'
+TYPE_HEAT = 1
+TYPE_COOL = 0
 
 def _lines_to_infodict(lines) -> dict:
     info = dict()
@@ -24,16 +26,26 @@ class STAFile:
                     if self.info['DECIMAL'] == 'POINT':
                         dec = '.'
                     else:
-                        raise f'Decimal is {self.info["DECIMAL"]}'
+                        raise RuntimeError(f'Десятичный разделитель {self.info["DECIMAL"]} не распознан.')
                     if self.info['SEPARATOR'] == 'SEMICOLON':
                         sep = ';'
                     else:
-                        raise f'Separator is {self.info["SEPARATOR"]}'
+                        raise RuntimeError(f'Разделитель {self.info["SEPARATOR"]} не распознан.')
                     rawdf = self._lines_to_df(lines[index:], sep, dec)
         self.isMultiSegment = '-' in self.info['SEGMENT']
         self.segments = []
+        self.segments_type = []
         for val in rawdf['Segment'].unique():
             self.segments.append(rawdf[rawdf['Segment'] == val].drop(columns=['Segment']))
+        for segment in self.segments:
+            t1 = round(segment["Temp."].values[0])
+            t2 = round(segment["Temp."].values[-1])
+            if t2 > t1:
+                self.segments_type.append(TYPE_HEAT)
+            elif t2 < t1:
+                self.segments_type.append(TYPE_COOL)
+            else:
+                raise RuntimeError(f'Непредусмотренное отношение температур {t1} и {t2}')
     
     def _lines_to_df(self, lines, sep, dec):
         self.headers: str = lines[0][2:-1].split(sep)

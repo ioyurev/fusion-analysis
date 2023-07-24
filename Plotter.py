@@ -9,6 +9,7 @@ from matplotlib.backend_bases import MouseEvent, PickEvent
 
 class Plotter:
     # headers: list[str] = None
+    measurement_exo: int
     units: dict
     pickedSegment: int = None
     pickedSelector: Line2D = None
@@ -45,8 +46,19 @@ class Plotter:
         self.picked = False
         self.set_visible(False)
 
-    def getHeight(self):
+    def set_exo(self):
+        if self.measurement_exo:
+            a = '↑'
+        else:
+            a = '↓'
+        self.ax.text(0 + 5 / self.getWidth(), 1 - 5 / self.getHeight(), s=f'exo{a}', horizontalalignment='left',
+                        verticalalignment='top', transform=self.ax.transAxes)
+
+    def getHeight(self) -> int:
         return int(self.canvas.get_renderer().height)
+    
+    def getWidth(self) -> int:
+        return int(self.canvas.get_renderer().width)
 
     def set_xlabel(self, xaxis: str):
         self.ax_ddta.set_xlabel(f'{xaxis}, {self.get_units(xaxis)}')#, {self.segments[0].df[xaxis].units.to_compact()}')
@@ -234,9 +246,9 @@ class Plotter:
         self.canvas.draw()
         # print(f'* выбрана линия с индексом {index}')
 
-    def addSegment(self, df, index):
+    def addSegment(self, df, index, Type):
         # print(f"* добавляем сегмент {len(self.segments)}")
-        self.segments.append(Segment(df=df, plotter=self, index=index))
+        self.segments.append(Segment(df=df, plotter=self, index=index, Type=Type))
 
     def segmentsVisible(self, arrb: list[bool]):
         segment: Segment

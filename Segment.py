@@ -1,4 +1,4 @@
-from helpers import find_nearest, make_peakbaseline, np, derivative, PolyArea, swap_values, sround, calc_peakonset, baseline_temp
+from helpers import find_nearest, make_peakbaseline, np, derivative, PolyArea, swap_values, sround, calc_peakonset, baseline_temp, xand_gate
 import matplotlib.patheffects as path_effects
 from matplotlib.patches import Polygon
 from matplotlib.text import Annotation
@@ -18,7 +18,8 @@ class Segment(Line2D):
     line_ddta: Line2D
     index: int
     _visible: bool
-    def __init__(self, df: pd.DataFrame, plotter, index: int, *args, **kwargs):
+    def __init__(self, df: pd.DataFrame, plotter, index: int, Type: int, *args, **kwargs):
+        self.Type = Type
         self.df = df
         xdata = self.df['Time'].values
         ydata = self.df['DTA'].values
@@ -111,14 +112,23 @@ class Peak(Polygon):
         self.baseline_temp_expr = baseline_temp(data_temp=self.df['Temp.'], data_dta=baseline)
         self.df_baseline['DTA'] = baseline
 
+        # определяем знак площади пика
+        bools = self.df['DTA'].to_numpy() > self.df_baseline['DTA'].to_numpy()
+        count = np.count_nonzero(bools)
+        if count > self.df_baseline['DTA'].size // 2:
+            self.peak_exo = 1
+        else:
+            self.peak_exo = 0
+        self.peak_effect = xand_gate(self.peak_exo, self.segment.plotter.measurement_exo)
+
         # инициализируем родительский класс
         super().__init__(self.get_data_by_xaxis('Time'), hatch = '//', edgecolor=self.segment._color, facecolor='none', lw=1, *args, **kwargs)
         self.set_picker(5)
         self.set_antialiased(False)
 
         # считаем площадь и делаем аннотацию
-        area = PolyArea(self.get_xy()) * 60
-        self.area = sround(area, 3) * UREG('J/g')
+        area = PolyArea(self.get_xy()) * 60 
+        self.area = sround(area, 3) * UREG('J/g') * (2 * self.peak_effect - 1)
         self.anni = len(self.df_baseline[xaxis]) // 2
         xy = (self.df_baseline[xaxis][self.anni], self.df_baseline['DTA'][self.anni])
         self.ann = MyAnn(
