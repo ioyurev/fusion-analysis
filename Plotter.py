@@ -217,14 +217,6 @@ class Plotter:
     def pickSelector(self, line):
         # print("* выбран селектор")
         self.pickedSelector = line
-        if self.selectMode == 0:
-            self.pickedSelector_limit_x1 = self.segments[self.pickedSegment].xmin
-            self.pickedSelector_limit_x2 = self.segments[self.pickedSegment].xmax
-        elif self.selectMode == 1:
-            self.pickedSelector_limit_x1 = self.pickedPeak.baseline_data_t[0]
-            self.pickedSelector_limit_x2 = self.pickedPeak.baseline_data_t[-1]
-            if self.pickedSelector_limit_x1 > self.pickedSelector_limit_x2:
-                self.pickedSelector_limit_x1, self.pickedSelector_limit_x2 = self.pickedSelector_limit_x2, self.pickedSelector_limit_x1
 
     def pickSegment(self, line: Segment):
         if line is None:
@@ -279,10 +271,11 @@ class Plotter:
     def onsettool_start(self):
         self.pickMode = 1
         peak = self.pickedPeak
-        x0 = min(peak.baseline_data_t)
-        x1 = max(peak.baseline_data_t)
-        ci = len(peak.baseline_data_t) // 2
-        xc = peak.baseline_data_t[ci]
+        peak_xdata = peak.df_baseline[self.getCurrentXaxis()]
+        x0 = min(peak_xdata)
+        x1 = max(peak_xdata)
+        ci = len(peak_xdata) // 2
+        xc = peak_xdata[ci]
         self.parent.spinbox_onsettool_T1.setRange(x0, x1)
         self.parent.spinbox_onsettool_T2.setRange(x0, x1)
 
@@ -320,6 +313,15 @@ class Plotter:
 
     def spawn_selectors(self, t1, t2, selectMode):
         self.selectMode = selectMode
+        if self.selectMode == 0:
+            self.pickedSelector_limit_x1 = self.segments[self.pickedSegment].xmin
+            self.pickedSelector_limit_x2 = self.segments[self.pickedSegment].xmax
+        elif self.selectMode == 1:
+            xaxis = self.getCurrentXaxis()
+            self.pickedSelector_limit_x1 = self.pickedPeak.df_baseline[xaxis].values[0]
+            self.pickedSelector_limit_x2 = self.pickedPeak.df_baseline[xaxis].values[-1]
+            if self.pickedSelector_limit_x1 > self.pickedSelector_limit_x2:
+                self.pickedSelector_limit_x1, self.pickedSelector_limit_x2 = self.pickedSelector_limit_x2, self.pickedSelector_limit_x1
         self.selector1 = self.ax.axvline(t1, lw=0.5, color='black')
         self.selector2 = self.ax.axvline(t2, lw=0.5, color='black')
         self.selector1_ddta = self.ax_ddta.axvline(t1, lw=0.5, color='black')

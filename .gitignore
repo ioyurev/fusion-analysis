@@ -1,7 +1,4 @@
 __pycache__
 examples
 deployment
-*.exe
 .venv
-Gui.build
-Gui.dsit

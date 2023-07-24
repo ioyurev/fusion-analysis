@@ -1,4 +1,3 @@
-import sys
 from PySide6 import QtWidgets, QtCore, QtGui, QtUiTools
 from Plotter import Plotter, Peak
 from libn2f import STAFile
@@ -279,9 +278,3 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_pick_peak(self, state):
         self.btn_onsettool.setEnabled(state)
         self.btn_endtool.setEnabled(state)
-
-if __name__ == '__main__':
-    app = QtWidgets.QApplication(sys.argv)
-    form = MainWindow()
-    form.show()
-    sys.exit(app.exec())

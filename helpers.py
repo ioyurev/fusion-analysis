@@ -1,41 +1,40 @@
 import numpy as np
-import itertools
-import sympy
+from sympy.core import Symbol
+from sympy.solvers.solvers import nsolve
+from sympy.utilities import lambdify
 import matplotlib.pyplot as plt
 import math
 
 LINEAR_TYPE = 0
 BEZIER_TYPE = 1
 
-colors = itertools.cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
-
 def baseline_temp(data_temp, data_dta):
-    x = sympy.Symbol('x')
+    x = Symbol('x')
     coeff = np.polyfit(data_temp, data_dta, 3)
     temp_expr = coeff[0] * x**3 + coeff[1] * x**2 + coeff[2] * x + coeff[3]
     return temp_expr
 
 def calc_peakonset(t1, t2, data_t: list, data_dta: list, data_ddta: list, expr_baseline):   
-    x = sympy.Symbol('x')
+    x = Symbol('x')
     i1 = find_nearest(data_t, t1)
     i2 = find_nearest(data_t, t2)
     if i1 > i2:
         i1, i2 = swap_values(i1, i2)
     
-    fig, ax = plt.subplots()
-    ax.plot(data_t[i1:i2], data_dta[i1:i2])
-    ax.plot(data_t[i1:i2], data_ddta[i1:i2])
-    fig.show()
+    # fig, ax = plt.subplots()
+    # ax.plot(data_t[i1:i2], data_dta[i1:i2])
+    # ax.plot(data_t[i1:i2], data_ddta[i1:i2])
+    # fig.show()
 
     bt = max(data_ddta[i1:i2])
-    index = data_ddta.index(bt)
-    xt = data_t[index]
-    yt = data_dta[index]
+    ci = np.where(data_ddta == bt)[0][0]
+    xt = data_t[ci]
+    yt = data_dta[ci]
     at = yt - bt * xt
     expr_tangent = at + bt * x
-    xi = float(sympy.nsolve(expr_tangent - expr_baseline, x, xt))
-    yi = float(expr_tangent.subs(x, xi))
-    return xi, yi, xt, yt
+    xi = float(nsolve(expr_tangent - expr_baseline, x, xt))
+    bi = find_nearest(data_t, xi)
+    return ci, bi
 
 def sround(x, n: int):
     return round(x, -int(math.floor(math.log10(abs(x)))) + (n - 1))
@@ -50,9 +49,6 @@ def PolyArea(vertices):
     # source: https://stackoverflow.com/a/30408825/11709825
     return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
-def get_next_color():
-    return next(colors)
-
 def find_nearest(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
@@ -66,7 +62,7 @@ def derivative(xdata, ydata):
 
 def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
     baseline_y = []
-    x = sympy.Symbol('x')
+    x = Symbol('x')
     # t, x = sympy.symbols('t x')
     if baselinetype == LINEAR_TYPE:
         print("* базовая линия линейная")
@@ -107,7 +103,7 @@ def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
         print('\n* ERROR: none/wrong baselinetype provided\n')
         return
     print("* уравнение базовой линии: " + str(y_expr))
-    f = sympy.lambdify(x, y_expr, 'numpy')
+    f = lambdify(x, y_expr, 'numpy')
     xdata = np.asarray(xdata)
     baseline_y = f(xdata[i1:i2])
     # print(type(y_expr))
