@@ -43,6 +43,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     btn_endtool: QtWidgets.QPushButton
     btn_onsettool_ok: QtWidgets.QPushButton
     btn_onsettool_cancel: QtWidgets.QPushButton
+    btn_shiftsegment: QtWidgets.QPushButton
 
     def __init__(self):
         print('* загрузка интерфейса')
@@ -76,6 +77,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_onsettool_ok.clicked.connect(lambda: self.on_click_onsettool_done(apply=True))
         self.btn_onsettool_cancel.clicked.connect(lambda: self.on_click_onsettool_done(apply=False))
         self.btn_endtool.clicked.connect(lambda: self.on_click_onsettool_start(is_onset=False))
+        self.btn_shiftsegment.mousePressEvent = self.on_press_shiftsegment
+        self.btn_shiftsegment.mouseMoveEvent = self.on_move_shiftsegment
+        # self.btn_shiftsegment.mouseReleaseEvent = self.on_release_shiftsegment
 
         self.checkbox_grid.stateChanged.connect(self.on_checkbox_grid_changed)
         self.checkbox_autoscale.stateChanged.connect(self.on_checkbox_autoscale_changed)
@@ -99,11 +103,34 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.measurement_is_opened = False
         self.comboboxes_is_set = False
         self.peaktool_initialized = False
+        self.button_pressed = False
         # QtWidgets.QStatusBar
     
     # def on_spinbox_T1_changed(self, value):
     #     if self.peaktool_initialized:
     #         self.plotter.move_selector(value)
+
+    def on_press_shiftsegment(self, event: QtGui.QMouseEvent):
+        # print('1')
+        # if event.button() == 1:  # Левая кнопка мыши
+        self.press_position = event.globalPos().y()
+        # self.button_pressed = True
+
+    def on_move_shiftsegment(self, event: QtGui.QMouseEvent):
+        if self.plotter.pickedSegment is not None:
+            # print('2')
+            # if self.button_pressed:
+            y = event.globalPos().y()
+            dy = y - self.press_position
+            # print(f"Y-axis movement: {dy}")
+            self.plotter.pickedSegment.shifty(dy)
+            self.plotter.canvas.draw()
+            self.press_position = y
+
+    # def on_release_shiftsegment(self, event: QtGui.QMouseEvent):
+    #     print('3')
+        # if event.button() == 1:  # Левая кнопка мыши
+        # self.button_pressed = False
 
     def on_click_cm_peak(self, peak: Peak, pos):
         self.cm_peak_name.setText(f"Пик {peak.area}")
@@ -113,7 +140,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_click_onsettool_start(self, is_onset: bool = True):
         if self.onsettool_check_is_valid():
-            print("* инструмент нахождения начала пика запущен")
+            # print("* инструмент нахождения начала пика запущен")
             self.plotter.onsettool_start(is_onset)
             layoutSetVisible(self.onsettoolLayout, True)
             layoutSetEnabled(self.leftpanel, False)
@@ -155,15 +182,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.plotter.peaktool_done(apply=apply)
         layoutSetVisible(self.peaktoolLayout, False)
         layoutSetEnabled(self.leftpanel, True)
+        self.btn_shiftsegment.setEnabled(False)
         self.peaktool_initialized = False
-        print("* инструмент выделения пика применен")
+        # print("* инструмент выделения пика применен")
 
     def on_click_peaktool_start(self):
         if self.peaktool_check_is_valid():
-            print("* инструмент выделения пика запущен")
+            # print("* инструмент выделения пика запущен")
             self.plotter.peaktool_start()
             layoutSetVisible(self.peaktoolLayout, True)
             layoutSetEnabled(self.leftpanel, False)
+            self.btn_shiftsegment.setEnabled(False)
             self.peaktool_initialized = True
 
     def onsettool_check_is_valid(self):
@@ -209,6 +238,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.measurement_is_opened = False
         layoutSetEnabled(self.leftpanel, False)
         self.plotter.set_visible(False)
+        self.combobox_xaxis.clear()
+        self.combobox_yaxis.clear()
 
     def addSegments(self, filepath):
         stafile = STAFile(filepath)
@@ -283,6 +314,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_pick_segment(self, state):
         self.btn_peaktool.setEnabled(state)
+        self.btn_shiftsegment.setEnabled(state)
 
     def on_pick_peak(self, state):
         self.btn_onsettool.setEnabled(state)

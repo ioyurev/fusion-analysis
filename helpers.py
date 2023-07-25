@@ -23,8 +23,8 @@ def xand_gate(a, b):
 
 def baseline_temp(data_temp, data_dta):
     x = Symbol('x')
-    coeff = np.polyfit(data_temp, data_dta, 3)
-    temp_expr = coeff[0] * x**3 + coeff[1] * x**2 + coeff[2] * x + coeff[3]
+    coeff = np.polyfit(data_temp, data_dta, 4)
+    temp_expr = coeff[0] * x**4 + coeff[1] * x**3 + coeff[2] * x**2 + coeff[3] * x + coeff[4]
     return temp_expr
 
 def calc_peakonset(t1, t2, data_t: np.ndarray, data_dta: np.ndarray, data_ddta: np.ndarray, expr_baseline, is_onset:bool, peak_exo: bool):   
@@ -81,7 +81,7 @@ def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
     x = Symbol('x')
     # t, x = sympy.symbols('t x')
     if baselinetype == LINEAR_TYPE:
-        print("* базовая линия линейная")
+        # print("* базовая линия линейная")
         x1 = xdata[i1]
         x2 = xdata[i2]
         y1 = ydata[i1]
@@ -90,7 +90,7 @@ def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
         intercept = y1 - x1 * slope
         y_expr = intercept + slope * x
     elif baselinetype == BEZIER_TYPE:
-        print("* базовая линия безье")
+        # print("* базовая линия безье")
         x1prev = xdata[i1 - 1]
         x1 = xdata[i1]
         y1prev = ydata[i1 - 1]
@@ -118,7 +118,7 @@ def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
     else:
         print('\n* ERROR: none/wrong baselinetype provided\n')
         return
-    print("* уравнение базовой линии: " + str(y_expr))
+    # print("* уравнение базовой линии: " + str(y_expr))
     f = lambdify(x, y_expr, 'numpy')
     xdata = np.asarray(xdata)
     baseline_y = f(xdata[i1:i2])

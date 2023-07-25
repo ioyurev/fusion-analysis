@@ -11,7 +11,7 @@ class Plotter:
     # headers: list[str] = None
     measurement_exo: int
     units: dict
-    pickedSegment: int = None
+    pickedSegment: Segment = None
     pickedSelector: Line2D = None
     pickedSelector_limit_x1: float
     pickedSelector_limit_x2: float
@@ -240,12 +240,11 @@ class Plotter:
         if line is None:
             self.pickedSegment = None
             return
-        index = line.index
-        self.parent.list_segments.setCurrentItem(self.parent.list_segments.item(index))
-        self.pickedSegment = index
+        self.parent.list_segments.setCurrentItem(self.parent.list_segments.item(line.index))
+        self.pickedSegment = line
         for segment in self.segments:
             segment.setPickEffect(False)
-        self.segments[index].setPickEffect(True)
+        self.pickedSegment.setPickEffect(True)
         if self.pickedPeak:
             self.pickedPeak.setPickEffect(False)
         self.pickedPeak = None
@@ -305,9 +304,6 @@ class Plotter:
             self.spawn_selectors(t1=xc, t2=x1, selectMode=1)
             self.parent.spinbox_onsettool_T1.setValue(xc)
             self.parent.spinbox_onsettool_T2.setValue(x1)
-
-        
-
         for segment in self.segments:
             segment.set_picker(False)
         for selector in [self.selector1, self.selector2, self.selector1_ddta, self.selector2_ddta]:
@@ -317,9 +313,8 @@ class Plotter:
 
     def peaktool_start(self):
         self.pickMode = 1
-        segment = self.segments[self.pickedSegment]
-        x0 = segment.xmin
-        x1 = segment.xmax
+        x0 = self.pickedSegment.xmin
+        x1 = self.pickedSegment.xmax
         self.parent.spinbox_T1.setRange(x0, x1)
         self.parent.spinbox_T2.setRange(x0, x1)
         r = x1 - x0
@@ -338,8 +333,8 @@ class Plotter:
     def spawn_selectors(self, t1, t2, selectMode):
         self.selectMode = selectMode
         if self.selectMode == 0:
-            self.pickedSelector_limit_x1 = self.segments[self.pickedSegment].xmin
-            self.pickedSelector_limit_x2 = self.segments[self.pickedSegment].xmax
+            self.pickedSelector_limit_x1 = self.pickedSegment.xmin
+            self.pickedSelector_limit_x2 = self.pickedSegment.xmax
         elif self.selectMode == 1:
             xaxis = self.getCurrentXaxis()
             self.pickedSelector_limit_x1 = self.pickedPeak.df_baseline[xaxis].values[0]
@@ -360,7 +355,7 @@ class Plotter:
             if segment.get_visible():
                 segment.set_picker(5)
         if apply:
-            self.segments[self.pickedSegment].addPeak(
+            self.pickedSegment.addPeak(
                 self.parent.spinbox_T1.value(),
                 self.parent.spinbox_T2.value()
                 )

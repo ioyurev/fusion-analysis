@@ -8,7 +8,8 @@ import pandas as pd
 from libn2f import UREG
 import itertools
 
-PATH_EFFECT = [path_effects.Stroke(linewidth=4, foreground='black'), path_effects.Normal()]
+PATH_EFFECT = [path_effects.Stroke(linewidth=2, foreground='black'), path_effects.Normal()]
+LW = 0.5
 
 colors = itertools.cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
 def get_next_color():
@@ -19,6 +20,7 @@ class Segment(Line2D):
     index: int
     _visible: bool
     def __init__(self, df: pd.DataFrame, plotter, index: int, Type: int, *args, **kwargs):
+        self.dy: float = 0
         self.Type = Type
         self.df = df
         xdata = self.df['Time'].values
@@ -32,13 +34,20 @@ class Segment(Line2D):
         self.ymin = ydata.min()
         self.plotter = plotter
         self.index = index
-        self.peaks = []
+        self.peaks : list[Peak] = []
         color = get_next_color()
-        super().__init__(xdata=xdata, ydata=ydata, color=color, lw=1, *args, **kwargs)
+        super().__init__(xdata=xdata, ydata=ydata, color=color, lw=LW, *args, **kwargs)
         self.dsegment = Line2D(xdata=xdata, ydata=self.df['dDTA/dTime'], color=color, lw=1)
         self.dsegment.set_antialiased(False)
         self.set_picker(5)
         self.set_antialiased(False)
+    
+    def shifty(self, dy):
+        self.dy += dy/10
+        self.set_ydata(self.get_ydata() - dy/10)
+        if self.peaks:
+            for peak in self.peaks:
+                peak.shifty(dy/10)
 
     def peaksSetData(self, xaxis):
         peak: Peak
@@ -67,6 +76,7 @@ class Segment(Line2D):
         self.ymin = ydata.min()
         self.set_data(xdata, ydata)
         self.dsegment.set_xdata(xdata)
+        self.dy = 0
 
     def addPeak(self, t1, t2):
         print("* добавляем пик")
@@ -93,7 +103,7 @@ class Peak(Polygon):
         self.df = pd.DataFrame()
         self.df['Time'] = self.segment.df['Time'][self.i1:self.i2].values
         self.df['Temp.'] = self.segment.df['Temp.'][self.i1:self.i2].values
-        self.df['DTA'] = self.segment.df['DTA'][self.i1:self.i2].values
+        self.df['DTA'] = self.segment.df['DTA'][self.i1:self.i2].values # self.segment.get_ydata()[self.i1:self.i2]
         self.df['dDTA/dTime'] = self.segment.df['dDTA/dTime'][self.i1:self.i2].values
         self.df['dDTA/dTemp'] = self.segment.df['dDTA/dTemp'][self.i1:self.i2].values
 
@@ -122,7 +132,7 @@ class Peak(Polygon):
         self.peak_effect = xand_gate(self.peak_exo, self.segment.plotter.measurement_exo)
 
         # инициализируем родительский класс
-        super().__init__(self.get_data_by_xaxis('Time'), hatch = '//', edgecolor=self.segment._color, facecolor='none', lw=1, *args, **kwargs)
+        super().__init__(self.get_data_by_xaxis('Time'), hatch = '//', edgecolor=self.segment._color, facecolor='none', lw=LW, *args, **kwargs)
         self.set_picker(5)
         self.set_antialiased(False)
 
@@ -136,12 +146,21 @@ class Peak(Polygon):
             text=f'Площадь: {str(self.area).replace(" / ", "/")}',
             xy=xy, xytext=(0, self.df_baseline['DTA'][self.anni]),
             color=self.segment._color,
-            arrowprops=dict(arrowstyle="-", color=self.segment._color)
+            arrowprops=dict(arrowstyle="-", color=self.segment._color, antialiased=False, lw=LW)
             )
         self.segment.plotter.ax.add_artist(self.ann)
         self.ann.draggable()
-
         self.set_data(xaxis)
+        self.shifty(self.segment.dy)
+
+    def shifty(self, dy):
+        if dy != 0:
+            self.set_xy([(x, y - dy) for x, y in self.get_xy()])
+            self.ann.shifty(dy)
+            line: OnsetLine
+            if self.onset_lines:
+                for line in self.onset_lines:
+                    line.shifty(dy)
 
     def onset(self, t1: float, t2: float, is_onset: bool):
         xaxis = self.segment.xaxis
@@ -196,8 +215,8 @@ class Peak(Polygon):
 
     def set_data(self, xaxis):
         self.set_xy(self.get_data_by_xaxis())
-        self.ann.set(x=self.df_baseline[xaxis][self.anni])
-        self.ann.xy = (self.df_baseline[xaxis][self.anni], self.ann.xy[1])
+        self.ann.updateXdata(xaxis)
+        # self.ann.xy = (self.df_baseline[xaxis][self.anni], self.ann.xy[1])
         line: OnsetLine
         if self.onset_lines:
             for line in self.onset_lines:
@@ -226,23 +245,34 @@ class OnsetLine(Line2D):
         ydata = [self.info['DTA'],
                  self.peak.df['DTA'][ci]]
 
-        super().__init__(xdata=xdata, ydata=ydata, *args, **kwargs)
+        super().__init__(xdata=xdata, ydata=ydata, lw=LW, *args, **kwargs)
+        self.set_antialiased(False)
         xy = [xdata[0], ydata[0]]
         if is_onset:
             t = 'Начало'
         else:
             t = 'Конец'
-        self.ann = MyAnn(parent=self, text=f'{t}: {self.info[xaxis]}', xy=xy, xytext=xy,
-            arrowprops=dict(arrowstyle="-", color=self.peak.segment._color), color=self.peak.segment._color)
+        self.ann = MyAnn(parent=self, text=f'{t}: {self.info[xaxis]}', xy=xy, xytext=xy, color=self.peak.segment._color,
+                         arrowprops=dict(arrowstyle="-", color=self.peak.segment._color, antialiased=False, lw=LW)
+                         )
         self.peak.segment.plotter.ax.add_artist(self.ann)
         self.ann.draggable()
+        self.shifty(self.peak.segment.dy)
+
+    def shifty(self, dy):
+        self.set_ydata(np.array(self.get_ydata()) - dy)
+        self.ann.shifty(dy)
 
     def updateXdata(self, xaxis) -> None:
-        xb = self.info[xaxis]
-        xc = self.peak.df[xaxis].values[self.ci]
-        super().set_xdata([xb, xc])
-        self.ann.set(x=xb)
-        self.ann.xy = (xb, self.ann.xy[1])
+        self.xb = self.info[xaxis]
+        self.xc = self.peak.df[xaxis].values[self.ci]
+        self.yb = self.peak.df_baseline['DTA'].values[self.bi]
+        self.yc = self.peak.df['DTA'].values[self.ci]
+        self.set_xdata([self.xb, self.xc])
+        self.set_ydata([self.yb, self.yc])
+        self.ann.updateXdata()
+        # self.ann.set(x=self.xb, y=self.yb)
+        # self.ann.xy = (self.xb, self.yb)
 
     def set_visible(self, b: bool) -> None:
         self.ann.set_visible(b)
@@ -257,3 +287,23 @@ class MyAnn(Annotation):
         self.parent: Peak | OnsetLine = parent
         super().__init__(*args, **kwargs)
         self.set_picker(5)
+
+    def shifty(self, dy):
+        self.xy = (self.xy[0], self.xy[1] - dy)
+        xytext = list(self.get_position())
+        xytext[1] -= dy
+        self.set_position(xytext)
+
+    def updateXdata(self, xaxis=None):
+        if isinstance(self.parent, OnsetLine):
+            # xc = self.parent.xc
+            xb = self.parent.xb
+            # yc = self.parent.yc
+            yb = self.parent.yb
+        elif isinstance(self.parent, Peak):
+            xb = self.parent.df_baseline[xaxis].values[self.parent.anni]
+            yb = self.parent.df_baseline['DTA'].values[self.parent.anni]
+        else:
+            raise RuntimeError(f"Не предусмотренный родительский класс {self.parent.__class__.__name__}")
+        self.set(x=xb, y=yb)
+        self.xy = (xb, yb)
