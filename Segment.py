@@ -143,7 +143,7 @@ class Peak(Polygon):
 
         self.set_data(xaxis)
 
-    def onset(self, t1: float, t2: float):
+    def onset(self, t1: float, t2: float, is_onset: bool):
         xaxis = self.segment.xaxis
         if xaxis == 'Time':
             baseline_expr = self.baseline_time_expr
@@ -157,9 +157,11 @@ class Peak(Polygon):
             data_t=self.df[xaxis].values,
             data_dta=self.df['DTA'].values,
             data_ddta=data_ddta,
-            expr_baseline=baseline_expr
+            expr_baseline=baseline_expr,
+            is_onset=is_onset,
+            peak_exo=self.peak_exo
             )
-        self.onset_lines.append(OnsetLine(peak=self, ci=ci, bi=bi, color=self.segment._color))
+        self.onset_lines.append(OnsetLine(peak=self, ci=ci, bi=bi, color=self.segment._color, is_onset=is_onset))
         self.segment.plotter.ax.add_line(self.onset_lines[-1])
 
     def remove(self):
@@ -209,8 +211,9 @@ class Peak(Polygon):
             self.set_path_effects(None)
 
 class OnsetLine(Line2D):
-    def __init__(self, peak, ci, bi, *args, **kwargs) -> None:
+    def __init__(self, peak, ci, bi, is_onset, *args, **kwargs) -> None:
         self.peak: Peak = peak
+        self.is_onset = is_onset
         xaxis = peak.segment.xaxis
         self.ci = ci
         self.bi = bi
@@ -222,11 +225,14 @@ class OnsetLine(Line2D):
                  self.peak.df[xaxis][ci]]
         ydata = [self.info['DTA'],
                  self.peak.df['DTA'][ci]]
-        
-        # self.info['Temp.'] = 
+
         super().__init__(xdata=xdata, ydata=ydata, *args, **kwargs)
         xy = [xdata[0], ydata[0]]
-        self.ann = MyAnn(parent=self, text=f'Начало: {self.info[xaxis]}', xy=xy, xytext=xy,
+        if is_onset:
+            t = 'Начало'
+        else:
+            t = 'Конец'
+        self.ann = MyAnn(parent=self, text=f'{t}: {self.info[xaxis]}', xy=xy, xytext=xy,
             arrowprops=dict(arrowstyle="-", color=self.peak.segment._color), color=self.peak.segment._color)
         self.peak.segment.plotter.ax.add_artist(self.ann)
         self.ann.draggable()

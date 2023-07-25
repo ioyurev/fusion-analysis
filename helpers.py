@@ -27,7 +27,7 @@ def baseline_temp(data_temp, data_dta):
     temp_expr = coeff[0] * x**3 + coeff[1] * x**2 + coeff[2] * x + coeff[3]
     return temp_expr
 
-def calc_peakonset(t1, t2, data_t: list, data_dta: list, data_ddta: list, expr_baseline):   
+def calc_peakonset(t1, t2, data_t: np.ndarray, data_dta: np.ndarray, data_ddta: np.ndarray, expr_baseline, is_onset:bool, peak_exo: bool):   
     x = Symbol('x')
     i1 = find_nearest(data_t, t1)
     i2 = find_nearest(data_t, t2)
@@ -39,8 +39,11 @@ def calc_peakonset(t1, t2, data_t: list, data_dta: list, data_ddta: list, expr_b
     # ax.plot(data_t[i1:i2], data_ddta[i1:i2])
     # fig.show()
 
-    bt = max(data_ddta[i1:i2])
-    ci = np.where(data_ddta == bt)[0][0]
+    if xand_gate(is_onset, peak_exo):
+        bt = max(data_ddta[i1:i2])
+    else:
+        bt = min(data_ddta[i1:i2])
+    ci = np.where(data_ddta[i1:i2] == bt)[0][0] + i1
     xt = data_t[ci]
     yt = data_dta[ci]
     at = yt - bt * xt

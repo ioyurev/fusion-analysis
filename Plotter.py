@@ -133,29 +133,35 @@ class Plotter:
             self.ax_ddta.add_line(segment.dsegment)
         self.set_xlabel(xaxis)
         self.set_ylabel(yaxis)
-        self.ax_ddta.set_ylabel(f'dDTA/dT')
+        self.ax_ddta.set_ylabel('dDTA/dT')
         self.ax.autoscale_view()
         self.ax_ddta.autoscale_view()
         self.canvas.draw()
     
     def move_selector(self, x):
         if self.pickedSelector_limit_x1< x < self.pickedSelector_limit_x2:
-            self.fig.canvas.draw_idle()
             if self.pickedSelector in (self.selector1, self.selector1_ddta):
                 self.selector1.set_xdata(x)
                 self.selector1_ddta.set_xdata(x)
-                self.parent.spinbox_T1.setValue(x)
+                if self.selectMode == 0:
+                    self.parent.spinbox_T1.setValue(x)
+                elif self.selectMode == 1:
+                    self.parent.spinbox_onsettool_T1.setValue(x)
             elif self.pickedSelector in (self.selector2, self.selector2_ddta):
                 self.selector2.set_xdata(x)
                 self.selector2_ddta.set_xdata(x)
-                self.parent.spinbox_T2.setValue(x)
+                if self.selectMode == 0:
+                    self.parent.spinbox_T2.setValue(x)
+                elif self.selectMode == 1:
+                    self.parent.spinbox_onsettool_T2.setValue(x)
+            self.fig.canvas.draw_idle()
 
     def on_move(self, event: MouseEvent):
         if self.pickMode == 1:
             self.on_move_selector(event)
 
     def on_move_selector(self, event):
-        if self.pickedSelector != None:
+        if self.pickedSelector is not None:
             if event.inaxes:
                 x = event.xdata
                 self.move_selector(x)
@@ -277,11 +283,12 @@ class Plotter:
             if segment.get_visible():
                 segment.set_picker(5)
         if apply:
-            self.pickedPeak.onset(t1=self.parent.spinbox_onsettool_T1.value(), t2=self.parent.spinbox_onsettool_T2.value())
+            self.pickedPeak.onset(t1=self.parent.spinbox_onsettool_T1.value(), t2=self.parent.spinbox_onsettool_T2.value(), is_onset=self.is_onset)
             self.canvas.draw()
 
-    def onsettool_start(self):
+    def onsettool_start(self, is_onset: bool):
         self.pickMode = 1
+        self.is_onset = is_onset
         peak = self.pickedPeak
         peak_xdata = peak.df_baseline[self.getCurrentXaxis()]
         x0 = min(peak_xdata)
@@ -290,11 +297,16 @@ class Plotter:
         xc = peak_xdata[ci]
         self.parent.spinbox_onsettool_T1.setRange(x0, x1)
         self.parent.spinbox_onsettool_T2.setRange(x0, x1)
+        if is_onset:
+            self.spawn_selectors(t1=x0, t2=xc, selectMode=1)
+            self.parent.spinbox_onsettool_T1.setValue(x0)
+            self.parent.spinbox_onsettool_T2.setValue(xc)
+        else:
+            self.spawn_selectors(t1=xc, t2=x1, selectMode=1)
+            self.parent.spinbox_onsettool_T1.setValue(xc)
+            self.parent.spinbox_onsettool_T2.setValue(x1)
 
-        self.spawn_selectors(t1=x0, t2=xc, selectMode=1)
-
-        self.parent.spinbox_onsettool_T1.setValue(x0)
-        self.parent.spinbox_onsettool_T2.setValue(xc)
+        
 
         for segment in self.segments:
             segment.set_picker(False)

@@ -75,8 +75,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_onsettool.clicked.connect(lambda: self.on_click_onsettool_start())
         self.btn_onsettool_ok.clicked.connect(lambda: self.on_click_onsettool_done(apply=True))
         self.btn_onsettool_cancel.clicked.connect(lambda: self.on_click_onsettool_done(apply=False))
-
-        # self.btn_endtool.clicked.connect(lambda: self.on_click_onsettool_start())
+        self.btn_endtool.clicked.connect(lambda: self.on_click_onsettool_start(is_onset=False))
 
         self.checkbox_grid.stateChanged.connect(self.on_checkbox_grid_changed)
         self.checkbox_autoscale.stateChanged.connect(self.on_checkbox_autoscale_changed)
@@ -112,10 +111,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.cm_peak.addAction(self.cm_peak_remove)
         self.cm_peak.popup(pos)
 
-    def on_click_onsettool_start(self):
+    def on_click_onsettool_start(self, is_onset: bool = True):
         if self.onsettool_check_is_valid():
             print("* инструмент нахождения начала пика запущен")
-            self.plotter.onsettool_start()
+            self.plotter.onsettool_start(is_onset)
             layoutSetVisible(self.onsettoolLayout, True)
             layoutSetEnabled(self.leftpanel, False)
             self.onsettools_initialized = True
