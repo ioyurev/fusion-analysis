@@ -111,10 +111,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.peaktool_initialized = False
         self.button_pressed = False
         # QtWidgets.QStatusBar
+        self.resizeEvent = self.on_resize
     
     # def on_spinbox_T1_changed(self, value):
     #     if self.peaktool_initialized:
     #         self.plotter.move_selector(value)
+
+    def on_resize(self, event):
+        self.plotter.fig.tight_layout(pad=0)
+        super().resizeEvent(event)
 
     def on_press_shiftsegment(self, event: QtGui.QMouseEvent):
         # print('1')
@@ -240,19 +245,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             warning_message('Неправильно выбрана ось абцисс!\nДолжна быть Time или Temp.')
             return False
 
-    def on_click_close(self):
-        self.action_open.setEnabled(True)
-        self.action_close.setEnabled(False)
-        self.list_segments.clear()
-        self.items.clear()
-        self.plotter.clear()
-        self.plotter.remove_segments()
-        self.measurement_is_opened = False
-        layoutSetEnabled(self.leftpanel, False)
-        self.plotter.set_visible(False)
-        self.combobox_xaxis.clear()
-        self.combobox_yaxis.clear()
-
     def addSegments(self, filepath):
         stafile = STAFile(filepath)
         for index, df in enumerate(stafile.segments):
@@ -278,6 +270,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             raise RuntimeError(f'Значение EXO {stafile.info["EXO"]} не распознано.')
         del stafile
         
+    def on_click_close(self):
+        self.comboboxes_is_set = False
+        self.action_open.setEnabled(True)
+        self.action_close.setEnabled(False)
+        self.list_segments.clear()
+        self.items.clear()
+        self.plotter.clear()
+        self.plotter.remove_segments()
+        self.measurement_is_opened = False
+        layoutSetEnabled(self.leftpanel, False)
+        self.plotter.set_visible(False)
+        self.combobox_xaxis.clear()
+        self.combobox_yaxis.clear()
+
     def on_click_open(self):
         # обработчик открытия измерения
         options = QtWidgets.QFileDialog.Options()

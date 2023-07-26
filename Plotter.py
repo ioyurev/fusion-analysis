@@ -77,9 +77,11 @@ class Plotter:
     def set_visible(self, visible: bool):
         self.ax.set_visible(visible)
         self.ax_ddta.set_visible(visible)
+        if visible:
+            self.fig.tight_layout(pad=0)
         self.canvas.draw()
 
-    def autoscale(self):
+    def autoscale(self, redraw=True):
         visible_segments = [segment for segment in self.segments if segment.get_visible()]
         if not visible_segments:
             return
@@ -97,7 +99,8 @@ class Plotter:
         
         self.ax.set_xlim(xmin=x_min-rx*0.05, xmax=x_max+rx*0.05)
         self.ax.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
-        self.canvas.draw()
+        if redraw:
+            self.canvas.draw()
 
     def axesIsValidForPeaks(self):
         return self.getCurrentYaxis() == "DTA" and (self.getCurrentXaxis() in ("Time", "Temp."))
@@ -119,15 +122,17 @@ class Plotter:
             if peaks_visible:
                 segment.peaksSetData(xaxis=xaxis)
             segment.set_visible_peaks(peaks_visible)
-        self.autoscale()
+        self.autoscale(redraw=False)
+        self.fig.tight_layout(pad=0)
+        self.canvas.draw()
 
     def remove_segments(self):
         self.segments.clear()
 
     def plot(self, xaxis: str, yaxis: str):
         self.clear()
-        print('* рисуем график')
-        print(f"* ставим оси {xaxis} и {yaxis}")
+        # print('* рисуем график')
+        # print(f"* ставим оси {xaxis} и {yaxis}")
         for segment in self.segments:
             segment.set_axes(xaxis=xaxis, yaxis=yaxis)
             self.ax.add_line(segment)
