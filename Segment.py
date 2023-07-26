@@ -238,8 +238,8 @@ class OnsetLine(Line2D):
         self.bi = bi
         self.info = dict()
         self.info['Temp.'] = int(round(self.peak.df_baseline['Temp.'][bi], 0))
-        self.info['Time'] = self.peak.df_baseline['Time'][bi]
-        self.info['DTA'] = self.peak.df_baseline['DTA'][bi]
+        self.info['Time'] = round(self.peak.df_baseline['Time'][bi], 5)
+        self.info['DTA'] = round(self.peak.df_baseline['DTA'][bi], 5)
         xdata = [self.info[xaxis],
                  self.peak.df[xaxis][ci]]
         ydata = [self.info['DTA'],
@@ -249,10 +249,10 @@ class OnsetLine(Line2D):
         self.set_antialiased(False)
         xy = [xdata[0], ydata[0]]
         if is_onset:
-            t = 'Начало'
+            self.t = 'Начало'
         else:
-            t = 'Конец'
-        self.ann = MyAnn(parent=self, text=f'{t}: {self.info[xaxis]}', xy=xy, xytext=xy, color=self.peak.segment._color,
+            self.t = 'Конец'
+        self.ann = MyAnn(parent=self, text=f'{self.t}: {self.info[xaxis]}', xy=xy, xytext=xy, color=self.peak.segment._color,
                          arrowprops=dict(arrowstyle="-", color=self.peak.segment._color, antialiased=False, lw=LW)
                          )
         self.peak.segment.plotter.ax.add_artist(self.ann)
@@ -280,6 +280,7 @@ class OnsetLine(Line2D):
     
     def remove(self) -> None:
         self.ann.remove()
+        self.peak.onset_lines.remove(self)
         return super().remove()
 
 class MyAnn(Annotation):

@@ -1,5 +1,5 @@
 from PySide6 import QtWidgets, QtCore, QtGui, QtUiTools
-from Plotter import Plotter, Peak
+from Plotter import Plotter, Peak, OnsetLine
 from libn2f import STAFile
 
 Ui_MainWindow, QMainWindow = QtUiTools.loadUiType('MainWindow.ui')
@@ -70,6 +70,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.cm_peak_remove = QtGui.QAction('Удалить')
         self.cm_peak_remove.triggered.connect(self.plotter.removePeak)
 
+        self.cm_onset = QtWidgets.QMenu(self)
+        self.cm_onset_name = QtGui.QAction()
+        self.cm_onset_name.setEnabled(False)
+        self.cm_onset_remove = QtGui.QAction('Удалить')
+        self.cm_onset_remove.triggered.connect(self.plotter.removeOnset)
+
         self.btn_peaktool.clicked.connect(self.on_click_peaktool_start)
         self.btn_peaktool_ok.clicked.connect(lambda: self.on_click_peaktool_done(apply=True))
         self.btn_peaktool_cancel.clicked.connect(lambda: self.on_click_peaktool_done(apply=False))
@@ -137,6 +143,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.cm_peak.addAction(self.cm_peak_name)
         self.cm_peak.addAction(self.cm_peak_remove)
         self.cm_peak.popup(pos)
+
+    def on_click_cm_onset(self, onset: OnsetLine, pos):
+        self.cm_onset_name.setText(f"{onset.t}: {onset.info}")
+        self.cm_onset.addAction(self.cm_onset_name)
+        self.cm_onset.addAction(self.cm_onset_remove)
+        self.cm_onset.popup(pos)
 
     def on_click_onsettool_start(self, is_onset: bool = True):
         if self.onsettool_check_is_valid():

@@ -16,6 +16,7 @@ class Plotter:
     pickedSelector_limit_x1: float
     pickedSelector_limit_x2: float
     pickedPeak: Peak = None
+    pickedAnn: MyAnn = None
 
     def __init__(self, parent) -> None:
         print("* инициализация плоттера")
@@ -180,7 +181,8 @@ class Plotter:
         line = event.artist
         if isinstance(line, MyAnn):
             if event.mouseevent.button == 3:
-                    self.peakAnnContextMenu(event)
+                self.pickedAnn = line
+                self.annContextMenu(event)
         self.picked = True
         if self.pickMode == 0:
             if isinstance(line, Segment):
@@ -203,16 +205,29 @@ class Plotter:
         pos = self.canvas.mapToGlobal(point)
         self.parent.on_click_cm_peak(peak=peak, pos=pos)
 
-    def peakAnnContextMenu(self, event: PickEvent):
-        event.artist: MyAnn
+    def onsetContextMenu(self, onset: OnsetLine, x: int, y: int):
+        point = QtCore.QPoint(x, y)
+        pos = self.canvas.mapToGlobal(point)
+        self.parent.on_click_cm_onset(onset=onset, pos=pos)
+
+    def annContextMenu(self, event: PickEvent):
         parent = event.artist.parent
+        x = event.mouseevent.x
+        y = self.getHeight()-event.mouseevent.y
         if isinstance(parent, Peak):
-            self.peakContextMenu(peak=parent, x=event.mouseevent.x, y=self.getHeight()-event.mouseevent.y)
+            self.peakContextMenu(peak=parent, x=x, y=y)
         elif isinstance(parent, OnsetLine):
-            print("ПКМ на аннотации линии начала пика!")
+            self.onsetContextMenu(onset=parent, x=x, y=y)
+        else:
+            raise RuntimeError("Не предусмотренный родительский класс")
+
+    def removeOnset(self):
+        self.pickedAnn.parent.remove()
+        self.pickedAnn = None
+        self.canvas.draw()
 
     def removePeak(self):
-        print("* удаляем пик")
+        # print("* удаляем пик")
         self.pickedPeak.remove()
         self.pickedPeak = None
         self.canvas.draw()
