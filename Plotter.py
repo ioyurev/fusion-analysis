@@ -184,10 +184,13 @@ class Plotter:
 
     def on_pick(self, event: PickEvent):
         line = event.artist
+        x = event.mouseevent.x
+        y = self.getHeight()-event.mouseevent.y
+        pos = self.canvas.mapToGlobal(QtCore.QPoint(x, y))
         if isinstance(line, MyAnn):
             if event.mouseevent.button == 3:
                 self.pickedAnn = line
-                self.annContextMenu(event)
+                self.contextMenu(obj=line.parent, pos=pos)
         self.picked = True
         if self.pickMode == 0:
             if isinstance(line, Segment):
@@ -195,36 +198,18 @@ class Plotter:
                 self.parent.on_pick_peak(False)
                 self.pickSegment(line)
                 if event.mouseevent.button == 3:
-                    self.segmentContextMenu(event)
+                    self.contextMenu(obj=line, pos=pos)
             elif isinstance(line, Peak):
                 self.pickPeak(line)
                 self.parent.on_pick_segment(False)
                 self.parent.on_pick_peak(True)
                 if event.mouseevent.button == 3:
-                    self.peakContextMenu(peak=event.artist, x=event.mouseevent.x, y=self.getHeight()-event.mouseevent.y)
+                    self.contextMenu(obj=event.artist, pos=pos)
         elif self.pickMode == 1:
             self.pickSelector(line)
 
-    def peakContextMenu(self, peak: Peak, x: int, y: int):
-        point = QtCore.QPoint(x, y)
-        pos = self.canvas.mapToGlobal(point)
-        self.parent.on_click_cm_peak(peak=peak, pos=pos)
-
-    def onsetContextMenu(self, onset: OnsetLine, x: int, y: int):
-        point = QtCore.QPoint(x, y)
-        pos = self.canvas.mapToGlobal(point)
-        self.parent.on_click_cm_onset(onset=onset, pos=pos)
-
-    def annContextMenu(self, event: PickEvent):
-        parent = event.artist.parent
-        x = event.mouseevent.x
-        y = self.getHeight()-event.mouseevent.y
-        if isinstance(parent, Peak):
-            self.peakContextMenu(peak=parent, x=x, y=y)
-        elif isinstance(parent, OnsetLine):
-            self.onsetContextMenu(onset=parent, x=x, y=y)
-        else:
-            raise RuntimeError("Не предусмотренный родительский класс")
+    def contextMenu(self, obj: Segment | Peak | OnsetLine, pos: QtCore.QPoint):
+        self.parent.cm_popup(obj=obj, pos=pos)
 
     def removeOnset(self):
         self.pickedAnn.parent.remove()
@@ -236,10 +221,6 @@ class Plotter:
         self.pickedPeak.remove()
         self.pickedPeak = None
         self.canvas.draw()
-
-    def segmentContextMenu(self, event: PickEvent):
-        # TODO: вызов контекстное меню сегмента
-        print("ПКМ по сегменту!")
 
     def pickPeak(self, line: Peak):
         # print("* выбран пик")

@@ -1,4 +1,4 @@
-from helpers import find_nearest, make_peakbaseline, np, derivative, PolyArea, swap_values, sround, calc_peakonset, baseline_temp, xand_gate
+from helpers import find_nearest, make_peakbaseline, np, derivative_data, PolyArea, swap_values, sround, calc_peakonset, baseline_temp, xand_gate
 import matplotlib.patheffects as path_effects
 from matplotlib.patches import Polygon
 from matplotlib.text import Annotation
@@ -25,8 +25,8 @@ class Segment(Line2D):
         self.df = df
         xdata = self.df['Time'].values
         ydata = self.df['DTA'].values
-        self.df['dDTA/dTime'] = derivative(xdata, ydata)
-        self.df['dDTA/dTemp'] = derivative(self.df['Temp.'].to_numpy(), ydata)
+        self.df['dDTA/dTime'] = derivative_data(xdata, ydata)
+        self.df['dDTA/dTemp'] = derivative_data(self.df['Temp.'].to_numpy(), ydata)
         self.xaxis = 'Time'
         self.xmax = xdata.max()
         self.xmin = xdata.min()
@@ -183,13 +183,15 @@ class Peak(Polygon):
         self.onset_lines.append(OnsetLine(peak=self, ci=ci, bi=bi, color=self.segment._color, is_onset=is_onset))
         self.segment.plotter.ax.add_line(self.onset_lines[-1])
 
-    def remove(self):
+    def remove(self, redraw=False) -> None:
         self.segment.peaks.remove(self)
         self.ann.remove()
         line: OnsetLine
         for line in self.onset_lines:
             line.remove()
         super().remove()
+        if redraw:
+            self.segment.plotter.canvas.draw_idle()
 
     def get_data_by_xaxis(self, xaxis=None) -> list:
         if xaxis is None:
@@ -278,10 +280,12 @@ class OnsetLine(Line2D):
         self.ann.set_visible(b)
         return super().set_visible(b)
     
-    def remove(self) -> None:
+    def remove(self, redraw=False) -> None:
         self.ann.remove()
         self.peak.onset_lines.remove(self)
-        return super().remove()
+        super().remove()
+        if redraw:
+            self.peak.segment.plotter.canvas.draw_idle()
 
 class MyAnn(Annotation):
     def __init__(self, parent, *args, **kwargs) -> None:

@@ -1,5 +1,5 @@
 from PySide6 import QtWidgets, QtCore, QtGui, QtUiTools
-from Plotter import Plotter, Peak, OnsetLine
+from Plotter import Plotter, Segment, Peak, OnsetLine
 from libn2f import STAFile
 
 Ui_MainWindow, QMainWindow = QtUiTools.loadUiType('MainWindow.ui')
@@ -64,17 +64,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.action_close = self.findChild(QtGui.QAction, 'action_close')
         self.action_close.triggered.connect(self.on_click_close)
         
-        self.cm_peak = QtWidgets.QMenu(self)
-        self.cm_peak_name = QtGui.QAction()
-        self.cm_peak_name.setEnabled(False)
-        self.cm_peak_remove = QtGui.QAction('Удалить')
-        self.cm_peak_remove.triggered.connect(self.plotter.removePeak)
-
-        self.cm_onset = QtWidgets.QMenu(self)
-        self.cm_onset_name = QtGui.QAction()
-        self.cm_onset_name.setEnabled(False)
-        self.cm_onset_remove = QtGui.QAction('Удалить')
-        self.cm_onset_remove.triggered.connect(self.plotter.removeOnset)
+        self.cm = QtWidgets.QMenu(self)
+        self.cm_name = QtGui.QAction()
+        self.cm_name.setEnabled(False)
+        self.cm.addAction(self.cm_name)
+        self.cm_remove = RemoveAction(self)
+        self.cm.addAction(self.cm_remove)
+        # self.cm_peak_remove.triggered.connect(self.plotter.removePeak)
+        # self.cm_onset_remove.triggered.connect(self.plotter.removeOnset)
 
         self.btn_peaktool.clicked.connect(self.on_click_peaktool_start)
         self.btn_peaktool_ok.clicked.connect(lambda: self.on_click_peaktool_done(apply=True))
@@ -143,17 +140,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # if event.button() == 1:  # Левая кнопка мыши
         # self.button_pressed = False
 
-    def on_click_cm_peak(self, peak: Peak, pos):
-        self.cm_peak_name.setText(f"Пик {peak.area}")
-        self.cm_peak.addAction(self.cm_peak_name)
-        self.cm_peak.addAction(self.cm_peak_remove)
-        self.cm_peak.popup(pos)
-
-    def on_click_cm_onset(self, onset: OnsetLine, pos):
-        self.cm_onset_name.setText(f"{onset.t}: {onset.info}")
-        self.cm_onset.addAction(self.cm_onset_name)
-        self.cm_onset.addAction(self.cm_onset_remove)
-        self.cm_onset.popup(pos)
+    def cm_popup(self, obj: Segment | Peak | OnsetLine, pos: QtCore.QPoint):
+        if isinstance(obj, Segment):
+            name = f"Сегмент {obj.index}"
+            self.cm_remove.setVisible(False)
+        elif isinstance(obj, Peak):
+            name = f"Пик {obj.area}"
+            self.cm_remove.setVisible(True)
+        elif isinstance(obj, OnsetLine):
+            name = f"{obj.t}: {obj.info}"
+            self.cm_remove.setVisible(True)
+        self.cm_name.setText(name)
+        self.cm_remove.obj = obj
+        self.cm.popup(pos)
 
     def on_click_onsettool_start(self, is_onset: bool = True):
         if self.onsettool_check_is_valid():
@@ -337,3 +336,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_pick_peak(self, state):
         self.btn_onsettool.setEnabled(state)
         self.btn_endtool.setEnabled(state)
+
+class RemoveAction(QtGui.QAction):
+    obj: Segment | Peak | OnsetLine
+
+    def __init__(self, parent: QtWidgets.QWidget):
+        super().__init__('Удалить', parent)
+        self.triggered.connect(lambda: self.obj.remove(redraw=True))

@@ -80,7 +80,7 @@
            </sizepolicy>
           </property>
           <property name="decimals">
-           <number>5</number>
+           <number>1</number>
           </property>
           <property name="maximum">
            <double>2000.000000000000000</double>
@@ -128,7 +128,7 @@
            </sizepolicy>
           </property>
           <property name="decimals">
-           <number>5</number>
+           <number>1</number>
           </property>
           <property name="maximum">
            <double>2000.000000000000000</double>
@@ -290,7 +290,7 @@
            </sizepolicy>
           </property>
           <property name="decimals">
-           <number>5</number>
+           <number>1</number>
           </property>
           <property name="maximum">
            <double>2000.000000000000000</double>
@@ -332,7 +332,7 @@
            </sizepolicy>
           </property>
           <property name="decimals">
-           <number>5</number>
+           <number>1</number>
           </property>
           <property name="maximum">
            <double>2000.000000000000000</double>
