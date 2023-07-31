@@ -202,8 +202,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def on_combobox_changed(self, index):
         if self.comboboxes_is_set:
             self.plotter.updateAxes()
-            arrb = [True if self.list_segments.item(i).checkState() == QtCore.Qt.Checked else False for i in range(self.list_segments.count())]
-            self.plotter.segmentsVisible(arrb)
 
     def on_click_peaktool_done(self, apply: bool):
         self.plotter.peaktool_done(apply=apply)
@@ -311,9 +309,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # добавляем доступные параметры в комбобоксы
         xaxes = ('Time', 'Temp.')
         yaxes = list(self.plotter.segments[0].df.columns)
-        yaxes.remove('Time')
-        yaxes.remove('Temp.')
-
+        for yaxis in ('Time', 'Temp.', 'dDTA/dTime', 'dDTA/dTemp'):
+            yaxes.remove(yaxis)
         for header in xaxes:
             self.combobox_xaxis.addItem(header)
         for header in yaxes:

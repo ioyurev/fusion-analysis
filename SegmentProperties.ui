@@ -19,7 +19,7 @@
   <property name="windowTitle">
    <string>Свойства</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout">
+  <layout class="QGridLayout" name="gridLayout" columnstretch="0,0,0,1">
    <item row="0" column="1">
     <widget class="QWidget" name="w_color" native="true">
      <property name="minimumSize">
@@ -33,7 +33,7 @@
    <item row="0" column="2">
     <widget class="QPushButton" name="btn_color">
      <property name="text">
-      <string>Изменить цвет</string>
+      <string>Изменить</string>
      </property>
     </widget>
    </item>

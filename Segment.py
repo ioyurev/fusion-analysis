@@ -56,7 +56,6 @@ class Segment(Line2D):
         self.set_picker(5 if visible else visible)
 
     def set_visible_peaks(self, visible: bool):
-        peak: Peak
         if self.peaks:
             for peak in self.peaks:
                 peak.set_visible(visible)
