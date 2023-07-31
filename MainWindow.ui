@@ -529,14 +529,21 @@
      <height>22</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menu">
+   <widget class="QMenu" name="menu_file">
     <property name="title">
      <string>Файл</string>
     </property>
     <addaction name="action_open"/>
     <addaction name="action_close"/>
    </widget>
-   <addaction name="menu"/>
+   <widget class="QMenu" name="menu_editor">
+    <property name="title">
+     <string>Редактор</string>
+    </property>
+    <addaction name="action_config"/>
+   </widget>
+   <addaction name="menu_file"/>
+   <addaction name="menu_editor"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="action_open">
@@ -550,6 +557,11 @@
    </property>
    <property name="text">
     <string>Закрыть</string>
+   </property>
+  </action>
+  <action name="action_config">
+   <property name="text">
+    <string>Настройки</string>
    </property>
   </action>
  </widget>

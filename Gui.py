@@ -2,7 +2,8 @@ from PySide6 import QtWidgets, QtCore, QtGui, QtUiTools
 from Plotter import Plotter, Segment, Peak, OnsetLine
 from libn2f import STAFile
 from ContextMenuActions import RemoveAction, PropertiesAction
-from Config import read_config
+from Config import read_config, write_config
+from ConfigWindow import ConfigWindow
 
 Ui_MainWindow = QtUiTools.loadUiType('MainWindow.ui')[0]
 
@@ -32,9 +33,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     combobox_xaxis: QtWidgets.QComboBox
     combobox_yaxis: QtWidgets.QComboBox
     checkbox_grid: QtWidgets.QCheckBox
-    # checkox_derivative: QtWidgets.QCheckBox
+    menu_file: QtWidgets.QMenu
+    menu_editor: QtWidgets.QMenu
     action_open: QtGui.QAction
     action_close: QtGui.QAction
+    action_config: QtGui.QAction
     list_segments : QtWidgets.QListWidget
     checkbox_autoscale: QtWidgets.QCheckBox
     leftpanel: QtWidgets.QGridLayout
@@ -47,27 +50,31 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     btn_onsettool_cancel: QtWidgets.QPushButton
     btn_shiftsegment: QtWidgets.QPushButton
     list_segments : QtWidgets.QListWidget
-
+    plotLayout: QtWidgets.QVBoxLayout
+    
     def __init__(self):
         print('* загрузка интерфейса')
         super().__init__()
         self.setupUi(self)
         self.showMaximized()
+        self.resizeEvent = self.on_resize
+
+        self.config = read_config()
+
         # плоттер
-        # self: QtWidgets.QMainWindow
         self.plotter = Plotter(self)
-        self.plotter.config = read_config()['Plotter']
-        # self.statusBar = QtWidgets.QStatusBar()
-        # self.setStatusBar(self.statusBar)
+        self.plotter.config = self.config['Plotter']
+        
         # добавляем холст и панель инструментов matplotlib
         self.plotLayout.addWidget(self.plotter.canvas)
         self.plotLayout.addWidget(self.plotter.toolbar)
-        # находим виджеты и добавляем им обработчики событий
-        self.action_open = self.findChild(QtGui.QAction, 'action_open')
-        self.action_open.triggered.connect(self.on_click_open)
-        self.action_close = self.findChild(QtGui.QAction, 'action_close')
-        self.action_close.triggered.connect(self.on_click_close)
         
+        # обработчики меню
+        self.action_open.triggered.connect(self.on_click_open)
+        self.action_close.triggered.connect(self.on_click_close)
+        self.action_config.triggered.connect(self.on_click_config)
+        
+        # контекстное меню
         self.cm = QtWidgets.QMenu(self)
         self.cm_name = QtGui.QAction()
         self.cm_name.setEnabled(False)
@@ -78,6 +85,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.cm_prop.signal_prop_applied.connect(self.plotter.canvas.draw)
         self.cm.addAction(self.cm_prop)
 
+        # обработчики инструментов
         self.btn_peaktool.clicked.connect(self.on_click_peaktool_start)
         self.btn_peaktool_ok.clicked.connect(lambda: self.on_click_peaktool_done(apply=True))
         self.btn_peaktool_cancel.clicked.connect(lambda: self.on_click_peaktool_done(apply=False))
@@ -87,33 +95,28 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.btn_endtool.clicked.connect(lambda: self.on_click_onsettool_start(is_onset=False))
         self.btn_shiftsegment.mousePressEvent = self.on_press_shiftsegment
         self.btn_shiftsegment.mouseMoveEvent = self.on_move_shiftsegment
-        # self.btn_shiftsegment.mouseReleaseEvent = self.on_release_shiftsegment
 
+        # обработчики левой панели
         self.checkbox_grid.stateChanged.connect(self.on_checkbox_grid_changed)
         self.checkbox_autoscale.stateChanged.connect(self.on_checkbox_autoscale_changed)
         self.combobox_xaxis.currentIndexChanged.connect(self.on_combobox_changed)
         self.combobox_yaxis.currentIndexChanged.connect(self.on_combobox_changed)
         # self.spinbox_T1.valueChanged.connect(self.on_spinbox_T1_changed)
 
+        # скрытие панелей инструментов
         layoutSetVisible(self.peaktoolLayout, False)
         layoutSetVisible(self.onsettoolLayout, False)
-
-        # стили CSS!
-        # with open('toolbar.css') as f:
-        #     self.setStyleSheet("".join(f.readlines()))
 
         # список сегментов
         self.list_segments.itemChanged.connect(self.on_item_changed)
         self.list_segments.itemSelectionChanged.connect(self.on_item_selection_changed)
         self.list_segments.contextMenuEvent = self.on_cm_list_segments
-        # self.list_segments.clicked.connect(self.on_item_clicked)
         self.items: list[QtWidgets.QListWidgetItem] = []
+        
         self.measurement_is_opened = False
         self.comboboxes_is_set = False
         self.peaktool_initialized = False
         self.button_pressed = False
-        # QtWidgets.QStatusBar
-        self.resizeEvent = self.on_resize
     
     # def on_spinbox_T1_changed(self, value):
     #     if self.peaktool_initialized:
@@ -129,26 +132,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         super().resizeEvent(event)
 
     def on_press_shiftsegment(self, event: QtGui.QMouseEvent):
-        # print('1')
-        # if event.button() == 1:  # Левая кнопка мыши
         self.press_position = event.globalPos().y()
-        # self.button_pressed = True
 
     def on_move_shiftsegment(self, event: QtGui.QMouseEvent):
         if self.plotter.pickedSegment is not None:
-            # print('2')
-            # if self.button_pressed:
             y = event.globalPos().y()
             dy = y - self.press_position
-            # print(f"Y-axis movement: {dy}")
             self.plotter.pickedSegment.shifty(dy)
             self.plotter.canvas.draw()
             self.press_position = y
-
-    # def on_release_shiftsegment(self, event: QtGui.QMouseEvent):
-    #     print('3')
-        # if event.button() == 1:  # Левая кнопка мыши
-        # self.button_pressed = False
 
     def cm_popup(self, obj: Segment | Peak | OnsetLine, pos: QtCore.QPoint):
         if isinstance(obj, Segment):
@@ -167,7 +159,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def on_click_onsettool_start(self, is_onset: bool = True):
         if self.onsettool_check_is_valid():
-            # print("* инструмент нахождения начала пика запущен")
             self.plotter.onsettool_start(is_onset)
             layoutSetVisible(self.onsettoolLayout, True)
             layoutSetEnabled(self.leftpanel, False)
@@ -210,11 +201,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.btn_shiftsegment.setEnabled(True)
         self.btn_peaktool.setEnabled(True)
         self.peaktool_initialized = False
-        # print("* инструмент выделения пика применен")
 
     def on_click_peaktool_start(self):
         if self.peaktool_check_is_valid():
-            # print("* инструмент выделения пика запущен")
             self.plotter.peaktool_start()
             layoutSetVisible(self.peaktoolLayout, True)
             layoutSetEnabled(self.leftpanel, False)
@@ -279,7 +268,16 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             raise RuntimeError(f'Значение EXO {stafile.info["EXO"]} не распознано.')
         del stafile
-        
+
+    def on_click_config(self):
+        c = ConfigWindow(self.config, parent=self)
+        result = c.exec()
+        if result == QtWidgets.QDialog.Accepted and c.changes_are_made:
+            self.config = c.config
+            write_config(self.config)
+        elif result == QtWidgets.QDialog.Rejected:
+            pass
+
     def on_click_close(self):
         self.comboboxes_is_set = False
         self.action_open.setEnabled(True)
