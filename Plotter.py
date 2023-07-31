@@ -357,7 +357,8 @@ class Plotter:
                 segment.set_picker(5)
         if apply:
             self.pickedSegment.addPeak(
-                self.parent.spinbox_T1.value(),
-                self.parent.spinbox_T2.value()
+                t1=self.parent.spinbox_T1.value(),
+                t2=self.parent.spinbox_T2.value(),
+                baseline_type=self.parent.combobox_baselinetype.currentIndex()
                 )
         self.canvas.draw()

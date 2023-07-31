@@ -3,6 +3,7 @@ import matplotlib.patheffects as path_effects
 from matplotlib.patches import Polygon
 from matplotlib.text import Annotation
 from matplotlib.lines import Line2D
+from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import pandas as pd
 from libn2f import UREG
@@ -18,8 +19,9 @@ def get_next_color():
 class Segment(Line2D):
     line_ddta: Line2D
     index: int
-    _visible: bool
+    ax: Axes
     def __init__(self, df: pd.DataFrame, plotter, index: int, Type: int, *args, **kwargs):
+        self.ax = plotter.ax
         self.dy: float = 0
         self.Type = Type
         self.df = df
@@ -36,8 +38,8 @@ class Segment(Line2D):
         self.index = index
         self.peaks : list[Peak] = []
         color = get_next_color()
-        super().__init__(xdata=xdata, ydata=ydata, color=color, lw=LW, *args, **kwargs)
         self.dsegment = Line2D(xdata=xdata, ydata=self.df['dDTA/dTime'], color=color, lw=1)
+        super().__init__(xdata=xdata, ydata=ydata, color=color, lw=LW, *args, **kwargs)
         self.dsegment.set_antialiased(False)
         self.set_picker(5)
         self.set_antialiased(False)
@@ -78,10 +80,10 @@ class Segment(Line2D):
         self.dsegment.set_xdata(xdata)
         self.dy = 0
 
-    def addPeak(self, t1, t2):
-        print("* добавляем пик")
-        self.peaks.append(Peak(segment=self, t1=t1, t2=t2, baseline_type=self.plotter.parent.combobox_baselinetype.currentIndex()))
-        self.plotter.ax.add_patch(self.peaks[-1])
+    def addPeak(self, t1:float, t2:float, baseline_type:int):
+        peak = Peak(segment=self, t1=t1, t2=t2, baseline_type=baseline_type)
+        self.peaks.append(peak)
+        self.ax.add_patch(peak)
     
     def setPickEffect(self, bool):
         if bool:
@@ -89,9 +91,19 @@ class Segment(Line2D):
         else:
             self.set_path_effects(None)
 
+    def set_color(self, color) -> None:
+        self.dsegment.set_color(color)
+        if self.peaks:
+            for peak in self.peaks:
+                peak.set_edgecolor(color)
+        return super().set_color(color)
+
 class Peak(Polygon):
-    def __init__(self, segment: Segment, t1, t2, baseline_type=0, *args, **kwargs) -> None:
-        self.onset_lines = []
+    ann = None
+
+    def __init__(self, segment: Segment, t1:float, t2:float, baseline_type=0, *args, **kwargs) -> None:
+        self.onset_lines: list[OnsetLine] = []
+        self.ax = segment.ax
         self.segment = segment
         xaxis = segment.xaxis
         # наследуем данные для кривой из сегмента
@@ -148,12 +160,12 @@ class Peak(Polygon):
             color=self.segment._color,
             arrowprops=dict(arrowstyle="-", color=self.segment._color, antialiased=False, lw=LW)
             )
-        self.segment.plotter.ax.add_artist(self.ann)
+        self.ax.add_artist(self.ann)
         self.ann.draggable()
         self.set_data(xaxis)
         self.shifty(self.segment.dy)
 
-    def shifty(self, dy):
+    def shifty(self, dy:float):
         if dy != 0:
             self.set_xy([(x, y - dy) for x, y in self.get_xy()])
             self.ann.shifty(dy)
@@ -181,7 +193,7 @@ class Peak(Polygon):
             peak_exo=self.peak_exo
             )
         self.onset_lines.append(OnsetLine(peak=self, ci=ci, bi=bi, color=self.segment._color, is_onset=is_onset))
-        self.segment.plotter.ax.add_line(self.onset_lines[-1])
+        self.ax.add_line(self.onset_lines[-1])
 
     def remove(self, redraw=False) -> None:
         self.segment.peaks.remove(self)
@@ -231,6 +243,15 @@ class Peak(Polygon):
         else:
             self.set_path_effects(None)
 
+    def set_edgecolor(self, color) -> None:
+        if self.ann is not None:
+            self.ann.set_color(color)
+            # self.ann.arrow_patch: FancyArrowPatch()
+        if self.onset_lines:
+            for line in self.onset_lines:
+                line.set_color(color)
+        return super().set_edgecolor(color)
+
 class OnsetLine(Line2D):
     def __init__(self, peak, ci, bi, is_onset, *args, **kwargs) -> None:
         self.peak: Peak = peak
@@ -247,8 +268,6 @@ class OnsetLine(Line2D):
         ydata = [self.info['DTA'],
                  self.peak.df['DTA'][ci]]
 
-        super().__init__(xdata=xdata, ydata=ydata, lw=LW, *args, **kwargs)
-        self.set_antialiased(False)
         xy = [xdata[0], ydata[0]]
         if is_onset:
             self.t = 'Начало'
@@ -257,6 +276,9 @@ class OnsetLine(Line2D):
         self.ann = MyAnn(parent=self, text=f'{self.t}: {self.info[xaxis]}', xy=xy, xytext=xy, color=self.peak.segment._color,
                          arrowprops=dict(arrowstyle="-", color=self.peak.segment._color, antialiased=False, lw=LW)
                          )
+
+        super().__init__(xdata=xdata, ydata=ydata, lw=LW, *args, **kwargs)
+        self.set_antialiased(False)
         self.peak.segment.plotter.ax.add_artist(self.ann)
         self.ann.draggable()
         self.shifty(self.peak.segment.dy)
@@ -287,6 +309,10 @@ class OnsetLine(Line2D):
         if redraw:
             self.peak.segment.plotter.canvas.draw_idle()
 
+    def set_color(self, color) -> None:
+        self.ann.set_color(color)
+        return super().set_color(color)
+
 class MyAnn(Annotation):
     def __init__(self, parent, *args, **kwargs) -> None:
         self.parent: Peak | OnsetLine = parent
@@ -312,3 +338,7 @@ class MyAnn(Annotation):
             raise RuntimeError(f"Не предусмотренный родительский класс {self.parent.__class__.__name__}")
         self.set(x=xb, y=yb)
         self.xy = (xb, yb)
+
+    def set_color(self, color) -> None:
+        self.arrow_patch.set_color(color)
+        return super().set_color(color)

@@ -1,8 +1,9 @@
 from PySide6 import QtWidgets, QtCore, QtGui, QtUiTools
 from Plotter import Plotter, Segment, Peak, OnsetLine
 from libn2f import STAFile
+from ContextMenuActions import RemoveAction, PropertiesAction
 
-Ui_MainWindow, QMainWindow = QtUiTools.loadUiType('MainWindow.ui')
+Ui_MainWindow = QtUiTools.loadUiType('MainWindow.ui')[0]
 
 def warning_message(message):
     print(f'* Предупреждение. {message}')
@@ -21,7 +22,7 @@ def layoutSetEnabled(layout: QtWidgets.QLayout, enabled: bool):
         if widget is not None:
             widget.setEnabled(enabled)
 
-class MainWindow(QMainWindow, Ui_MainWindow):
+class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     btn_peaktool : QtWidgets.QPushButton
     btn_peaktool_ok : QtWidgets.QPushButton
     btn_peaktool_cancel : QtWidgets.QPushButton
@@ -44,6 +45,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     btn_onsettool_ok: QtWidgets.QPushButton
     btn_onsettool_cancel: QtWidgets.QPushButton
     btn_shiftsegment: QtWidgets.QPushButton
+    list_segments : QtWidgets.QListWidget
 
     def __init__(self):
         print('* загрузка интерфейса')
@@ -70,8 +72,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.cm.addAction(self.cm_name)
         self.cm_remove = RemoveAction(self)
         self.cm.addAction(self.cm_remove)
-        # self.cm_peak_remove.triggered.connect(self.plotter.removePeak)
-        # self.cm_onset_remove.triggered.connect(self.plotter.removeOnset)
+        self.cm_prop = PropertiesAction(self)
+        self.cm_prop.signal_prop_applied.connect(self.plotter.canvas.draw)
+        self.cm.addAction(self.cm_prop)
 
         self.btn_peaktool.clicked.connect(self.on_click_peaktool_start)
         self.btn_peaktool_ok.clicked.connect(lambda: self.on_click_peaktool_done(apply=True))
@@ -98,9 +101,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #     self.setStyleSheet("".join(f.readlines()))
 
         # список сегментов
-        self.list_segments : QtWidgets.QListWidget = self.findChild(QtWidgets.QListWidget, 'listWidget')
         self.list_segments.itemChanged.connect(self.on_item_changed)
         self.list_segments.itemSelectionChanged.connect(self.on_item_selection_changed)
+        self.list_segments.contextMenuEvent = self.on_cm_list_segments
         # self.list_segments.clicked.connect(self.on_item_clicked)
         self.items: list[QtWidgets.QListWidgetItem] = []
         self.measurement_is_opened = False
@@ -113,6 +116,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # def on_spinbox_T1_changed(self, value):
     #     if self.peaktool_initialized:
     #         self.plotter.move_selector(value)
+
+    def on_cm_list_segments(self, event: QtGui.QContextMenuEvent):
+        index = self.list_segments.indexAt(event.pos()).row()
+        obj = self.plotter.segments[index]
+        self.cm_popup(obj=obj, pos=event.globalPos())
 
     def on_resize(self, event):
         self.plotter.fig.tight_layout(pad=0)
@@ -152,6 +160,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.cm_remove.setVisible(True)
         self.cm_name.setText(name)
         self.cm_remove.obj = obj
+        self.cm_prop.obj = obj
         self.cm.popup(pos)
 
     def on_click_onsettool_start(self, is_onset: bool = True):
@@ -198,7 +207,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.plotter.peaktool_done(apply=apply)
         layoutSetVisible(self.peaktoolLayout, False)
         layoutSetEnabled(self.leftpanel, True)
-        self.btn_shiftsegment.setEnabled(False)
+        self.btn_shiftsegment.setEnabled(True)
+        self.btn_peaktool.setEnabled(True)
         self.peaktool_initialized = False
         # print("* инструмент выделения пика применен")
 
@@ -209,6 +219,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             layoutSetVisible(self.peaktoolLayout, True)
             layoutSetEnabled(self.leftpanel, False)
             self.btn_shiftsegment.setEnabled(False)
+            self.btn_peaktool.setEnabled(False)
             self.peaktool_initialized = True
 
     def onsettool_check_is_valid(self):
@@ -285,7 +296,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_click_open(self):
         # обработчик открытия измерения
-        options = QtWidgets.QFileDialog.Options()
+        options = QtWidgets.QFileDialog.Options(0x10)
         file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', '', 'All Files (*);;Text Files (*.txt)', options=options)
         if file_name == '':
             return
@@ -336,10 +347,3 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_pick_peak(self, state):
         self.btn_onsettool.setEnabled(state)
         self.btn_endtool.setEnabled(state)
-
-class RemoveAction(QtGui.QAction):
-    obj: Segment | Peak | OnsetLine
-
-    def __init__(self, parent: QtWidgets.QWidget):
-        super().__init__('Удалить', parent)
-        self.triggered.connect(lambda: self.obj.remove(redraw=True))
