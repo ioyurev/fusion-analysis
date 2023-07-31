@@ -6,6 +6,12 @@ from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,
     NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.backend_bases import MouseEvent, PickEvent
+import itertools
+from libn2f import TYPE_COOL, TYPE_HEAT
+
+colors = itertools.cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
+def get_next_color():
+    return next(colors)
 
 class Plotter:
     # headers: list[str] = None
@@ -17,6 +23,7 @@ class Plotter:
     pickedSelector_limit_x2: float
     pickedPeak: Peak = None
     pickedAnn: MyAnn = None
+    config: dict = None
 
     def __init__(self, parent) -> None:
         print("* инициализация плоттера")
@@ -253,8 +260,14 @@ class Plotter:
         # print(f'* выбрана линия с индексом {index}')
 
     def addSegment(self, df, index, Type):
-        # print(f"* добавляем сегмент {len(self.segments)}")
-        self.segments.append(Segment(df=df, plotter=self, index=index, Type=Type))
+        if self.config['autocolor']:
+            color = get_next_color()
+        else:
+            if Type == TYPE_COOL:
+                color = self.config['default_cool_color']
+            elif Type == TYPE_HEAT:
+                color = self.config['default_heat_color']
+        self.segments.append(Segment(df=df, plotter=self, index=index, Type=Type, color=color))
 
     def segmentsVisible(self, arrb: list[bool]):
         segment: Segment

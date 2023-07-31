@@ -2,6 +2,7 @@ from PySide6 import QtWidgets, QtCore, QtGui, QtUiTools
 from Plotter import Plotter, Segment, Peak, OnsetLine
 from libn2f import STAFile
 from ContextMenuActions import RemoveAction, PropertiesAction
+from Config import read_config
 
 Ui_MainWindow = QtUiTools.loadUiType('MainWindow.ui')[0]
 
@@ -55,6 +56,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # плоттер
         # self: QtWidgets.QMainWindow
         self.plotter = Plotter(self)
+        self.plotter.config = read_config()['Plotter']
         # self.statusBar = QtWidgets.QStatusBar()
         # self.setStatusBar(self.statusBar)
         # добавляем холст и панель инструментов matplotlib

@@ -4,23 +4,17 @@ from matplotlib.patches import Polygon
 from matplotlib.text import Annotation
 from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
-import matplotlib.pyplot as plt
 import pandas as pd
 from libn2f import UREG
-import itertools
 
 PATH_EFFECT = [path_effects.Stroke(linewidth=2, foreground='black'), path_effects.Normal()]
 LW = 0.5
-
-colors = itertools.cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
-def get_next_color():
-    return next(colors)
 
 class Segment(Line2D):
     line_ddta: Line2D
     index: int
     ax: Axes
-    def __init__(self, df: pd.DataFrame, plotter, index: int, Type: int, *args, **kwargs):
+    def __init__(self, df: pd.DataFrame, plotter, index: int, Type: int, color, *args, **kwargs):
         self.ax = plotter.ax
         self.dy: float = 0
         self.Type = Type
@@ -37,7 +31,6 @@ class Segment(Line2D):
         self.plotter = plotter
         self.index = index
         self.peaks : list[Peak] = []
-        color = get_next_color()
         self.dsegment = Line2D(xdata=xdata, ydata=self.df['dDTA/dTime'], color=color, lw=1)
         super().__init__(xdata=xdata, ydata=ydata, color=color, lw=LW, *args, **kwargs)
         self.dsegment.set_antialiased(False)
