@@ -7,8 +7,8 @@ warnings.filterwarnings("ignore", category=UserWarning, message="The figure layo
 
 app = QtWidgets.QApplication(sys.argv)
 app.setStyle('Fusion')
-dpi = app.screens()[0].logicalDotsPerInch()
 scale = QtGui.QWindow().devicePixelRatio()
+dpi = app.screens()[0].logicalDotsPerInch() * scale 
 form = MainWindow(dpi=dpi, scale=scale)
 form.show()
 sys.exit(app.exec())
