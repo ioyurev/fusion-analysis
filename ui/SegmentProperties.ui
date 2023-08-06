@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>Свойства</string>
+   <string>Свойства сегмента</string>
   </property>
   <layout class="QGridLayout" name="gridLayout" columnstretch="0,0,0,1">
    <item row="0" column="1">

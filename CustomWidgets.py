@@ -1,7 +1,7 @@
 from PySide6 import QtWidgets, QtGui, QtCore
 from Plotter import Selector
 from Segment import Segment, Peak, OnsetLine
-from PropertiesWindows import SegmentPropetiesWindow
+from PropertiesWindows import SegmentPropetiesWindow, PeakPropertiesWindow
 
 class MySpinBox(QtWidgets.QDoubleSpinBox):
     selectors: list[Selector] = []
@@ -52,3 +52,18 @@ class PropertiesAction(QtGui.QAction):
                 pass
             else:
                 raise RuntimeError("Непрерудсмотренное значение")
+        elif isinstance(self.obj, Peak):
+            w = PeakPropertiesWindow(self.obj)
+            w.checkbox_label.setChecked(self.obj.label_enabled)
+            result = w.exec()
+            if result == QtWidgets.QDialog.Accepted and w.changes_are_made:
+                self.obj.label_enabled = w.checkbox_label.isChecked()
+                if self.obj.label_enabled:
+                    label = 'Площадь: '
+                else:
+                    label = ''
+                self.obj.ann.set_text(f'{label}{self.obj.area}')
+                self.signal_prop_applied.emit()
+            elif result == QtWidgets.QDialog.Rejected:
+                pass
+        del w

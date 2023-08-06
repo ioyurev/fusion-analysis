@@ -141,6 +141,7 @@ class Peak(Polygon):
         self.set_antialiased(False)
 
         # считаем площадь и делаем аннотацию
+        self.label_enabled = True
         area = PolyArea(self.get_xy()) * 60 
         self.area = sround(area, 3) * UREG('J/g') * (2 * self.peak_effect - 1)
         self.anni = len(self.df_baseline[xaxis]) // 2
@@ -255,6 +256,9 @@ class OnsetLine(Line2D):
         self.info['Temp.'] = int(round(self.peak.df_baseline['Temp.'][bi], 0))
         self.info['Time'] = round(self.peak.df_baseline['Time'][bi], 5)
         self.info['DTA'] = round(self.peak.df_baseline['DTA'][bi], 5)
+        self.units = {'Temp.': self.peak.segment.plotter.get_units('Temp.'),
+                      'Time': self.peak.segment.plotter.get_units('Time'),
+                      'DTA': self.peak.segment.plotter.get_units('DTA')}
         xdata = [self.info[xaxis],
                  self.peak.df[xaxis][ci]]
         ydata = [self.info['DTA'],

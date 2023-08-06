@@ -1,6 +1,6 @@
-from PySide6 import QtWidgets, QtGui, QtUiTools, QtCore
+from PySide6 import QtWidgets, QtGui, QtUiTools
 
-Ui_Dialog = QtUiTools.loadUiType('Config.ui')[0]
+Ui_Dialog = QtUiTools.loadUiType('ui/Config.ui')[0]
 
 class ConfigWindow(QtWidgets.QDialog, Ui_Dialog):
     w_color_heat: QtWidgets.QWidget

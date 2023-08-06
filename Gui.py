@@ -5,7 +5,7 @@ from Config import read_config, write_config
 from ConfigWindow import ConfigWindow
 from CustomWidgets import MySpinBox, RemoveAction, PropertiesAction
 
-Ui_MainWindow = QtUiTools.loadUiType('MainWindow.ui')[0]
+Ui_MainWindow = QtUiTools.loadUiType('ui/MainWindow.ui')[0]
 
 def warning_message(message):
     print(f'* Предупреждение. {message}')
