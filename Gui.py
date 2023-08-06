@@ -1,9 +1,9 @@
 from PySide6 import QtWidgets, QtCore, QtGui, QtUiTools
 from Plotter import Plotter, Segment, Peak, OnsetLine
 from libn2f import STAFile
-from ContextMenuActions import RemoveAction, PropertiesAction
 from Config import read_config, write_config
 from ConfigWindow import ConfigWindow
+from CustomWidgets import MySpinBox, RemoveAction, PropertiesAction
 
 Ui_MainWindow = QtUiTools.loadUiType('MainWindow.ui')[0]
 
@@ -28,8 +28,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     btn_peaktool : QtWidgets.QPushButton
     btn_peaktool_ok : QtWidgets.QPushButton
     btn_peaktool_cancel : QtWidgets.QPushButton
-    spinbox_T1 : QtWidgets.QSpinBox
-    spinbox_T2 : QtWidgets.QSpinBox
+    spinbox_T1 : MySpinBox
+    spinbox_T2 : MySpinBox
+    spinbox_onsettool_T1: MySpinBox
+    spinbox_onsettool_T2: MySpinBox
     combobox_xaxis: QtWidgets.QComboBox
     combobox_yaxis: QtWidgets.QComboBox
     checkbox_grid: QtWidgets.QCheckBox
@@ -117,10 +119,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.comboboxes_is_set = False
         self.peaktool_initialized = False
         self.button_pressed = False
-    
-    # def on_spinbox_T1_changed(self, value):
-    #     if self.peaktool_initialized:
-    #         self.plotter.move_selector(value)
 
     def on_cm_list_segments(self, event: QtGui.QContextMenuEvent):
         index = self.list_segments.indexAt(event.pos()).row()

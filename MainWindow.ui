@@ -72,7 +72,7 @@
          </widget>
         </item>
         <item row="3" column="3">
-         <widget class="QDoubleSpinBox" name="spinbox_T1">
+         <widget class="MySpinBox" name="spinbox_T1">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
             <horstretch>0</horstretch>
@@ -80,7 +80,7 @@
            </sizepolicy>
           </property>
           <property name="decimals">
-           <number>1</number>
+           <number>5</number>
           </property>
           <property name="maximum">
            <double>2000.000000000000000</double>
@@ -120,7 +120,7 @@
          </widget>
         </item>
         <item row="3" column="4">
-         <widget class="QDoubleSpinBox" name="spinbox_T2">
+         <widget class="MySpinBox" name="spinbox_T2">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
             <horstretch>0</horstretch>
@@ -128,7 +128,7 @@
            </sizepolicy>
           </property>
           <property name="decimals">
-           <number>1</number>
+           <number>5</number>
           </property>
           <property name="maximum">
            <double>2000.000000000000000</double>
@@ -186,6 +186,9 @@
           <property name="enabled">
            <bool>false</bool>
           </property>
+          <property name="toolTip">
+           <string>Перемещение сегмента по оси y.</string>
+          </property>
           <property name="icon">
            <iconset>
             <normaloff>assets/shift.png</normaloff>assets/shift.png</iconset>
@@ -202,6 +205,9 @@
          <widget class="QPushButton" name="btn_peaktool">
           <property name="enabled">
            <bool>false</bool>
+          </property>
+          <property name="toolTip">
+           <string>Выделение пика.</string>
           </property>
           <property name="text">
            <string/>
@@ -226,6 +232,9 @@
           <property name="enabled">
            <bool>false</bool>
           </property>
+          <property name="toolTip">
+           <string>Найти начало пика.</string>
+          </property>
           <property name="text">
            <string/>
           </property>
@@ -245,6 +254,9 @@
          <widget class="QPushButton" name="btn_endtool">
           <property name="enabled">
            <bool>false</bool>
+          </property>
+          <property name="toolTip">
+           <string>Найти конец пика.</string>
           </property>
           <property name="text">
            <string/>
@@ -282,7 +294,7 @@
          <enum>QLayout::SetMinimumSize</enum>
         </property>
         <item row="3" column="2">
-         <widget class="QDoubleSpinBox" name="spinbox_onsettool_T1">
+         <widget class="MySpinBox" name="spinbox_onsettool_T1">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
             <horstretch>0</horstretch>
@@ -290,7 +302,7 @@
            </sizepolicy>
           </property>
           <property name="decimals">
-           <number>1</number>
+           <number>5</number>
           </property>
           <property name="maximum">
            <double>2000.000000000000000</double>
@@ -324,7 +336,7 @@
          </widget>
         </item>
         <item row="3" column="3">
-         <widget class="QDoubleSpinBox" name="spinbox_onsettool_T2">
+         <widget class="MySpinBox" name="spinbox_onsettool_T2">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
             <horstretch>0</horstretch>
@@ -332,7 +344,7 @@
            </sizepolicy>
           </property>
           <property name="decimals">
-           <number>1</number>
+           <number>5</number>
           </property>
           <property name="maximum">
            <double>2000.000000000000000</double>
@@ -565,6 +577,13 @@
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>MySpinBox</class>
+   <extends>QDoubleSpinBox</extends>
+   <header>CustomWidgets</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

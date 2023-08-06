@@ -13,8 +13,22 @@ colors = itertools.cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
 def get_next_color():
     return next(colors)
 
+class Selector(Line2D):
+    def __init__(self, ax: Axes, x: float, spinbox, ymin=0, ymax=1, *args, **kwargs) -> None:
+        self.ax = ax
+        trans = self.ax.get_xaxis_transform(which='grid')
+        self.spinbox = spinbox
+        super().__init__(xdata=[x, x], ydata=[ymin,ymax], transform=trans, lw=0.5, color='black', *args, **kwargs)
+        self.ax.add_line(self)
+        self.set_picker(5)
+        self.set_antialiased(False)
+
+    def set_x(self, x: float, update_spinbox_value: bool = True):
+        if update_spinbox_value: self.spinbox.setValue(x, block_signal=True)
+        super().set_xdata([x, x])
+        self.ax.figure.canvas.draw_idle()
+
 class Plotter:
-    # headers: list[str] = None
     measurement_exo: int
     units: dict
     pickedSegment: Segment = None
@@ -29,24 +43,17 @@ class Plotter:
         print("* инициализация плоттера")
         self.parent = parent
         self.fig = plt.figure()
-        # self.fig.tight_layout()
         gs = self.fig.add_gridspec(2, hspace=0, height_ratios=[3, 1])
-        # self.ax, self.ax_ddta = self.fig.subplots(2, sharex=True, height_ratios=[3, 1])
         self.ax, self.ax_ddta = gs.subplots(sharex=True)
         self.ax: Axes
         self.ax_ddta: Axes
         self.ax_ddta.autoscale(enable=True, axis='y', tight=True)
-        # self.ax_ddta = self.fig.gca()
-        # self.ax = self.ax_ddta.twinx()
         self.canvas = FigureCanvas(self.fig)
         self.canvas.mpl_connect('pick_event', self.on_pick)
         self.canvas.mpl_connect('button_release_event', self.on_button_release)
         self.canvas.mpl_connect('motion_notify_event', self.on_move)
-        # self.canvas.mpl_connect('scroll_event', self.on_zoom)
         self.toolbar = NavigationToolbar(self.canvas, None)
         self.segments: list[Segment] = []
-        # self.lines: list[Line2D] = None
-        # self.lines_ddta: list[Line2D] = None
         self.segments_color = []
         self.segments_lw = []
         self.pickMode = 0 # 0 - сегменты, 1 - селекторы
@@ -138,8 +145,6 @@ class Plotter:
 
     def plot(self, xaxis: str, yaxis: str):
         self.clear()
-        # print('* рисуем график')
-        # print(f"* ставим оси {xaxis} и {yaxis}")
         for segment in self.segments:
             segment.set_axes(xaxis=xaxis, yaxis=yaxis)
             self.ax.add_line(segment)
@@ -150,24 +155,15 @@ class Plotter:
         self.ax.autoscale_view()
         self.ax_ddta.autoscale_view()
         self.canvas.draw()
-    
-    def move_selector(self, x):
+
+    def move_selector(self, selector: Selector, x: float, update_spinbox_value: bool = True):
         if self.pickedSelector_limit_x1< x < self.pickedSelector_limit_x2:
-            if self.pickedSelector in (self.selector1, self.selector1_ddta):
-                self.selector1.set_xdata(x)
-                self.selector1_ddta.set_xdata(x)
-                if self.selectMode == 0:
-                    self.parent.spinbox_T1.setValue(x)
-                elif self.selectMode == 1:
-                    self.parent.spinbox_onsettool_T1.setValue(x)
-            elif self.pickedSelector in (self.selector2, self.selector2_ddta):
-                self.selector2.set_xdata(x)
-                self.selector2_ddta.set_xdata(x)
-                if self.selectMode == 0:
-                    self.parent.spinbox_T2.setValue(x)
-                elif self.selectMode == 1:
-                    self.parent.spinbox_onsettool_T2.setValue(x)
-            self.fig.canvas.draw_idle()
+            if selector in (self.selector1, self.selector1_ddta):
+                self.selector1.set_x(x=x, update_spinbox_value=update_spinbox_value)
+                self.selector1_ddta.set_x(x=x, update_spinbox_value=update_spinbox_value)
+            elif selector in (self.selector2, self.selector2_ddta):
+                self.selector2.set_x(x=x, update_spinbox_value=update_spinbox_value)
+                self.selector2_ddta.set_x(x=x, update_spinbox_value=update_spinbox_value)
 
     def on_move(self, event: MouseEvent):
         if self.pickMode == 1:
@@ -177,7 +173,7 @@ class Plotter:
         if self.pickedSelector is not None:
             if event.inaxes:
                 x = event.xdata
-                self.move_selector(x)
+                self.move_selector(selector=self.pickedSelector, x=x)
 
     def on_unpick(self, event):
         if self.picked:
@@ -295,6 +291,8 @@ class Plotter:
         for segment in self.segments:
             if segment.get_visible():
                 segment.set_picker(5)
+        self.parent.spinbox_onsettool_T1.selectors = []
+        self.parent.spinbox_onsettool_T2.selectors = []
         if apply:
             self.pickedPeak.onset(t1=self.parent.spinbox_onsettool_T1.value(), t2=self.parent.spinbox_onsettool_T2.value(), is_onset=self.is_onset)
             self.canvas.draw()
@@ -349,16 +347,24 @@ class Plotter:
         if self.selectMode == 0:
             self.pickedSelector_limit_x1 = self.pickedSegment.xmin
             self.pickedSelector_limit_x2 = self.pickedSegment.xmax
+            self.selector1 = Selector(ax=self.ax, x=t1, spinbox=self.parent.spinbox_T1)
+            self.selector2 = Selector(ax=self.ax, x=t2, spinbox=self.parent.spinbox_T2)
+            self.selector1_ddta = Selector(ax=self.ax_ddta, x=t1, spinbox=self.parent.spinbox_T1)
+            self.selector2_ddta = Selector(ax=self.ax_ddta, x=t2, spinbox=self.parent.spinbox_T2)
+            self.parent.spinbox_T1.selectors = [self.selector1, self.selector1_ddta]
+            self.parent.spinbox_T2.selectors = [self.selector2, self.selector2_ddta]
         elif self.selectMode == 1:
             xaxis = self.getCurrentXaxis()
             self.pickedSelector_limit_x1 = self.pickedPeak.df_baseline[xaxis].values[0]
             self.pickedSelector_limit_x2 = self.pickedPeak.df_baseline[xaxis].values[-1]
             if self.pickedSelector_limit_x1 > self.pickedSelector_limit_x2:
                 self.pickedSelector_limit_x1, self.pickedSelector_limit_x2 = self.pickedSelector_limit_x2, self.pickedSelector_limit_x1
-        self.selector1 = self.ax.axvline(t1, lw=0.5, color='black')
-        self.selector2 = self.ax.axvline(t2, lw=0.5, color='black')
-        self.selector1_ddta = self.ax_ddta.axvline(t1, lw=0.5, color='black')
-        self.selector2_ddta = self.ax_ddta.axvline(t2, lw=0.5, color='black')
+            self.selector1 = Selector(ax=self.ax, x=t1, spinbox=self.parent.spinbox_onsettool_T1)
+            self.selector2 = Selector(ax=self.ax, x=t2, spinbox=self.parent.spinbox_onsettool_T2)
+            self.selector1_ddta = Selector(ax=self.ax_ddta, x=t1, spinbox=self.parent.spinbox_onsettool_T1)
+            self.selector2_ddta = Selector(ax=self.ax_ddta, x=t2, spinbox=self.parent.spinbox_onsettool_T2)
+            self.parent.spinbox_onsettool_T1.selectors = [self.selector1, self.selector1_ddta]
+            self.parent.spinbox_onsettool_T2.selectors = [self.selector2, self.selector2_ddta]
 
     def peaktool_done(self, apply: bool):
         self.pickMode = 0
@@ -370,8 +376,11 @@ class Plotter:
                 segment.set_picker(5)
         if apply:
             self.pickedSegment.addPeak(
-                t1=self.parent.spinbox_T1.value(),
-                t2=self.parent.spinbox_T2.value(),
+                t1=self.selector1.get_xdata()[0],
+                t2=self.selector2.get_xdata()[0],
                 baseline_type=self.parent.combobox_baselinetype.currentIndex()
                 )
+        self.parent.spinbox_T1.selectors = []
+        self.parent.spinbox_T2.selectors = []
         self.canvas.draw()
+        

@@ -1,6 +1,26 @@
-from PySide6 import QtGui, QtWidgets, QtCore
+from PySide6 import QtWidgets, QtGui, QtCore
+from Plotter import Selector
 from Segment import Segment, Peak, OnsetLine
 from PropertiesWindows import SegmentPropetiesWindow
+
+class MySpinBox(QtWidgets.QDoubleSpinBox):
+    selectors: list[Selector] = []
+    def __init__(self, parent: QtWidgets.QWidget | None = ...) -> None:
+        super().__init__(parent)
+        self.valueChanged.connect(self.handle_value_changed)
+
+    def handle_value_changed(self, x: float):
+        if self.isVisible():
+            self.selectors[0].set_x(x=x, update_spinbox_value=False)
+            self.selectors[1].set_x(x=x, update_spinbox_value=False)
+
+    def setValue(self, val: float, block_signal: bool = False):
+        if block_signal:
+            self.blockSignals(True)
+            super().setValue(val)
+            self.blockSignals(False)
+        else:
+            super().setValue(val)
 
 class RemoveAction(QtGui.QAction):
     obj: Segment | Peak | OnsetLine = None
@@ -32,4 +52,3 @@ class PropertiesAction(QtGui.QAction):
                 pass
             else:
                 raise RuntimeError("Непрерудсмотренное значение")
-            # print(result)
