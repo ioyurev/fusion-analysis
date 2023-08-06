@@ -54,7 +54,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     list_segments : QtWidgets.QListWidget
     plotLayout: QtWidgets.QVBoxLayout
     
-    def __init__(self):
+    def __init__(self, dpi, scale):
         print('* загрузка интерфейса')
         super().__init__()
         self.setupUi(self)
@@ -64,7 +64,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.config = read_config()
 
         # плоттер
-        self.plotter = Plotter(self)
+        self.plotter = Plotter(self, dpi=dpi, scale=scale)
         self.plotter.config = self.config['Plotter']
         
         # добавляем холст и панель инструментов matplotlib

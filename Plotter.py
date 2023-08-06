@@ -39,10 +39,11 @@ class Plotter:
     pickedAnn: MyAnn = None
     config: dict = None
 
-    def __init__(self, parent) -> None:
+    def __init__(self, parent, dpi, scale) -> None:
         print("* инициализация плоттера")
         self.parent = parent
-        self.fig = plt.figure()
+        self.fig = plt.figure(dpi=dpi)
+        self.scale = scale
         gs = self.fig.add_gridspec(2, hspace=0, height_ratios=[3, 1])
         self.ax, self.ax_ddta = gs.subplots(sharex=True)
         self.ax: Axes
@@ -187,9 +188,9 @@ class Plotter:
 
     def on_pick(self, event: PickEvent):
         line = event.artist
-        x = event.mouseevent.x
-        y = self.getHeight()-event.mouseevent.y
-        pos = self.canvas.mapToGlobal(QtCore.QPoint(x, y))
+        x = event.mouseevent.x / self.scale
+        y = (self.getHeight()-event.mouseevent.y) / self.scale
+        pos = self.canvas.mapToGlobal(QtCore.QPoint(x,y))
         if isinstance(line, MyAnn):
             if event.mouseevent.button == 3:
                 self.pickedAnn = line
