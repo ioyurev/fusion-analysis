@@ -1,7 +1,7 @@
 from PySide6 import QtWidgets, QtGui, QtCore
 from Plotter import Selector
 from Segment import Segment, Peak, OnsetLine
-from PropertiesWindows import SegmentPropetiesWindow, PeakPropertiesWindow
+from PropertiesWindows import SegmentPropetiesWindow, PeakPropertiesWindow, OnsetPropertiesWindow
 
 class MySpinBox(QtWidgets.QDoubleSpinBox):
     selectors: list[Selector] = []
@@ -66,4 +66,35 @@ class PropertiesAction(QtGui.QAction):
                 self.signal_prop_applied.emit()
             elif result == QtWidgets.QDialog.Rejected:
                 pass
-        del w
+        elif isinstance(self.obj, OnsetLine):
+            w = OnsetPropertiesWindow(onsetline=self.obj,
+                                      label_state=self.obj.label_enabled,
+                                      label_time_state=self.obj.label_time_enabled,
+                                      label_temp_state=self.obj.label_temp_enabled,
+                                      label_dta_state=self.obj.label_dta_enabled)
+            result = w.exec()
+            if result == QtWidgets.QDialog.Accepted and w.changes_are_made:
+                if self.obj.label_enabled:
+                    label = f'{self.obj.t}: '
+                else:
+                    label = ''
+                if self.obj.label_time_enabled:
+                    label_time = f"{self.obj.info['Time']} {self.obj.units['Time']}"
+                else:
+                    label_time = ''
+                if self.obj.label_temp_enabled:
+                    label_temp = f"{self.obj.info['Temp.']} {self.obj.units['Temp.']}"
+                    if self.obj.label_time_enabled:
+                        label_temp = f', {label_temp}'
+                else:
+                    label_temp = ''
+                if self.obj.label_dta_enabled:
+                    label_dta = f"{self.obj.info['DTA']} {self.obj.units['DTA']}"
+                    if self.obj.label_temp_enabled:
+                        label_dta = f', {label_dta}'
+                else:
+                    label_dta = ''
+                self.obj.ann.set_text(f'{label}{label_time}{label_temp}{label_dta}')
+                self.signal_prop_applied.emit()
+            elif result == QtWidgets.QDialog.Rejected:
+                pass

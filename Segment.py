@@ -246,10 +246,14 @@ class Peak(Polygon):
         return super().set_edgecolor(color)
 
 class OnsetLine(Line2D):
-    def __init__(self, peak, ci, bi, is_onset, *args, **kwargs) -> None:
+    def __init__(self, peak: Peak, ci: int, bi: int, is_onset: bool, *args, **kwargs) -> None:
         self.peak: Peak = peak
+        self.label_enabled = True
+        self.label_dta_enabled = False
         self.is_onset = is_onset
         xaxis = peak.segment.xaxis
+        self.label_time_enabled = xaxis == 'Time'
+        self.label_temp_enabled = not self.label_time_enabled
         self.ci = ci
         self.bi = bi
         self.info = dict()
@@ -269,7 +273,7 @@ class OnsetLine(Line2D):
             self.t = 'Начало'
         else:
             self.t = 'Конец'
-        self.ann = MyAnn(parent=self, text=f'{self.t}: {self.info[xaxis]}', xy=xy, xytext=xy, color=self.peak.segment._color,
+        self.ann = MyAnn(parent=self, text=f'{self.t}: {self.info[xaxis]} {self.units[xaxis]}', xy=xy, xytext=xy, color=self.peak.segment._color,
                          arrowprops=dict(arrowstyle="-", color=self.peak.segment._color, antialiased=False, lw=LW)
                          )
 

@@ -1,9 +1,10 @@
 from PySide6 import QtWidgets, QtGui, QtUiTools
-from Segment import Segment, Peak
+from Segment import Segment, Peak, OnsetLine
 from matplotlib.colors import to_hex
 
 Ui_SegmentDialog = QtUiTools.loadUiType('ui/SegmentProperties.ui')[0]
 Ui_PeakDialog = QtUiTools.loadUiType('ui/PeakProperties.ui')[0]
+Ui_OnsetDialog = QtUiTools.loadUiType('ui/OnsetProperties.ui')[0]
 
 class SegmentPropetiesWindow(QtWidgets.QDialog, Ui_SegmentDialog):
     btn_color: QtWidgets.QPushButton
@@ -44,3 +45,42 @@ class PeakPropertiesWindow(QtWidgets.QDialog, Ui_PeakDialog):
         if self.changes_are_made == False:
             self.changes_are_made = True
             self.setWindowTitle(f'{self.windowTitle()} *')
+
+class OnsetPropertiesWindow(QtWidgets.QDialog, Ui_OnsetDialog):
+    checkbox_label: QtWidgets.QCheckBox
+    checkbox_time: QtWidgets.QCheckBox
+    checkbox_temp: QtWidgets.QCheckBox
+    checkbox_dta: QtWidgets.QCheckBox
+
+    def __init__(self, label_state: bool, label_time_state: bool, label_temp_state: bool, label_dta_state: bool, onsetline: OnsetLine, parent=None):
+        self.onsetline = onsetline
+        super().__init__(parent)
+        self.setupUi(self)
+        self.setFixedWidth(self.width())
+        self.setFixedHeight(self.height())
+        self.changes_are_made = False
+        self.checkbox_label.setChecked(label_state)
+        self.checkbox_time.setChecked(label_time_state)
+        self.checkbox_temp.setChecked(label_temp_state)
+        self.checkbox_dta.setChecked(label_dta_state)
+        self.checkbox_label.stateChanged.connect(self.change_label)
+        self.checkbox_time.stateChanged.connect(self.change_label)
+        self.checkbox_temp.stateChanged.connect(self.change_label)
+        self.checkbox_dta.stateChanged.connect(self.change_label)
+        if self.onsetline.is_onset:
+            self.setWindowTitle(f'Свойства начала пика')
+        else:
+            self.setWindowTitle(f'Свойства конца пика')
+    
+    def change_label(self):
+        if self.changes_are_made == False:
+            self.changes_are_made = True
+            self.setWindowTitle(f'{self.windowTitle()} *')
+
+    def exec(self) -> int:
+        result = super().exec()
+        self.onsetline.label_enabled = self.checkbox_label.isChecked()
+        self.onsetline.label_time_enabled = self.checkbox_time.isChecked()
+        self.onsetline.label_temp_enabled = self.checkbox_temp.isChecked()
+        self.onsetline.label_dta_enabled = self.checkbox_dta.isChecked()
+        return result
