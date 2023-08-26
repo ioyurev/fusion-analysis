@@ -76,6 +76,7 @@ class Segment(Line2D):
         peak = Peak(segment=self, t1=t1, t2=t2, baseline_type=baseline_type)
         self.peaks.append(peak)
         self.ax.add_patch(peak)
+        return peak
     
     def setPickEffect(self, bool):
         if bool:
@@ -185,11 +186,15 @@ class Peak(Polygon):
             is_onset=is_onset,
             peak_exo=self.peak_exo
             )
-        self.onset_lines.append(OnsetLine(peak=self, ci=ci, bi=bi, color=self.segment._color, is_onset=is_onset))
+        line = OnsetLine(peak=self, ci=ci, bi=bi, color=self.segment._color, is_onset=is_onset)
+        self.onset_lines.append(line)
         self.ax.add_line(self.onset_lines[-1])
+        return line
 
     def remove(self, redraw=False) -> None:
         self.segment.peaks.remove(self)
+        self.segment.plotter.items.remove(self)
+        self.segment.plotter.items.remove(self.ann)
         self.ann.remove()
         line: OnsetLine
         for line in self.onset_lines:
@@ -303,6 +308,8 @@ class OnsetLine(Line2D):
         return super().set_visible(b)
     
     def remove(self, redraw=False) -> None:
+        self.peak.segment.plotter.items.remove(self)
+        self.peak.segment.plotter.items.remove(self.ann)
         self.ann.remove()
         self.peak.onset_lines.remove(self)
         super().remove()

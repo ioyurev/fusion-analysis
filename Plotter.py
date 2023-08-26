@@ -5,7 +5,7 @@ from matplotlib.axes import Axes
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,
     NavigationToolbar2QT as NavigationToolbar)
-from matplotlib.backend_bases import MouseEvent, PickEvent
+from matplotlib.backend_bases import MouseEvent
 import itertools
 from libn2f import TYPE_COOL, TYPE_HEAT
 
@@ -31,12 +31,10 @@ class Selector(Line2D):
 class Plotter:
     measurement_exo: int
     units: dict
-    pickedSegment: Segment = None
-    pickedSelector: Line2D = None
-    pickedSelector_limit_x1: float
-    pickedSelector_limit_x2: float
-    pickedPeak: Peak = None
-    pickedAnn: MyAnn = None
+    picked_selector_limit_x1: float
+    picked_selector_limit_x2: float
+    picked_item: Segment | Peak | OnsetLine | MyAnn = None
+    picked_segment: Segment = None
     config: dict = None
 
     def __init__(self, parent, dpi, scale) -> None:
@@ -50,9 +48,10 @@ class Plotter:
         self.ax_ddta: Axes
         self.ax_ddta.autoscale(enable=True, axis='y', tight=True)
         self.canvas = FigureCanvas(self.fig)
-        self.canvas.mpl_connect('pick_event', self.on_pick)
+        # self.canvas.mpl_connect('pick_event', self.on_pick)
         self.canvas.mpl_connect('button_release_event', self.on_button_release)
         self.canvas.mpl_connect('motion_notify_event', self.on_move)
+        self.canvas.mpl_connect('button_press_event', self.on_button_press)
         self.toolbar = NavigationToolbar(self.canvas, None)
         self.segments: list[Segment] = []
         self.segments_color = []
@@ -61,6 +60,19 @@ class Plotter:
         self.selectMode = None # 0 - peaktool, 1 - onsettool
         self.picked = False
         self.set_visible(False)
+        self.items: list[Segment | Peak | OnsetLine | MyAnn] = []
+
+    def on_button_press(self, event: MouseEvent):
+        if not event.inaxes:
+            return # вне графика
+        picked = [item for item in self.items if item.contains(event)[0]]
+        if not picked:
+            return
+        item = picked[0]
+        # item.pick()
+        self.on_pick(item, event)
+        # self.on_pick(PickEvent("pick_event", self.canvas, event, item))
+        # self.pick(item=picked[0], event=event)
 
     def set_exo(self):
         if self.measurement_exo:
@@ -158,7 +170,7 @@ class Plotter:
         self.canvas.draw()
 
     def move_selector(self, selector: Selector, x: float, update_spinbox_value: bool = True):
-        if self.pickedSelector_limit_x1< x < self.pickedSelector_limit_x2:
+        if self.picked_selector_limit_x1< x < self.picked_selector_limit_x2:
             if selector in (self.selector1, self.selector1_ddta):
                 self.selector1.set_x(x=x, update_spinbox_value=update_spinbox_value)
                 self.selector1_ddta.set_x(x=x, update_spinbox_value=update_spinbox_value)
@@ -170,89 +182,73 @@ class Plotter:
         if self.pickMode == 1:
             self.on_move_selector(event)
 
-    def on_move_selector(self, event):
-        if self.pickedSelector is not None:
+    def on_move_selector(self, event: MouseEvent):
+        if self.picked_item is not None:
             if event.inaxes:
                 x = event.xdata
-                self.move_selector(selector=self.pickedSelector, x=x)
+                self.move_selector(selector=self.picked_item, x=x)
 
-    def on_unpick(self, event):
+    def on_unpick(self, event: MouseEvent):
         if self.picked:
             if self.pickMode == 1:
                 # print("* селектор отпущен")
-                self.pickedSelector = None
+                self.picked_item = None
             self.picked = False
 
     def on_button_release(self, event: MouseEvent):
         self.on_unpick(event)
 
-    def on_pick(self, event: PickEvent):
-        line = event.artist
-        x = event.mouseevent.x / self.scale
-        y = (self.getHeight()-event.mouseevent.y) / self.scale
+    def on_pick(self, item: Segment | Peak | OnsetLine| MyAnn, event: MouseEvent):
+        line = item
+        x = event.x / self.scale
+        y = (self.getHeight()-event.y) / self.scale
         pos = self.canvas.mapToGlobal(QtCore.QPoint(x,y))
+        self.picked_item = line
         if isinstance(line, MyAnn):
-            if event.mouseevent.button == 3:
-                self.pickedAnn = line
+            if event.button == 3:
                 self.contextMenu(obj=line.parent, pos=pos)
         self.picked = True
         if self.pickMode == 0:
             if isinstance(line, Segment):
+                self.picked_segment = line
                 self.parent.on_pick_segment(True)
                 self.parent.on_pick_peak(False)
                 self.pickSegment(line)
-                if event.mouseevent.button == 3:
+                if event.button == 3:
                     self.contextMenu(obj=line, pos=pos)
             elif isinstance(line, Peak):
                 self.pickPeak(line)
                 self.parent.on_pick_segment(False)
                 self.parent.on_pick_peak(True)
-                if event.mouseevent.button == 3:
-                    self.contextMenu(obj=event.artist, pos=pos)
+                if event.button == 3:
+                    self.contextMenu(obj=line, pos=pos)
         elif self.pickMode == 1:
             self.pickSelector(line)
 
     def contextMenu(self, obj: Segment | Peak | OnsetLine, pos: QtCore.QPoint):
         self.parent.cm_popup(obj=obj, pos=pos)
 
-    def removeOnset(self):
-        self.pickedAnn.parent.remove()
-        self.pickedAnn = None
-        self.canvas.draw()
-
-    def removePeak(self):
-        # print("* удаляем пик")
-        self.pickedPeak.remove()
-        self.pickedPeak = None
-        self.canvas.draw()
-
-    def pickPeak(self, line: Peak):
-        # print("* выбран пик")
-        self.pickedSegment = None
-        self.pickedSelector = None
-        self.pickedPeak = line
+    def pickPeak(self, peak: Peak):
+        self.picked_item = peak
         for segment in self.segments:
             segment.setPickEffect(False)
-        line.setPickEffect(True)
+        peak.setPickEffect(True)
         self.parent.list_segments.clearSelection()
         self.canvas.draw()
 
     def pickSelector(self, line):
         # print("* выбран селектор")
-        self.pickedSelector = line
+        self.picked_item = line
 
     def pickSegment(self, line: Segment):
         if line is None:
-            self.pickedSegment = None
+            self.picked_item = None
             return
         self.parent.list_segments.setCurrentItem(self.parent.list_segments.item(line.index))
-        self.pickedSegment = line
+        self.picked_item = line
         for segment in self.segments:
             segment.setPickEffect(False)
-        self.pickedSegment.setPickEffect(True)
-        if self.pickedPeak:
-            self.pickedPeak.setPickEffect(False)
-        self.pickedPeak = None
+        self.picked_item.setPickEffect(True)
         self.canvas.draw()
         # print(f'* выбрана линия с индексом {index}')
 
@@ -264,7 +260,9 @@ class Plotter:
                 color = self.config['default_cool_color']
             elif Type == TYPE_HEAT:
                 color = self.config['default_heat_color']
-        self.segments.append(Segment(df=df, plotter=self, index=index, Type=Type, color=color))
+        segment = Segment(df=df, plotter=self, index=index, Type=Type, color=color)
+        self.segments.append(segment)
+        self.items.append(segment)
 
     def segmentsVisible(self, arrb: list[bool]):
         segment: Segment
@@ -286,22 +284,22 @@ class Plotter:
 
     def onsettool_done(self, apply: bool):
         self.pickMode = 0
-        for line in (self.selector1, self.selector2, self.selector1_ddta, self.selector2_ddta):
-            line.remove()
-            del line
         for segment in self.segments:
             if segment.get_visible():
                 segment.set_picker(5)
         self.parent.spinbox_onsettool_T1.selectors = []
         self.parent.spinbox_onsettool_T2.selectors = []
         if apply:
-            self.pickedPeak.onset(t1=self.parent.spinbox_onsettool_T1.value(), t2=self.parent.spinbox_onsettool_T2.value(), is_onset=self.is_onset)
-            self.canvas.draw()
+            line = self.picked_item.onset(t1=self.parent.spinbox_onsettool_T1.value(), t2=self.parent.spinbox_onsettool_T2.value(), is_onset=self.is_onset)
+            self.items.append(line)
+            self.items.append(line.ann)
+        self.despawn_selectors()
+        self.canvas.draw()
 
     def onsettool_start(self, is_onset: bool):
         self.pickMode = 1
         self.is_onset = is_onset
-        peak = self.pickedPeak
+        peak = self.picked_item
         peak_xdata = peak.df_baseline[self.getCurrentXaxis()]
         x0 = min(peak_xdata)
         x1 = max(peak_xdata)
@@ -326,8 +324,8 @@ class Plotter:
 
     def peaktool_start(self):
         self.pickMode = 1
-        x0 = self.pickedSegment.xmin
-        x1 = self.pickedSegment.xmax
+        x0 = self.picked_item.xmin
+        x1 = self.picked_item.xmax
         self.parent.spinbox_T1.setRange(x0, x1)
         self.parent.spinbox_T2.setRange(x0, x1)
         r = x1 - x0
@@ -346,8 +344,8 @@ class Plotter:
     def spawn_selectors(self, t1, t2, selectMode):
         self.selectMode = selectMode
         if self.selectMode == 0:
-            self.pickedSelector_limit_x1 = self.pickedSegment.xmin
-            self.pickedSelector_limit_x2 = self.pickedSegment.xmax
+            self.picked_selector_limit_x1 = self.picked_item.xmin
+            self.picked_selector_limit_x2 = self.picked_item.xmax
             self.selector1 = Selector(ax=self.ax, x=t1, spinbox=self.parent.spinbox_T1)
             self.selector2 = Selector(ax=self.ax, x=t2, spinbox=self.parent.spinbox_T2)
             self.selector1_ddta = Selector(ax=self.ax_ddta, x=t1, spinbox=self.parent.spinbox_T1)
@@ -356,32 +354,49 @@ class Plotter:
             self.parent.spinbox_T2.selectors = [self.selector2, self.selector2_ddta]
         elif self.selectMode == 1:
             xaxis = self.getCurrentXaxis()
-            self.pickedSelector_limit_x1 = self.pickedPeak.df_baseline[xaxis].values[0]
-            self.pickedSelector_limit_x2 = self.pickedPeak.df_baseline[xaxis].values[-1]
-            if self.pickedSelector_limit_x1 > self.pickedSelector_limit_x2:
-                self.pickedSelector_limit_x1, self.pickedSelector_limit_x2 = self.pickedSelector_limit_x2, self.pickedSelector_limit_x1
+            self.picked_selector_limit_x1 = self.picked_item.df_baseline[xaxis].values[0]
+            self.picked_selector_limit_x2 = self.picked_item.df_baseline[xaxis].values[-1]
+            if self.picked_selector_limit_x1 > self.picked_selector_limit_x2:
+                self.picked_selector_limit_x1, self.picked_selector_limit_x2 = self.picked_selector_limit_x2, self.picked_selector_limit_x1
             self.selector1 = Selector(ax=self.ax, x=t1, spinbox=self.parent.spinbox_onsettool_T1)
             self.selector2 = Selector(ax=self.ax, x=t2, spinbox=self.parent.spinbox_onsettool_T2)
             self.selector1_ddta = Selector(ax=self.ax_ddta, x=t1, spinbox=self.parent.spinbox_onsettool_T1)
             self.selector2_ddta = Selector(ax=self.ax_ddta, x=t2, spinbox=self.parent.spinbox_onsettool_T2)
             self.parent.spinbox_onsettool_T1.selectors = [self.selector1, self.selector1_ddta]
             self.parent.spinbox_onsettool_T2.selectors = [self.selector2, self.selector2_ddta]
+        self.items.append(self.selector1)
+        self.items.append(self.selector2)
+        self.items.append(self.selector1_ddta)
+        self.items.append(self.selector2_ddta)
+
+    def despawn_selectors(self):
+        self.selector1.remove()
+        self.selector2.remove()
+        self.selector1_ddta.remove()
+        self.selector2_ddta.remove()
+        self.items.remove(self.selector1)
+        self.items.remove(self.selector2)
+        self.items.remove(self.selector1_ddta)
+        self.items.remove(self.selector2_ddta)
+        del self.selector1
+        del self.selector2
+        del self.selector1_ddta
+        del self.selector2_ddta
 
     def peaktool_done(self, apply: bool):
         self.pickMode = 0
-        for line in (self.selector1, self.selector2, self.selector1_ddta, self.selector2_ddta):
-            line.remove()
-            del line
         for segment in self.segments:
             if segment.get_visible():
                 segment.set_picker(5)
         if apply:
-            self.pickedSegment.addPeak(
+            peak = self.picked_segment.addPeak(
                 t1=self.selector1.get_xdata()[0],
                 t2=self.selector2.get_xdata()[0],
                 baseline_type=self.parent.combobox_baselinetype.currentIndex()
                 )
+            self.items.append(peak)
+            self.items.append(peak.ann)
         self.parent.spinbox_T1.selectors = []
         self.parent.spinbox_T2.selectors = []
-        self.canvas.draw()
-        
+        self.despawn_selectors()
+        self.canvas.draw()        

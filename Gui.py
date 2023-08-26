@@ -133,10 +133,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.press_position = event.globalPos().y()
 
     def on_move_shiftsegment(self, event: QtGui.QMouseEvent):
-        if self.plotter.pickedSegment is not None:
+        if self.plotter.picked_segment is not None:
             y = event.globalPos().y()
             dy = y - self.press_position
-            self.plotter.pickedSegment.shifty(dy)
+            self.plotter.picked_segment.shifty(dy)
             self.plotter.canvas.draw()
             self.press_position = y
 
@@ -210,7 +210,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.peaktool_initialized = True
 
     def onsettool_check_is_valid(self):
-        if self.plotter.pickedPeak is None:
+        if not isinstance(self.plotter.picked_item, Peak):
             warning_message("Пик не выбран.")
             return False
         if self.chech_xaxis() and self.check_yaxis():
@@ -220,7 +220,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         return True
 
     def peaktool_check_is_valid(self):
-        if self.plotter.pickedSegment is None:
+        if not isinstance(self.plotter.picked_item, Segment):
             warning_message("Cегмент не выбран.")
             return False
         if self.chech_xaxis() and self.check_yaxis():
