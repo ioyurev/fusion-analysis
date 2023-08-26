@@ -155,7 +155,6 @@ class Peak(Polygon):
             arrowprops=dict(arrowstyle="-", color=self.segment._color, antialiased=False, lw=LW)
             )
         self.ax.add_artist(self.ann)
-        self.ann.draggable()
         self.set_data(xaxis)
         self.shifty(self.segment.dy)
 
@@ -285,7 +284,6 @@ class OnsetLine(Line2D):
         super().__init__(xdata=xdata, ydata=ydata, lw=LW, *args, **kwargs)
         self.set_antialiased(False)
         self.peak.segment.plotter.ax.add_artist(self.ann)
-        self.ann.draggable()
         self.shifty(self.peak.segment.dy)
 
     def shifty(self, dy):

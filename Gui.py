@@ -33,7 +33,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     spinbox_onsettool_T1: MySpinBox
     spinbox_onsettool_T2: MySpinBox
     combobox_xaxis: QtWidgets.QComboBox
-    combobox_yaxis: QtWidgets.QComboBox
     checkbox_grid: QtWidgets.QCheckBox
     menu_file: QtWidgets.QMenu
     menu_editor: QtWidgets.QMenu
@@ -102,7 +101,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.checkbox_grid.stateChanged.connect(self.on_checkbox_grid_changed)
         self.checkbox_autoscale.stateChanged.connect(self.on_checkbox_autoscale_changed)
         self.combobox_xaxis.currentIndexChanged.connect(self.on_combobox_changed)
-        self.combobox_yaxis.currentIndexChanged.connect(self.on_combobox_changed)
         # self.spinbox_T1.valueChanged.connect(self.on_spinbox_T1_changed)
 
         # скрытие панелей инструментов
@@ -213,7 +211,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         if not isinstance(self.plotter.picked_item, Peak):
             warning_message("Пик не выбран.")
             return False
-        if self.chech_xaxis() and self.check_yaxis():
+        if self.chech_xaxis():
             pass
         else:
             return False
@@ -223,15 +221,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         if not isinstance(self.plotter.picked_item, Segment):
             warning_message("Cегмент не выбран.")
             return False
-        if self.chech_xaxis() and self.check_yaxis():
+        if self.chech_xaxis():
             pass
         else:
-            return False
-        return True
-    
-    def check_yaxis(self):
-        if self.combobox_yaxis.currentText() != 'DTA':
-            warning_message('Неправильно выбрана ось ординат!\nДолжна быть DTA.')
             return False
         return True
 
@@ -288,7 +280,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         layoutSetEnabled(self.leftpanel, False)
         self.plotter.set_visible(False)
         self.combobox_xaxis.clear()
-        self.combobox_yaxis.clear()
 
     def on_click_open(self):
         # обработчик открытия измерения
@@ -309,17 +300,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             yaxes.remove(yaxis)
         for header in xaxes:
             self.combobox_xaxis.addItem(header)
-        for header in yaxes:
-            self.combobox_yaxis.addItem(header)
 
         self.combobox_xaxis.setCurrentText('Time')
-        self.combobox_yaxis.setCurrentText('DTA')
         self.comboboxes_is_set = True
         layoutSetEnabled(self.leftpanel, True)
         # рисуем график
         self.plotter.plot(
             self.combobox_xaxis.currentText(),
-            self.combobox_yaxis.currentText(),
+            "DTA",
         )
         self.measurement_is_opened = True
         self.plotter.set_exo()
