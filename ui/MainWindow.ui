@@ -423,16 +423,6 @@
     </item>
     <item row="0" column="0">
      <layout class="QGridLayout" name="leftpanel">
-      <item row="1" column="1">
-       <widget class="QComboBox" name="combobox_xaxis">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="0" colspan="2">
-       <widget class="QListWidget" name="list_segments"/>
-      </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label_xaxis">
         <property name="text">
@@ -440,16 +430,44 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="0" colspan="2">
-       <widget class="QCheckBox" name="checkbox_autoscale">
+      <item row="7" column="0" colspan="2">
+       <widget class="QTreeWidget" name="treewidget_segments">
+        <property name="headerHidden">
+         <bool>true</bool>
+        </property>
+        <column>
+         <property name="text">
+          <string notr="true">1</string>
+         </property>
+        </column>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="label">
+        <property name="font">
+         <font>
+          <pointsize>10</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>Список сегментов</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0" colspan="2">
+       <widget class="QCheckBox" name="checkbox_grid">
         <property name="enabled">
          <bool>false</bool>
         </property>
         <property name="text">
-         <string>Автоматический масштаб осей</string>
+         <string>Включить сетку</string>
         </property>
-        <property name="checked">
-         <bool>true</bool>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QComboBox" name="combobox_xaxis">
+        <property name="enabled">
+         <bool>false</bool>
         </property>
        </widget>
       </item>
@@ -473,28 +491,6 @@
         </property>
        </spacer>
       </item>
-      <item row="3" column="0" colspan="2">
-       <widget class="QCheckBox" name="checkbox_grid">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Включить сетку</string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="0">
-       <widget class="QLabel" name="label">
-        <property name="font">
-         <font>
-          <pointsize>10</pointsize>
-         </font>
-        </property>
-        <property name="text">
-         <string>Список сегментов</string>
-        </property>
-       </widget>
-      </item>
       <item row="0" column="0" colspan="2">
        <widget class="QLabel" name="label_4">
         <property name="font">
@@ -504,6 +500,19 @@
         </property>
         <property name="text">
          <string>Настройки отображения графика</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0" colspan="2">
+       <widget class="QCheckBox" name="checkbox_autoscale">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Автоматический масштаб осей</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -531,7 +540,14 @@
     <property name="title">
      <string>Файл</string>
     </property>
+    <widget class="QMenu" name="menu_import">
+     <property name="title">
+      <string>Импорт</string>
+     </property>
+     <addaction name="action_netzsch"/>
+    </widget>
     <addaction name="action_open"/>
+    <addaction name="menu_import"/>
     <addaction name="action_close"/>
    </widget>
    <widget class="QMenu" name="menu_editor">
@@ -545,6 +561,9 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="action_open">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Открыть</string>
    </property>
@@ -560,6 +579,11 @@
   <action name="action_config">
    <property name="text">
     <string>Настройки</string>
+   </property>
+  </action>
+  <action name="action_netzsch">
+   <property name="text">
+    <string>Netzsch</string>
    </property>
   </action>
  </widget>

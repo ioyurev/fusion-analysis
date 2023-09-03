@@ -1,5 +1,5 @@
 from PySide6 import QtWidgets, QtGui, QtUiTools
-from Segment import Segment, Peak, OnsetLine
+from Segment import SegmentDTA, Peak, OnsetLine
 from matplotlib.colors import to_hex
 
 Ui_SegmentDialog = QtUiTools.loadUiType('ui/SegmentProperties.ui')[0]
@@ -10,7 +10,7 @@ class SegmentPropetiesWindow(QtWidgets.QDialog, Ui_SegmentDialog):
     btn_color: QtWidgets.QPushButton
     w_color: QtWidgets.QWidget
 
-    def __init__(self, segment: Segment, parent=None):
+    def __init__(self, segment: SegmentDTA, parent=None):
         super().__init__(parent)
         self.setupUi(self)
         self.setFixedWidth(self.width())
@@ -52,17 +52,17 @@ class OnsetPropertiesWindow(QtWidgets.QDialog, Ui_OnsetDialog):
     checkbox_temp: QtWidgets.QCheckBox
     checkbox_dta: QtWidgets.QCheckBox
 
-    def __init__(self, label_state: bool, label_time_state: bool, label_temp_state: bool, label_dta_state: bool, onsetline: OnsetLine, parent=None):
+    def __init__(self, onsetline: OnsetLine, parent=None):
         self.onsetline = onsetline
         super().__init__(parent)
         self.setupUi(self)
         self.setFixedWidth(self.width())
         self.setFixedHeight(self.height())
         self.changes_are_made = False
-        self.checkbox_label.setChecked(label_state)
-        self.checkbox_time.setChecked(label_time_state)
-        self.checkbox_temp.setChecked(label_temp_state)
-        self.checkbox_dta.setChecked(label_dta_state)
+        self.checkbox_label.setChecked(self.onsetline.label_enabled)
+        self.checkbox_time.setChecked(self.onsetline.label_time_enabled)
+        self.checkbox_temp.setChecked(self.onsetline.label_temp_enabled)
+        self.checkbox_dta.setChecked(self.onsetline.label_dta_enabled)
         self.checkbox_label.stateChanged.connect(self.change_label)
         self.checkbox_time.stateChanged.connect(self.change_label)
         self.checkbox_temp.stateChanged.connect(self.change_label)

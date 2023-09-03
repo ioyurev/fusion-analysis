@@ -1,9 +1,9 @@
 from PySide6 import QtWidgets, QtCore, QtGui, QtUiTools
-from Plotter import Plotter, Segment, Peak, OnsetLine
-from libn2f import STAFile
+from Plotter import Plotter, SegmentDTA, Peak, OnsetLine, MyAnn
+from libn2f import n2f, TYPE_HEAT, TYPE_COOL, TYPE_ISOTHERMAL
 from Config import read_config, write_config
 from ConfigWindow import ConfigWindow
-from CustomWidgets import MySpinBox, RemoveAction, PropertiesAction
+from CustomWidgets import MySpinBox, RemoveAction, PropertiesAction, SegmentItem, DTAItem, MassItem, update_child_items_state
 
 Ui_MainWindow = QtUiTools.loadUiType('ui/MainWindow.ui')[0]
 
@@ -36,10 +36,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     checkbox_grid: QtWidgets.QCheckBox
     menu_file: QtWidgets.QMenu
     menu_editor: QtWidgets.QMenu
+    menu_import: QtWidgets.QMenu
     action_open: QtGui.QAction
+    action_netzsch: QtGui.QAction
     action_close: QtGui.QAction
     action_config: QtGui.QAction
-    list_segments : QtWidgets.QListWidget
     checkbox_autoscale: QtWidgets.QCheckBox
     leftpanel: QtWidgets.QGridLayout
     peaktoolLayout: QtWidgets.QGridLayout
@@ -50,10 +51,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     btn_onsettool_ok: QtWidgets.QPushButton
     btn_onsettool_cancel: QtWidgets.QPushButton
     btn_shiftsegment: QtWidgets.QPushButton
-    list_segments : QtWidgets.QListWidget
     plotLayout: QtWidgets.QVBoxLayout
+    treewidget_segments: QtWidgets.QTreeWidget
     
     def __init__(self, dpi, scale):
+        self.list_segments: list[SegmentItem] = []
         print('* загрузка интерфейса')
         super().__init__()
         self.setupUi(self)
@@ -65,13 +67,16 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # плоттер
         self.plotter = Plotter(self, dpi=dpi, scale=scale)
         self.plotter.config = self.config['Plotter']
+        self.plotter.signal_pick.connect(self.slot_pick)
+        self.plotter.signal_cm.connect(self.cm_popup)
         
         # добавляем холст и панель инструментов matplotlib
         self.plotLayout.addWidget(self.plotter.canvas)
         self.plotLayout.addWidget(self.plotter.toolbar)
         
         # обработчики меню
-        self.action_open.triggered.connect(self.on_click_open)
+        # self.action_open.triggered.connect(self.on_click_open)
+        self.action_netzsch.triggered.connect(self.on_click_netzsch)
         self.action_close.triggered.connect(self.on_click_close)
         self.action_config.triggered.connect(self.on_click_config)
         
@@ -107,20 +112,55 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         layoutSetVisible(self.peaktoolLayout, False)
         layoutSetVisible(self.onsettoolLayout, False)
 
-        # список сегментов
-        self.list_segments.itemChanged.connect(self.on_item_changed)
-        self.list_segments.itemSelectionChanged.connect(self.on_item_selection_changed)
-        self.list_segments.contextMenuEvent = self.on_cm_list_segments
-        self.items: list[QtWidgets.QListWidgetItem] = []
+        # дерево сегментов
+        self.treewidget_segments.itemChanged.connect(self.on_treewidget_changed)
+        self.treewidget_segments.itemSelectionChanged.connect(self.on_treewidget_selection_changed)
         
         self.measurement_is_opened = False
         self.comboboxes_is_set = False
         self.peaktool_initialized = False
         self.button_pressed = False
 
+    def on_treewidget_selection_changed(self):
+        selected = self.treewidget_segments.selectedItems()
+        if selected:
+            item = selected[0]
+            if self.plotter.picked_item is not None:
+                self.plotter.picked_item.setPickEffect(False)
+            if item.checkState(1):
+                match item:
+                    case SegmentItem():
+                        index = item.index
+                    case DTAItem():
+                        index = item.parent().index
+                self.on_pick_segment(True)
+                
+                self.plotter.picked_item = self.plotter.segments_dta[index]
+                self.plotter.picked_item.setPickEffect(True)
+            else:
+                self.plotter.picked_item = None
+                self.on_pick_segment(False)
+            self.plotter.canvas.draw()
+
+    def on_treewidget_changed(self, item: SegmentItem | DTAItem | MassItem):
+        if self.measurement_is_opened:
+            match item:
+                case SegmentItem():
+                    update_child_items_state(item)
+                case DTAItem():
+                    index = item.parent().index
+                    state = item.checkState(0) == QtCore.Qt.Checked
+                    self.plotter.segmentVisible(index, state)
+                    if self.checkbox_autoscale.checkState() == QtCore.Qt.Checked:
+                        self.plotter.autoscale()
+                    else:
+                        self.plotter.canvas.draw()
+                case MassItem():
+                    pass   
+
     def on_cm_list_segments(self, event: QtGui.QContextMenuEvent):
         index = self.list_segments.indexAt(event.pos()).row()
-        obj = self.plotter.segments[index]
+        obj = self.plotter.segments_dta[index]
         self.cm_popup(obj=obj, pos=event.globalPos())
 
     def on_resize(self, event):
@@ -138,16 +178,19 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.plotter.canvas.draw()
             self.press_position = y
 
-    def cm_popup(self, obj: Segment | Peak | OnsetLine, pos: QtCore.QPoint):
-        if isinstance(obj, Segment):
-            name = f"Сегмент {obj.index}"
-            self.cm_remove.setVisible(False)
-        elif isinstance(obj, Peak):
-            name = f"Пик {obj.area}"
-            self.cm_remove.setVisible(True)
-        elif isinstance(obj, OnsetLine):
-            name = f"{obj.t}: {obj.info}"
-            self.cm_remove.setVisible(True)
+    def cm_popup(self, tpl: tuple[SegmentDTA | Peak | OnsetLine, QtCore.QPoint]):
+        obj = tpl[0]
+        pos = tpl[1]
+        match obj:
+            case SegmentDTA():
+                name = f"Сегмент {obj.index}"
+                self.cm_remove.setVisible(False)
+            case Peak():
+                name = f"Пик {obj.area}"
+                self.cm_remove.setVisible(True)
+            case OnsetLine():
+                name = f"{obj.t}: {obj.info}"
+                self.cm_remove.setVisible(True)
         self.cm_name.setText(name)
         self.cm_remove.obj = obj
         self.cm_prop.obj = obj
@@ -169,16 +212,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def on_checkbox_autoscale_changed(self, state):
         if state == QtCore.Qt.Checked:
             self.plotter.autoscale()
-
-    def on_item_selection_changed(self):
-        selected_items = self.list_segments.selectedItems()
-        if len(selected_items) == 1 and selected_items[0].checkState():
-            index = self.list_segments.row(selected_items[0])
-            self.on_pick_segment(True)
-            self.plotter.pickSegment(self.plotter.segments[index])
-        else:
-            self.plotter.pickSegment(None)
-            self.on_pick_segment(False)
 
     def on_checkbox_grid_changed(self, state):
         if state == 2:
@@ -218,7 +251,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         return True
 
     def peaktool_check_is_valid(self):
-        if not isinstance(self.plotter.picked_item, Segment):
+        if not isinstance(self.plotter.picked_item, SegmentDTA):
             warning_message("Cегмент не выбран.")
             return False
         if self.chech_xaxis():
@@ -234,31 +267,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             warning_message('Неправильно выбрана ось абцисс!\nДолжна быть Time или Temp.')
             return False
 
-    def addSegments(self, filepath):
-        stafile = STAFile(filepath)
-        for index, df in enumerate(stafile.segments):
-            # пределы сегмента
-            t1 = round(df["Temp."].values[0])
-            t2 = round(df["Temp."].values[-1])
-            # добавляем сегмент к плоттеру
-            self.plotter.addSegment(df=df, index=index, Type=stafile.segments_type[index])
-            # добавляем сегмент в список интерфейса
-            self.items.append(QtWidgets.QListWidgetItem(f'{t1} - {t2}', self.list_segments))
-            self.items[index].setFlags(self.items[index].flags() | QtCore.Qt.ItemIsUserCheckable)
-            self.items[index].setCheckState(QtCore.Qt.Checked)
-            if t2 - t1 > 0:
-                self.items[index].setIcon(QtGui.QIcon('assets/icon_heat.png'))
-            else:
-                self.items[index].setIcon(QtGui.QIcon('assets/icon_cool.png'))
-        self.plotter.units = stafile.units
-        if '+' in stafile.info['EXO']:
-            self.plotter.measurement_exo = 1
-        elif '-' in stafile.info['EXO']:
-            self.plotter.measurement_exo = 0
-        else:
-            raise RuntimeError(f'Значение EXO {stafile.info["EXO"]} не распознано.')
-        del stafile
-
     def on_click_config(self):
         c = ConfigWindow(self.config, parent=self)
         result = c.exec()
@@ -273,7 +281,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.action_open.setEnabled(True)
         self.action_close.setEnabled(False)
         self.list_segments.clear()
-        self.items.clear()
+        self.menu_import.setEnabled(True)
+        self.treewidget_segments.clear()
         self.plotter.clear()
         self.plotter.remove_segments()
         self.measurement_is_opened = False
@@ -282,21 +291,29 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.combobox_xaxis.clear()
 
     def on_click_open(self):
+        pass
+
+    def on_click_netzsch(self):
         # обработчик открытия измерения
         options = QtWidgets.QFileDialog.Options(0x10)
         file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', '', 'All Files (*);;Text Files (*.txt)', options=options)
         if file_name == '':
             return
+        print('* импорт измерения Netzsch')
         print(f"* открыт файл {file_name}")
         # переключаем кнопки
         self.action_open.setEnabled(False)
         self.action_close.setEnabled(True)
-        # создаем сегменты и добавляем их в список
-        self.addSegments(file_name)
+        self.menu_import.setEnabled(False)
+        # парсим файл netzsch
+        self.measurement_data = n2f(file_name)
+        self.init_measurement()
+
+    def init_measurement(self):
         # добавляем доступные параметры в комбобоксы
         xaxes = ('Time', 'Temp.')
-        yaxes = list(self.plotter.segments[0].df.columns)
-        for yaxis in ('Time', 'Temp.', 'dDTA/dTime', 'dDTA/dTemp'):
+        yaxes = list(self.measurement_data.units.keys())
+        for yaxis in xaxes:
             yaxes.remove(yaxis)
         for header in xaxes:
             self.combobox_xaxis.addItem(header)
@@ -304,14 +321,37 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.combobox_xaxis.setCurrentText('Time')
         self.comboboxes_is_set = True
         layoutSetEnabled(self.leftpanel, True)
+
+        # добавляем сегменты
+        for index, df in enumerate(self.measurement_data.segments):
+            t1 = round(df["Temp."].values[0])
+            t2 = round(df["Temp."].values[-1])
+            parent_item = SegmentItem(self.treewidget_segments, index=index)
+            if t2 > t1:
+                Type = TYPE_HEAT
+                parent_item.setIcon(0, QtGui.QIcon('assets/icon_heat.png'))
+            elif t2 < t1:
+                Type = TYPE_COOL
+                parent_item.setIcon(0, QtGui.QIcon('assets/icon_cool.png'))
+            elif t2 == t1:
+                Type = TYPE_ISOTHERMAL
+                parent_item.setIcon(0, QtGui.QIcon('assets/icon_isothermal.png'))
+            self.plotter.addSegment(df=df, index=index, Type=Type)
+            self.list_segments.append(parent_item)
+            parent_item.setText(0, f'{t1} - {t2}')
+            child_item_dta = DTAItem(parent_item)
+            # child_item_mass = MassItem(parent_item)
+
         # рисуем график
+        self.plotter.units = self.measurement_data.units
+        self.plotter.measurement_exo = self.measurement_data.exo
         self.plotter.plot(
             self.combobox_xaxis.currentText(),
             "DTA",
         )
-        self.measurement_is_opened = True
         self.plotter.set_exo()
         self.plotter.set_visible(True)
+        self.measurement_is_opened = True
 
     def on_item_changed(self, item: QtWidgets.QListWidgetItem):
         if self.measurement_is_opened:
@@ -330,3 +370,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def on_pick_peak(self, state):
         self.btn_onsettool.setEnabled(state)
         self.btn_endtool.setEnabled(state)
+
+    def slot_pick(self, item: SegmentDTA | Peak | OnsetLine | MyAnn):
+        print(f'* выбран {item.__class__.__name__}')
+        match item:
+            case SegmentDTA():
+                self.on_pick_segment(True)
+                self.on_pick_peak(False)    
+                for entry in self.list_segments:
+                    entry.setSelected(False)
+                self.list_segments[item.index].setSelected(True)
+            case Peak():
+                self.on_pick_segment(False)
+                self.on_pick_peak(True)
+                self.treewidget_segments.clearSelection()

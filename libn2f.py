@@ -1,11 +1,10 @@
 import numpy as np
 import pandas as pd
 import pint
+from libfusiondata import MeasurementData, TYPE_COOL, TYPE_HEAT, TYPE_ISOTHERMAL
 
 UREG: pint.UnitRegistry = pint.UnitRegistry()
 UREG.default_format  = '~'
-TYPE_HEAT = 1
-TYPE_COOL = 0
 
 def _lines_to_infodict(lines) -> dict:
     info = dict()
@@ -15,63 +14,62 @@ def _lines_to_infodict(lines) -> dict:
         info[k] = v[:-1]
     return info
 
-class STAFile:
-    def __init__(self, filepath) -> None:
-        with open(filepath) as f:
-            lines = f.readlines()
-            for index, line in enumerate(lines):
-                if line.startswith('##'):
-                    self.info = _lines_to_infodict(lines[:index-1])
-                    # pprint(self.info)
-                    if self.info['DECIMAL'] == 'POINT':
-                        dec = '.'
-                    else:
-                        raise RuntimeError(f'Десятичный разделитель {self.info["DECIMAL"]} не распознан.')
-                    if self.info['SEPARATOR'] == 'SEMICOLON':
-                        sep = ';'
-                    else:
-                        raise RuntimeError(f'Разделитель {self.info["SEPARATOR"]} не распознан.')
-                    rawdf = self._lines_to_df(lines[index:], sep, dec)
-        self.isMultiSegment = '-' in self.info['SEGMENT']
-        self.segments = []
-        self.segments_type = []
-        for val in rawdf['Segment'].unique():
-            self.segments.append(rawdf[rawdf['Segment'] == val].drop(columns=['Segment']))
-        for segment in self.segments:
-            t1 = round(segment["Temp."].values[0])
-            t2 = round(segment["Temp."].values[-1])
-            if t2 > t1:
-                self.segments_type.append(TYPE_HEAT)
-            elif t2 < t1:
-                self.segments_type.append(TYPE_COOL)
-            else:
-                raise RuntimeError(f'Непредусмотренное отношение температур {t1} и {t2}')
-    
-    def _lines_to_df(self, lines, sep, dec):
-        self.headers: str = lines[0][2:-1].split(sep)
-        self.units = dict()
-        self.params = []
-        col: str
-        # print(self.headers)
-        for col in self.headers:
-            # print(col)
+def _lines_to_df(lines: list[str], sep: str, dec: str) -> tuple[pd.DataFrame, dict]:
+        headers = lines[0][2:-1].split(sep)
+        units = dict()
+        params = []
+        for col in headers:
             if '/' in col:
                 param, unit = col.split('/', maxsplit=1)
-                self.params.append(param)
-                self.units[param] = UREG.parse_units(unit)
+                params.append(param)
+                units[param] = UREG.parse_units(unit)
             else:
-                # print(param)
-                self.params.append(col)
-                self.units[col] = UREG.dimensionless
-        # print(self.units)
+                params.append(col)
+                units[col] = UREG.dimensionless
         values = []
         for line in lines[1:-1]:
             values.append(line.split(sep))
         np_values = np.array(values).transpose()
         df = pd.DataFrame()
-        for index, param in enumerate(self.params):
+        for index, param in enumerate(params):
             df[param] = pd.Series(np_values[index], dtype=float)
-        return df
+        return df, units
 
-# if __name__ == "__main__":
-    # pass
+def _split_lines(lines) -> tuple[dict, dict, pd.DataFrame]:
+    for index, line in enumerate(lines):
+        if line.startswith('##'):
+            info = _lines_to_infodict(lines[:index-1])
+            # pprint(self.info)
+            if info['DECIMAL'] == 'POINT':
+                dec = '.'
+            else:
+                raise RuntimeError(f'Десятичный разделитель {info["DECIMAL"]} не распознан.')
+            if info['SEPARATOR'] == 'SEMICOLON':
+                sep = ';'
+            else:
+                raise RuntimeError(f'Разделитель {info["SEPARATOR"]} не распознан.')
+            df, units = _lines_to_df(lines[index:], sep, dec)
+            return info, units, df
+
+def data_to_segment(df: pd.DataFrame, hasMassData: bool) -> pd.DataFrame:
+    segment = pd.DataFrame()
+    segment['Time'] = df['Time']
+    segment['Temp.'] = df['Temp.']
+    segment['DTA'] = df['DTA']
+    if hasMassData: segment['Mass'] = df['Mass']
+    return segment
+
+def n2f(filepath) -> MeasurementData:
+    with open(filepath) as f:
+        lines = f.readlines()
+        info, units, df = _split_lines(lines)
+        isMultiSegment = '-' in info['SEGMENT']
+        hasMassData = 'Mass' in df.columns
+    segments = []
+    if isMultiSegment:
+        for segment_num in df['Segment'].unique():
+            segment_df = df[df['Segment'] == segment_num].drop(columns=['Segment'])
+            segments.append(data_to_segment(df=segment_df, hasMassData=hasMassData))
+    else:
+        segments.append(data_to_segment(df=df, units=units, hasMassData=hasMassData))
+    return MeasurementData(info=info, segments=segments, units=units, hasMassData=hasMassData)
