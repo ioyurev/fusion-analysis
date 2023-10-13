@@ -1,11 +1,19 @@
 from PySide6 import QtWidgets, QtCore, QtGui, QtUiTools
 from Plotter import Plotter, SegmentDTA, Peak, OnsetLine, MyAnn
 from libn2f import n2f, TYPE_HEAT, TYPE_COOL, TYPE_ISOTHERMAL
+from libs2f import s2f
 from Config import read_config, write_config
 from ConfigWindow import ConfigWindow
 from CustomWidgets import MySpinBox, RemoveAction, PropertiesAction, SegmentItem, DTAItem, MassItem, update_child_items_state
 
 Ui_MainWindow = QtUiTools.loadUiType('ui/MainWindow.ui')[0]
+
+def ask_mass():
+    ok = False
+    while not ok:
+        mass, ok = QtWidgets.QInputDialog.getDouble(None, "Введите массу", "Масса, мг:", decimals=1)
+    print(f"* Введенная масса: {mass}")
+    return mass
 
 def warning_message(message):
     print(f'* Предупреждение. {message}')
@@ -39,6 +47,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     menu_import: QtWidgets.QMenu
     action_open: QtGui.QAction
     action_netzsch: QtGui.QAction
+    action_setaram: QtGui.QAction
     action_close: QtGui.QAction
     action_config: QtGui.QAction
     checkbox_autoscale: QtWidgets.QCheckBox
@@ -77,6 +86,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # обработчики меню
         # self.action_open.triggered.connect(self.on_click_open)
         self.action_netzsch.triggered.connect(self.on_click_netzsch)
+        self.action_setaram.triggered.connect(self.on_click_setaram)
         self.action_close.triggered.connect(self.on_click_close)
         self.action_config.triggered.connect(self.on_click_config)
         
@@ -307,6 +317,22 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.menu_import.setEnabled(False)
         # парсим файл netzsch
         self.measurement_data = n2f(file_name)
+        self.init_measurement()
+
+    def on_click_setaram(self):
+        # обработчик открытия измерения
+        options = QtWidgets.QFileDialog.Options(0x10)
+        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', '', 'All Files (*);;Text Files (*.txt)', options=options)
+        if file_name == '':
+            return
+        print('* импорт измерения Setaram')
+        print(f"* открыт файл {file_name}")
+        # переключаем кнопки
+        self.action_open.setEnabled(False)
+        self.action_close.setEnabled(True)
+        self.menu_import.setEnabled(False)
+        # парсим файл netzsch
+        self.measurement_data = s2f(file_name, startmass=ask_mass())
         self.init_measurement()
 
     def init_measurement(self):

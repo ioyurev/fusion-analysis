@@ -545,6 +545,7 @@
       <string>Импорт</string>
      </property>
      <addaction name="action_netzsch"/>
+     <addaction name="action_setaram"/>
     </widget>
     <addaction name="action_open"/>
     <addaction name="menu_import"/>
@@ -583,7 +584,12 @@
   </action>
   <action name="action_netzsch">
    <property name="text">
-    <string>Netzsch</string>
+    <string>Netzsch ANSI TXT</string>
+   </property>
+  </action>
+  <action name="action_setaram">
+   <property name="text">
+    <string>Setaram ANSI TXT</string>
    </property>
   </action>
  </widget>
