@@ -153,7 +153,7 @@ class Plotter(QtCore.QObject):
     def remove_segments(self):
         self.segments_dta.clear()
 
-    def plot(self, xaxis: str, yaxis: str):
+    def plot(self, xaxis: str, yaxis: str, has_massdata=True):
         self.clear()
         for segment in self.segments_dta:
             segment.set_axes(xaxis=xaxis, yaxis=yaxis)
@@ -161,7 +161,8 @@ class Plotter(QtCore.QObject):
             self.ax_ddta.add_line(segment.dsegment)
         self.set_xlabel(xaxis)
         self.ax.set_ylabel(f'{"DTA"}, {self.get_units("DTA")}')
-        self.ax2.set_ylabel(f'{"Mass"}, {self.get_units("Mass")}')
+        if has_massdata:
+            self.ax2.set_ylabel(f'{"Mass"}, {self.get_units("Mass")}')
         self.ax_ddta.set_ylabel('dDTA/dT')
         self.ax.autoscale_view()
         self.ax_ddta.autoscale_view()

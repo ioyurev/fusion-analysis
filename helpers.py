@@ -1,9 +1,14 @@
+from PySide6 import QtWidgets
 import numpy as np
 from typing import Callable
 import math
 
 LINEAR_TYPE = 0
 BEZIER_TYPE = 1
+
+def warning_message(message):
+    print(f'* Предупреждение. {message}')
+    QtWidgets.QMessageBox.warning(None, "Предупреждение", message)
 
 def xand_gate(a, b):
     """

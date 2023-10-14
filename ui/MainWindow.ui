@@ -562,9 +562,6 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="action_open">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Открыть</string>
    </property>

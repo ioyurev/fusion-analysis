@@ -2,9 +2,12 @@ from PySide6 import QtWidgets, QtCore, QtGui, QtUiTools
 from Plotter import Plotter, SegmentDTA, Peak, OnsetLine, MyAnn
 from libn2f import n2f, TYPE_HEAT, TYPE_COOL, TYPE_ISOTHERMAL
 from libs2f import s2f
+from libc2a import c2a
 from Config import read_config, write_config
 from ConfigWindow import ConfigWindow
 from CustomWidgets import MySpinBox, RemoveAction, PropertiesAction, SegmentItem, DTAItem, MassItem, update_child_items_state
+from DataFile import pick_open_path
+from helpers import warning_message
 
 Ui_MainWindow = QtUiTools.loadUiType('ui/MainWindow.ui')[0]
 
@@ -14,10 +17,6 @@ def ask_mass():
         mass, ok = QtWidgets.QInputDialog.getDouble(None, "Введите массу", "Масса, мг:", decimals=1)
     print(f"* Введенная масса: {mass}")
     return mass
-
-def warning_message(message):
-    print(f'* Предупреждение. {message}')
-    QtWidgets.QMessageBox.warning(None, "Предупреждение", message)
 
 def layoutSetVisible(layout: QtWidgets.QLayout, visible: bool):
     for i in range(layout.count()):
@@ -84,7 +83,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.plotLayout.addWidget(self.plotter.toolbar)
         
         # обработчики меню
-        # self.action_open.triggered.connect(self.on_click_open)
+        self.action_open.triggered.connect(self.on_click_open)
         self.action_netzsch.triggered.connect(self.on_click_netzsch)
         self.action_setaram.triggered.connect(self.on_click_setaram)
         self.action_close.triggered.connect(self.on_click_close)
@@ -301,7 +300,18 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.combobox_xaxis.clear()
 
     def on_click_open(self):
-        pass
+        file_name = pick_open_path()
+        if file_name == '':
+            return
+        print('* импорт измерения Fusion Collection')
+        print(f"* открыт файл {file_name}")
+        # переключаем кнопки
+        self.action_open.setEnabled(False)
+        self.action_close.setEnabled(True)
+        self.menu_import.setEnabled(False)
+        # парсим файл netzsch
+        self.measurement_data = c2a(file_name)
+        self.init_measurement(has_massdata=False)
 
     def on_click_netzsch(self):
         # обработчик открытия измерения
@@ -335,7 +345,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.measurement_data = s2f(file_name, startmass=ask_mass())
         self.init_measurement()
 
-    def init_measurement(self):
+    def init_measurement(self, has_massdata=True):
         # добавляем доступные параметры в комбобоксы
         xaxes = ('Time', 'Temp.')
         yaxes = list(self.measurement_data.units.keys())
@@ -374,6 +384,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.plotter.plot(
             self.combobox_xaxis.currentText(),
             "DTA",
+            has_massdata=has_massdata
         )
         self.plotter.set_exo()
         self.plotter.set_visible(True)
