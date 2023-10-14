@@ -6,7 +6,7 @@ from libc2a import c2a
 from Config import read_config, write_config
 from ConfigWindow import ConfigWindow
 from CustomWidgets import MySpinBox, RemoveAction, PropertiesAction, SegmentItem, DTAItem, MassItem, update_child_items_state
-from DataFile import pick_open_path
+from data_file.DataFile import pick_open_path
 from helpers import warning_message
 
 Ui_MainWindow = QtUiTools.loadUiType('ui/MainWindow.ui')[0]
