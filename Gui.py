@@ -32,9 +32,8 @@ def layoutSetEnabled(layout: QtWidgets.QLayout, enabled: bool):
             widget.setEnabled(enabled)
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
+    tab_widget: QtWidgets.QTabWidget
     btn_peaktool : QtWidgets.QPushButton
-    btn_peaktool_ok : QtWidgets.QPushButton
-    btn_peaktool_cancel : QtWidgets.QPushButton
     spinbox_T1 : MySpinBox
     spinbox_T2 : MySpinBox
     spinbox_onsettool_T1: MySpinBox
@@ -52,16 +51,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     checkbox_autoscale: QtWidgets.QCheckBox
     checkbox_derivative: QtWidgets.QCheckBox
     leftpanel: QtWidgets.QGridLayout
-    peaktoolLayout: QtWidgets.QGridLayout
-    onsettoolLayout: QtWidgets.QGridLayout
     combobox_baselinetype: QtWidgets.QComboBox
     btn_onsettool: QtWidgets.QPushButton
     btn_endtool: QtWidgets.QPushButton
-    btn_onsettool_ok: QtWidgets.QPushButton
-    btn_onsettool_cancel: QtWidgets.QPushButton
     btn_shiftsegment: QtWidgets.QPushButton
     plotLayout: QtWidgets.QVBoxLayout
     treewidget_segments: QtWidgets.QTreeWidget
+    buttonbox_peak: QtWidgets.QDialogButtonBox
+    buttonbox_onset: QtWidgets.QDialogButtonBox
     
     def __init__(self, dpi, scale):
         self.list_segments: list[SegmentItem] = []
@@ -103,12 +100,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # обработчики инструментов
         self.btn_peaktool.clicked.connect(self.on_click_peaktool_start)
-        self.btn_peaktool_ok.clicked.connect(lambda: self.on_click_peaktool_done(apply=True))
-        self.btn_peaktool_cancel.clicked.connect(lambda: self.on_click_peaktool_done(apply=False))
+        self.buttonbox_peak.accepted.connect(lambda: self.on_click_peaktool_done(apply=True))
+        self.buttonbox_peak.rejected.connect(lambda: self.on_click_peaktool_done(apply=False))
+
         self.btn_onsettool.clicked.connect(lambda: self.on_click_onsettool_start())
-        self.btn_onsettool_ok.clicked.connect(lambda: self.on_click_onsettool_done(apply=True))
-        self.btn_onsettool_cancel.clicked.connect(lambda: self.on_click_onsettool_done(apply=False))
         self.btn_endtool.clicked.connect(lambda: self.on_click_onsettool_start(is_onset=False))
+        self.buttonbox_onset.accepted.connect(lambda: self.on_click_onsettool_done(apply=True))
+        self.buttonbox_onset.rejected.connect(lambda: self.on_click_onsettool_done(apply=False))
+
         self.btn_shiftsegment.mousePressEvent = self.on_press_shiftsegment
         self.btn_shiftsegment.mouseMoveEvent = self.on_move_shiftsegment
 
@@ -119,8 +118,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.checkbox_derivative.stateChanged.connect(self.on_checkbox_derivative_changed)
 
         # скрытие панелей инструментов
-        layoutSetVisible(self.peaktoolLayout, False)
-        layoutSetVisible(self.onsettoolLayout, False)
+        self.tab_widget.tabBar().setVisible(False)
+        self.tab_widget.setVisible(False)
 
         # дерево сегментов
         self.treewidget_segments.itemChanged.connect(self.on_treewidget_changed)
@@ -217,13 +216,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def on_click_onsettool_start(self, is_onset: bool = True):
         if self.onsettool_check_is_valid():
             self.plotter.onsettool_start(is_onset)
-            layoutSetVisible(self.onsettoolLayout, True)
+            self.tab_widget.setVisible(True)
+            self.tab_widget.setCurrentIndex(1)
             layoutSetEnabled(self.leftpanel, False)
             self.onsettools_initialized = True
 
     def on_click_onsettool_done(self, apply: bool):
         self.plotter.onsettool_done(apply=apply)
-        layoutSetVisible(self.onsettoolLayout, False)
+        self.tab_widget.setVisible(False)
         layoutSetEnabled(self.leftpanel, True)
         self.peaktool_initialized = False
 
@@ -243,7 +243,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def on_click_peaktool_done(self, apply: bool):
         self.plotter.peaktool_done(apply=apply)
-        layoutSetVisible(self.peaktoolLayout, False)
+        self.tab_widget.setVisible(False)
         layoutSetEnabled(self.leftpanel, True)
         self.btn_shiftsegment.setEnabled(True)
         self.btn_peaktool.setEnabled(True)
@@ -252,7 +252,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def on_click_peaktool_start(self):
         if self.peaktool_check_is_valid():
             self.plotter.peaktool_start()
-            layoutSetVisible(self.peaktoolLayout, True)
+            self.tab_widget.setVisible(True)
+            self.tab_widget.setCurrentIndex(0)
             layoutSetEnabled(self.leftpanel, False)
             self.btn_shiftsegment.setEnabled(False)
             self.btn_peaktool.setEnabled(False)
