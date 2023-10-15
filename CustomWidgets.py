@@ -2,7 +2,6 @@ from PySide6 import QtWidgets, QtGui, QtCore
 from Plotter import Selector
 from Segment import SegmentDTA, Peak, OnsetLine
 from PropertiesWindows import SegmentPropetiesWindow, PeakPropertiesWindow, OnsetPropertiesWindow
-from libn2f import TYPE_HEAT, TYPE_COOL, TYPE_ISOTHERMAL
 
 def update_child_items_state(item: QtWidgets.QTreeWidgetItem):
     # Получаем состояние родительского элемента
@@ -15,15 +14,15 @@ def update_child_items_state(item: QtWidgets.QTreeWidgetItem):
         update_child_items_state(child_item)
 
 class MySpinBox(QtWidgets.QDoubleSpinBox):
-    selectors: list[Selector] = []
+    selector: Selector
     def __init__(self, parent: QtWidgets.QWidget | None = ...) -> None:
         super().__init__(parent)
         self.valueChanged.connect(self.handle_value_changed)
 
     def handle_value_changed(self, x: float):
         if self.isVisible():
-            self.selectors[0].set_x(x=x, update_spinbox_value=False)
-            self.selectors[1].set_x(x=x, update_spinbox_value=False)
+            self.selector.set_x(x=x, update_spinbox_value=False)
+            self.selector.set_x(x=x, update_spinbox_value=False)
 
     def setValue(self, val: float, block_signal: bool = False):
         if block_signal:

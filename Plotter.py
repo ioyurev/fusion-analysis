@@ -15,7 +15,7 @@ def get_next_color():
     return next(colors)
 
 class Selector(Line2D):
-    def __init__(self, ax: Axes, x: float, spinbox, ymin=0, ymax=1, *args, **kwargs) -> None:
+    def __init__(self, ax: Axes, x: float, spinbox, limit_x1: float, limit_x2: float, ymin=0, ymax=1, *args, **kwargs) -> None:
         self.ax = ax
         trans = self.ax.get_xaxis_transform(which='grid')
         self.spinbox = spinbox
@@ -23,16 +23,19 @@ class Selector(Line2D):
         self.ax.add_line(self)
         self.set_picker(5)
         self.set_antialiased(False)
+        self.limit_x1 = limit_x1
+        self.limit_x2 = limit_x2
+        self.spinbox.setValue(x, block_signal=True)
+        spinbox.setRange(limit_x1, limit_x2)
 
     def set_x(self, x: float, update_spinbox_value: bool = True):
-        if update_spinbox_value: self.spinbox.setValue(x, block_signal=True)
-        super().set_xdata([x, x])
+        if self.limit_x1 <= x <= self.limit_x2:
+            if update_spinbox_value: self.spinbox.setValue(x, block_signal=True)
+            super().set_xdata([x, x])
 
 class Plotter(QtCore.QObject):
     measurement_exo: int
     units: dict
-    picked_selector_limit_x1: float
-    picked_selector_limit_x2: float
     picked_item: SegmentDTA | Peak | OnsetLine | MyAnn = None
     picked_segment: SegmentDTA = None
     picked_peak: Peak = None
@@ -166,22 +169,13 @@ class Plotter(QtCore.QObject):
         self.ax_ddta.autoscale_view()
         self.canvas.draw()
 
-    def move_selector(self, selector: Selector, x: float, update_spinbox_value: bool = True):
-        if self.picked_selector_limit_x1< x < self.picked_selector_limit_x2:
-            if selector in (self.selector1, self.selector1_ddta):
-                self.selector1.set_x(x=x, update_spinbox_value=update_spinbox_value)
-                self.selector1_ddta.set_x(x=x, update_spinbox_value=update_spinbox_value)
-            elif selector in (self.selector2, self.selector2_ddta):
-                self.selector2.set_x(x=x, update_spinbox_value=update_spinbox_value)
-                self.selector2_ddta.set_x(x=x, update_spinbox_value=update_spinbox_value)
-
     def on_move(self, event: MouseEvent):
         if event.button == 1:
             if event.inaxes:
                 match self.holding_item:
                     case Selector():
                         x = event.xdata
-                        self.move_selector(selector=self.holding_item, x=x)
+                        self.holding_item.set_x(x)
                     case MyAnn():
                         if event.inaxes == self.ax:
                             ydata = event.ydata
@@ -251,15 +245,14 @@ class Plotter(QtCore.QObject):
 
     def gridSetVisible(self, visible: bool):
         self.ax.grid(visible=visible)
-        self.ax_ddta.grid(visible=visible)
         self.canvas.draw()
 
     def onsettool_done(self, apply: bool):
         for segment in self.segments_dta:
             if segment.get_visible():
                 segment.set_picker(5)
-        self.parent().spinbox_onsettool_T1.selectors = []
-        self.parent().spinbox_onsettool_T2.selectors = []
+        self.parent().spinbox_onsettool_T1.selector = None
+        self.parent().spinbox_onsettool_T2.selector = None
         if apply:
             line = self.picked_peak.onset(t1=self.parent().spinbox_onsettool_T1.value(), t2=self.parent().spinbox_onsettool_T2.value(), is_onset=self.is_onset)
             self.items.append(line)
@@ -275,8 +268,6 @@ class Plotter(QtCore.QObject):
         x1 = max(peak_xdata)
         ci = len(peak_xdata) // 2
         xc = peak_xdata[ci]
-        self.parent().spinbox_onsettool_T1.setRange(x0, x1)
-        self.parent().spinbox_onsettool_T2.setRange(x0, x1)
         if is_onset:
             self.spawn_selectors(t1=x0, t2=xc, selectMode=1)
             self.parent().spinbox_onsettool_T1.setValue(x0)
@@ -287,16 +278,11 @@ class Plotter(QtCore.QObject):
             self.parent().spinbox_onsettool_T2.setValue(x1)
         for segment in self.segments_dta:
             segment.set_picker(False)
-        for selector in [self.selector1, self.selector2, self.selector1_ddta, self.selector2_ddta]:
-            selector.set_picker(5)
-            selector.set_antialiased(False)
         self.canvas.draw()
 
     def peaktool_start(self):
         x0 = self.picked_item.xmin
         x1 = self.picked_item.xmax
-        self.parent().spinbox_T1.setRange(x0, x1)
-        self.parent().spinbox_T2.setRange(x0, x1)
         r = x1 - x0
         t1 = round(x0 + r/3, 1)
         t2 = round(x0 + 2*r/3, 1)
@@ -305,52 +291,38 @@ class Plotter(QtCore.QObject):
         self.parent().spinbox_T2.setValue(t2)
         for segment in self.segments_dta:
             segment.set_picker(False)
-        for selector in [self.selector1, self.selector2, self.selector1_ddta, self.selector2_ddta]:
-            selector.set_picker(5)
-            selector.set_antialiased(False)
         self.canvas.draw()
 
     def spawn_selectors(self, t1, t2, selectMode):
         self.selectMode = selectMode
         if self.selectMode == 0:
-            self.picked_selector_limit_x1 = self.picked_item.xmin
-            self.picked_selector_limit_x2 = self.picked_item.xmax
-            self.selector1 = Selector(ax=self.ax, x=t1, spinbox=self.parent().spinbox_T1)
-            self.selector2 = Selector(ax=self.ax, x=t2, spinbox=self.parent().spinbox_T2)
-            self.selector1_ddta = Selector(ax=self.ax_ddta, x=t1, spinbox=self.parent().spinbox_T1)
-            self.selector2_ddta = Selector(ax=self.ax_ddta, x=t2, spinbox=self.parent().spinbox_T2)
-            self.parent().spinbox_T1.selectors = [self.selector1, self.selector1_ddta]
-            self.parent().spinbox_T2.selectors = [self.selector2, self.selector2_ddta]
+            limit_x1 = self.picked_item.xmin
+            limit_x2 = self.picked_item.xmax
+            spinbox1 = self.parent().spinbox_T1
+            spinbox2 = self.parent().spinbox_T2
         elif self.selectMode == 1:
             xaxis = self.getCurrentXaxis()
-            self.picked_selector_limit_x1 = self.picked_item.df_baseline[xaxis].values[0]
-            self.picked_selector_limit_x2 = self.picked_item.df_baseline[xaxis].values[-1]
-            if self.picked_selector_limit_x1 > self.picked_selector_limit_x2:
-                self.picked_selector_limit_x1, self.picked_selector_limit_x2 = self.picked_selector_limit_x2, self.picked_selector_limit_x1
-            self.selector1 = Selector(ax=self.ax, x=t1, spinbox=self.parent().spinbox_onsettool_T1)
-            self.selector2 = Selector(ax=self.ax, x=t2, spinbox=self.parent().spinbox_onsettool_T2)
-            self.selector1_ddta = Selector(ax=self.ax_ddta, x=t1, spinbox=self.parent().spinbox_onsettool_T1)
-            self.selector2_ddta = Selector(ax=self.ax_ddta, x=t2, spinbox=self.parent().spinbox_onsettool_T2)
-            self.parent().spinbox_onsettool_T1.selectors = [self.selector1, self.selector1_ddta]
-            self.parent().spinbox_onsettool_T2.selectors = [self.selector2, self.selector2_ddta]
+            limit_x1 = self.picked_item.df_baseline[xaxis].values[0]
+            limit_x2 = self.picked_item.df_baseline[xaxis].values[-1]
+            if limit_x1 > limit_x2:
+                limit_x1, limit_x2 = limit_x2, limit_x1
+            spinbox1 = self.parent().spinbox_onsettool_T1
+            spinbox2 = self.parent().spinbox_onsettool_T2
+        
+        self.selector1 = Selector(ax=self.ax, x=t1, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=self.parent().spinbox_T1)
+        self.selector2 = Selector(ax=self.ax, x=t2, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=self.parent().spinbox_T2)
+        spinbox1.selector = self.selector1
+        spinbox2.selector = self.selector2
         self.items.append(self.selector1)
         self.items.append(self.selector2)
-        self.items.append(self.selector1_ddta)
-        self.items.append(self.selector2_ddta)
 
     def despawn_selectors(self):
         self.selector1.remove()
         self.selector2.remove()
-        self.selector1_ddta.remove()
-        self.selector2_ddta.remove()
         self.items.remove(self.selector1)
         self.items.remove(self.selector2)
-        self.items.remove(self.selector1_ddta)
-        self.items.remove(self.selector2_ddta)
         del self.selector1
         del self.selector2
-        del self.selector1_ddta
-        del self.selector2_ddta
 
     def peaktool_done(self, apply: bool):
         for segment in self.segments_dta:
@@ -364,7 +336,7 @@ class Plotter(QtCore.QObject):
                 )
             self.items.append(peak)
             self.items.append(peak.ann)
-        self.parent().spinbox_T1.selectors = []
-        self.parent().spinbox_T2.selectors = []
+        self.parent().spinbox_T1.selector = None
+        self.parent().spinbox_T2.selector = None
         self.despawn_selectors()
         self.canvas.draw()        
