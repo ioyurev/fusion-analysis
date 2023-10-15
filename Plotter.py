@@ -43,6 +43,7 @@ class Plotter(QtCore.QObject):
     config: dict = None
     signal_pick = QtCore.Signal(object)
     signal_cm = QtCore.Signal(tuple)
+    signal_split = QtCore.Signal(tuple)
 
     def __init__(self, parent, dpi, scale) -> None:
         print("* инициализация плоттера")
@@ -56,7 +57,6 @@ class Plotter(QtCore.QObject):
         self.ax_ddta.set_visible(False)
         self.ax_ddta.autoscale(enable=True, axis='y', tight=True)
         self.canvas = FigureCanvas(self.fig)
-        # self.canvas.mpl_connect('pick_event', self.on_pick)
         self.canvas.mpl_connect('button_release_event', self.on_button_release)
         self.canvas.mpl_connect('motion_notify_event', self.on_move)
         self.canvas.mpl_connect('button_press_event', self.on_button_press)
@@ -74,11 +74,8 @@ class Plotter(QtCore.QObject):
         if not picked:
             return
         item = picked[0]
-        # item.pick()
         self.on_pick(item, event)
         self.holding_item = item
-        # self.on_pick(PickEvent("pick_event", self.canvas, event, item))
-        # self.pick(item=picked[0], event=event)
 
     def set_exo(self):
         if self.measurement_exo:
@@ -230,6 +227,7 @@ class Plotter(QtCore.QObject):
         segment = SegmentDTA(df=df, plotter=self, index=index, Type=Type, color=color)
         self.segments_dta.append(segment)
         self.items.append(segment)
+        return segment
 
     def segmentsVisible(self, arrb: list[bool]):
         for i, segment in enumerate(self.segments_dta):
@@ -245,6 +243,52 @@ class Plotter(QtCore.QObject):
 
     def gridSetVisible(self, visible: bool):
         self.ax.grid(visible=visible)
+        self.canvas.draw()
+
+    def spawn_split_selector(self, t: float):
+        selector = Selector(ax=self.ax, x=t,
+                            limit_x1=self.picked_item.xmin,
+                            limit_x2=self.picked_item.xmax,
+                            spinbox=self.parent().spinbox_t)
+        self.items.append(selector)
+        return selector
+
+    def splittool_start(self):
+        segment = self.picked_segment
+        xdata = segment.get_xdata()
+        i = len(xdata) // 2
+        self.selectMode = 1
+        self.selector_split = self.spawn_split_selector(t=xdata[i])
+        for segment in self.segments_dta:
+            segment.set_picker(False)
+        self.canvas.draw()
+
+    def splittool_done(self, apply: bool):
+        for segment in self.segments_dta:
+            if segment.get_visible():
+                segment.set_picker(5)
+        self.parent().spinbox_t.selector = None
+        self.selector_split.remove()
+        self.items.remove(self.selector_split)
+        del self.selector_split
+        if apply:
+            segment1, segment2 = self.picked_segment.split(x=self.parent().spinbox_t.value())
+            start_i = self.picked_segment.index
+            end_i = len(self.segments_dta) - 1
+            for i in range(start_i+1, end_i):
+                self.segments_dta[i].index += 1
+            self.items.append(segment1)
+            self.items.append(segment2)
+            self.items.remove(self.picked_segment)
+            self.picked_segment.remove()
+            self.ax.add_artist(segment1)
+            self.ax.add_artist(segment2)
+            self.ax_ddta.add_line(segment1.dsegment)
+            self.ax_ddta.add_line(segment2.dsegment)
+            self.segments_dta[start_i] = segment2
+            self.segments_dta.insert(start_i, segment1)
+            self.signal_split.emit((segment1, segment2, start_i))
+            
         self.canvas.draw()
 
     def onsettool_done(self, apply: bool):

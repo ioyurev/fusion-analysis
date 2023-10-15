@@ -2,6 +2,7 @@ from PySide6 import QtWidgets, QtGui, QtCore
 from Plotter import Selector
 from Segment import SegmentDTA, Peak, OnsetLine
 from PropertiesWindows import SegmentPropetiesWindow, PeakPropertiesWindow, OnsetPropertiesWindow
+from libn2f import TYPE_HEAT, TYPE_COOL, TYPE_ISOTHERMAL
 
 def update_child_items_state(item: QtWidgets.QTreeWidgetItem):
     # Получаем состояние родительского элемента
@@ -108,10 +109,20 @@ class PropertiesAction(QtGui.QAction):
         del w
 
 class SegmentItem(QtWidgets.QTreeWidgetItem):
-    def __init__(self, parent: QtWidgets.QListWidget, index: int):
+    def __init__(self, parent: QtWidgets.QListWidget, artist: SegmentDTA):
         super().__init__(parent)
-        self.index = index
+        self.index = artist.index
+        self.artist = artist
+        if artist.Type == TYPE_HEAT:
+            self.setIcon(0, QtGui.QIcon('assets/icon_heat.png'))
+        elif artist.Type == TYPE_COOL:
+            self.setIcon(0, QtGui.QIcon('assets/icon_cool.png'))
+        elif artist.Type == TYPE_ISOTHERMAL:
+                self.setIcon(0, QtGui.QIcon('assets/icon_isothermal.png'))
         self.setCheckState(0, QtCore.Qt.Checked)
+        t1 = round(artist.df["Temp."].values[0])
+        t2 = round(artist.df["Temp."].values[-1])
+        self.setText(0, f'{t1} - {t2}')
 
 class DTAItem(QtWidgets.QTreeWidgetItem):
     def __init__(self, parent: SegmentItem):

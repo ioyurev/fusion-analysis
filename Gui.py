@@ -11,6 +11,30 @@ from helpers import warning_message
 
 Ui_MainWindow = QtUiTools.loadUiType('ui/MainWindow.ui')[0]
 
+class TreeWidgetHandler(QtCore.QObject):
+    list_segments: list[SegmentItem]
+    def __init__(self, widget: QtWidgets.QTreeWidget, plotter: Plotter):
+        super().__init__(parent=None)
+        self.plotter = plotter
+        self.widget = widget
+
+    def setSelectedItem(self, artist: SegmentDTA):
+        for item in self.list_segments:
+            item.setSelected(False)
+        self.list_segments[artist.index].setSelected(True)
+
+    def init(self, segments: list[SegmentDTA]):
+        self.list_segments = []
+        for segment in segments:
+            parent_item = SegmentItem(self.widget, artist=segment)
+            self.list_segments.append(parent_item)
+            child_item_dta = DTAItem(parent_item)
+            # child_item_mass = MassItem(parent_item)
+    
+    def on_split(self):
+        self.widget.clear()
+        self.init(self.plotter.segments_dta)        
+
 def ask_mass():
     ok = False
     while not ok:
@@ -55,10 +79,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     btn_onsettool: QtWidgets.QPushButton
     btn_endtool: QtWidgets.QPushButton
     btn_shiftsegment: QtWidgets.QPushButton
+    btn_split: QtWidgets.QPushButton
     plotLayout: QtWidgets.QVBoxLayout
     treewidget_segments: QtWidgets.QTreeWidget
     buttonbox_peak: QtWidgets.QDialogButtonBox
     buttonbox_onset: QtWidgets.QDialogButtonBox
+    buttonbox_split: QtWidgets.QDialogButtonBox
     
     def __init__(self, dpi, scale):
         self.list_segments: list[SegmentItem] = []
@@ -73,9 +99,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # плоттер
         self.plotter = Plotter(self, dpi=dpi, scale=scale)
         self.plotter.config = self.config['Plotter']
-        self.plotter.signal_pick.connect(self.slot_pick)
+        self.plotter.signal_pick.connect(self.on_pick)
         self.plotter.signal_cm.connect(self.cm_popup)
-        
+        self.plotter.signal_split.connect(self.on_split_done)
+
         # добавляем холст и панель инструментов matplotlib
         self.plotLayout.addWidget(self.plotter.canvas)
         self.plotLayout.addWidget(self.plotter.toolbar)
@@ -108,6 +135,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.buttonbox_onset.accepted.connect(lambda: self.on_click_onsettool_done(apply=True))
         self.buttonbox_onset.rejected.connect(lambda: self.on_click_onsettool_done(apply=False))
 
+        self.btn_split.clicked.connect(self.on_click_splittool_start)
+        self.buttonbox_split.accepted.connect(lambda: self.on_click_splittool_done(apply=True))
+        self.buttonbox_split.rejected.connect(lambda: self.on_click_splittool_done(apply=False))
+
         self.btn_shiftsegment.mousePressEvent = self.on_press_shiftsegment
         self.btn_shiftsegment.mouseMoveEvent = self.on_move_shiftsegment
 
@@ -122,6 +153,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.tab_widget.setVisible(False)
 
         # дерево сегментов
+        self.treewidget_handler = TreeWidgetHandler(self.treewidget_segments, self.plotter)
         self.treewidget_segments.itemChanged.connect(self.on_treewidget_changed)
         self.treewidget_segments.itemSelectionChanged.connect(self.on_treewidget_selection_changed)
         
@@ -142,17 +174,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         selected = self.treewidget_segments.selectedItems()
         if selected:
             item = selected[0]
+            item: SegmentItem
             if self.plotter.picked_item is not None:
                 self.plotter.picked_item.setPickEffect(False)
             if item.checkState(1):
-                match item:
-                    case SegmentItem():
-                        index = item.index
-                    case DTAItem():
-                        index = item.parent().index
                 self.on_pick_segment(True)
-                
-                self.plotter.picked_item = self.plotter.segments_dta[index]
+                self.plotter.picked_item = item.artist
                 self.plotter.picked_item.setPickEffect(True)
             else:
                 self.plotter.picked_item = None
@@ -212,6 +239,30 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.cm_remove.obj = obj
         self.cm_prop.obj = obj
         self.cm.popup(pos)
+
+    def on_click_splittool_done(self, apply: bool):
+        self.plotter.splittool_done(apply=apply)
+        self.tab_widget.setVisible(False)
+        layoutSetEnabled(self.leftpanel, True)
+        self.splittool_initialized = False
+
+    def splittool_check_is_valid(self):
+        if not isinstance(self.plotter.picked_item, SegmentDTA):
+            warning_message("Cегмент не выбран.")
+            return False
+        if self.combobox_xaxis.currentText() in ('Time'):
+            pass
+        else:
+            warning_message('Неправильно выбрана ось абцисс!\nДолжна быть Time.')
+            return False
+        return True
+
+    def on_click_splittool_start(self):
+        if self.splittool_check_is_valid():
+            self.plotter.splittool_start()
+            self.tab_widget.setVisible(True)
+            self.tab_widget.setCurrentIndex(2)
+            layoutSetEnabled(self.leftpanel, False)
 
     def on_click_onsettool_start(self, is_onset: bool = True):
         if self.onsettool_check_is_valid():
@@ -369,24 +420,19 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         layoutSetEnabled(self.leftpanel, True)
 
         # добавляем сегменты
+        artists = []
         for index, df in enumerate(self.measurement_data.segments):
             t1 = round(df["Temp."].values[0])
             t2 = round(df["Temp."].values[-1])
-            parent_item = SegmentItem(self.treewidget_segments, index=index)
             if t2 > t1:
                 Type = TYPE_HEAT
-                parent_item.setIcon(0, QtGui.QIcon('assets/icon_heat.png'))
             elif t2 < t1:
                 Type = TYPE_COOL
-                parent_item.setIcon(0, QtGui.QIcon('assets/icon_cool.png'))
             elif t2 == t1:
                 Type = TYPE_ISOTHERMAL
-                parent_item.setIcon(0, QtGui.QIcon('assets/icon_isothermal.png'))
-            self.plotter.addSegment(df=df, index=index, Type=Type)
-            self.list_segments.append(parent_item)
-            parent_item.setText(0, f'{t1} - {t2}')
-            child_item_dta = DTAItem(parent_item)
-            # child_item_mass = MassItem(parent_item)
+            artist = self.plotter.addSegment(df=df, index=index, Type=Type)
+            artists.append(artist)
+        self.treewidget_handler.init(artists)
 
         # рисуем график
         self.plotter.units = self.measurement_data.units
@@ -413,21 +459,24 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def on_pick_segment(self, state):
         self.btn_peaktool.setEnabled(state)
         self.btn_shiftsegment.setEnabled(state)
+        self.btn_split.setEnabled(state)
 
     def on_pick_peak(self, state):
         self.btn_onsettool.setEnabled(state)
         self.btn_endtool.setEnabled(state)
 
-    def slot_pick(self, item: SegmentDTA | Peak | OnsetLine | MyAnn):
+    def on_pick(self, item: SegmentDTA | Peak | OnsetLine | MyAnn):
         print(f'* выбран {item.__class__.__name__}')
         match item:
             case SegmentDTA():
                 self.on_pick_segment(True)
-                self.on_pick_peak(False)    
-                for entry in self.list_segments:
-                    entry.setSelected(False)
-                self.list_segments[item.index].setSelected(True)
+                self.on_pick_peak(False)
+                self.treewidget_handler.setSelectedItem(item)
             case Peak():
                 self.on_pick_segment(False)
                 self.on_pick_peak(True)
                 self.treewidget_segments.clearSelection()
+
+    def on_split_done(self, tpl: tuple[SegmentDTA, SegmentDTA, int]):
+        self.treewidget_handler.on_split()
+        

@@ -70,6 +70,14 @@ class SegmentDTA(Segment, QtCore.QObject):
         self.dy: float = 0
         self.dsegment.set_antialiased(False)
     
+    def split(self, x: float):
+        i = find_nearest(self.df['Time'].values, x)
+        df1 = self.df.iloc[:i].copy()
+        df2 = self.df.iloc[i:].copy()
+        segment1 = SegmentDTA(df=df1, plotter=self.plotter, index=self.index, Type=self.Type, color='blue')
+        segment2 = SegmentDTA(df=df2, plotter=self.plotter, index=self.index+1, Type=self.Type, color='cyan')
+        return segment1, segment2
+
     def shifty(self, dy):
         self.dy += dy/10
         self.set_ydata(self.get_ydata() - dy/10)
@@ -115,6 +123,10 @@ class SegmentDTA(Segment, QtCore.QObject):
             for peak in self.peaks:
                 peak.set_edgecolor(color)
         return super().set_color(color)
+    
+    def remove(self) -> None:
+        self.dsegment.remove()
+        return super().remove()
 
 class Peak(Polygon):
     ann = None
