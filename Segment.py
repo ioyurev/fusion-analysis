@@ -64,7 +64,7 @@ class SegmentDTA(Segment, QtCore.QObject):
         df['dDTA/dTime'] = derivative_data(df['Time'].to_numpy(), df['DTA'].to_numpy())
         df['dDTA/dTemp'] = derivative_data(df['Temp.'].to_numpy(), df['DTA'].to_numpy())
         self.xaxis = 'Time'
-        self.dsegment = Line2D(xdata=df[self.xaxis], ydata=df['dDTA/dTime'], color=color, lw=1)
+        self.dsegment = Line2D(xdata=df[self.xaxis], ydata=df['dDTA/dTime'], color=color, lw=1, linestyle='--')
         self.peaks : list[Peak] = []
         super().__init__(df=df, plotter=plotter, index=index, Type=Type, color=color, is_dta=True, *args, **kwargs)
         self.dy: float = 0

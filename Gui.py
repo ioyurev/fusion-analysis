@@ -50,6 +50,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     action_close: QtGui.QAction
     action_config: QtGui.QAction
     checkbox_autoscale: QtWidgets.QCheckBox
+    checkbox_derivative: QtWidgets.QCheckBox
     leftpanel: QtWidgets.QGridLayout
     peaktoolLayout: QtWidgets.QGridLayout
     onsettoolLayout: QtWidgets.QGridLayout
@@ -115,7 +116,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.checkbox_grid.stateChanged.connect(self.on_checkbox_grid_changed)
         self.checkbox_autoscale.stateChanged.connect(self.on_checkbox_autoscale_changed)
         self.combobox_xaxis.currentIndexChanged.connect(self.on_combobox_changed)
-        # self.spinbox_T1.valueChanged.connect(self.on_spinbox_T1_changed)
+        self.checkbox_derivative.stateChanged.connect(self.on_checkbox_derivative_changed)
 
         # скрытие панелей инструментов
         layoutSetVisible(self.peaktoolLayout, False)
@@ -129,6 +130,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.comboboxes_is_set = False
         self.peaktool_initialized = False
         self.button_pressed = False
+
+    def on_checkbox_derivative_changed(self, state):
+        if state == 2:
+            derivative = True
+        else:
+            derivative = False
+        self.plotter.ax_ddta.set_visible(derivative)
+        self.plotter.canvas.draw()
 
     def on_treewidget_selection_changed(self):
         selected = self.treewidget_segments.selectedItems()

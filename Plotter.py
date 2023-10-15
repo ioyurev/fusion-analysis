@@ -46,12 +46,11 @@ class Plotter(QtCore.QObject):
         super().__init__(parent)
         self.fig = plt.figure(dpi=dpi)
         self.scale = scale
-        gs = self.fig.add_gridspec(2, hspace=0, height_ratios=[3, 1])
-        self.ax, self.ax_ddta = gs.subplots(sharex=True)
-        self.ax: Axes
+        self.ax = self.fig.add_subplot(111)
+        self.ax_ddta = self.ax.twinx()
         self.ax2 = self.ax.twinx()
         self.ax2.set_visible(False)
-        self.ax_ddta: Axes
+        self.ax_ddta.set_visible(False)
         self.ax_ddta.autoscale(enable=True, axis='y', tight=True)
         self.canvas = FigureCanvas(self.fig)
         # self.canvas.mpl_connect('pick_event', self.on_pick)
@@ -103,8 +102,7 @@ class Plotter(QtCore.QObject):
         return unit
 
     def set_visible(self, visible: bool):
-        self.ax.set_visible(visible)
-        self.ax_ddta.set_visible(visible)
+        self.fig.set_visible(visible)
         if visible:
             self.fig.tight_layout(pad=0)
         self.canvas.draw()
