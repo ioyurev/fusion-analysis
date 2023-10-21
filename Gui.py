@@ -7,7 +7,7 @@ from Config import read_config, write_config
 from ConfigWindow import ConfigWindow
 from CustomWidgets import MySpinBox, RemoveAction, PropertiesAction, SegmentItem, DTAItem, MassItem, update_child_items_state
 from data_file.DataFile import pick_open_path
-from helpers import warning_message
+from helpers import warning_message, error_message
 
 Ui_MainWindow = QtUiTools.loadUiType('ui/MainWindow.ui')[0]
 
@@ -101,9 +101,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.plotLayout.addWidget(self.plotter.toolbar)
         
         # обработчики меню
-        self.action_open.triggered.connect(self.on_click_open)
-        self.action_netzsch.triggered.connect(self.on_click_netzsch)
-        self.action_setaram.triggered.connect(self.on_click_setaram)
+        self.action_open.triggered.connect(lambda: self.on_click_open(mode=0))
+        self.action_netzsch.triggered.connect(lambda: self.on_click_open(mode=1))
+        self.action_setaram.triggered.connect(lambda: self.on_click_open(mode=2))
         self.action_close.triggered.connect(self.on_click_close)
         self.action_config.triggered.connect(self.on_click_config)
         
@@ -353,51 +353,41 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.plotter.set_visible(False)
         self.combobox_xaxis.clear()
 
-    def on_click_open(self):
-        file_name = pick_open_path()
+    def on_click_open(self, mode: int):
+        """
+        Parameters:
+            mode (int): 0 - измерение Fusion Collection, 1 - измерение Netzsch, 2 - измерение Setaram
+        """
+        options = QtWidgets.QFileDialog.Options(0x10)
+        file_name = ''
+        
+        if mode == 0:
+            file_name = pick_open_path()
+            print('* импорт измерения Fusion Collection')
+        elif mode in (1, 2):
+            file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', '', 'All Files (*);;Text Files (*.txt)', options=options)
+            if mode == 1:
+                print('* импорт измерения Netzsch')
+            else:
+                print('* импорт измерения Setaram')
+        
         if file_name == '':
             return
-        print('* импорт измерения Fusion Collection')
+        
+        try:
+            if mode == 0:
+                self.measurement_data = c2a(file_name)
+            elif mode == 1:
+                self.measurement_data = n2f(file_name)
+            elif mode == 2:
+                self.measurement_data = s2f(file_name, startmass=ask_mass())
+        except:
+            error_message('Не удалось открыть измерение')
+            return
+        
         print(f"* открыт файл {file_name}")
-        # переключаем кнопки
-        self.action_open.setEnabled(False)
-        self.action_close.setEnabled(True)
-        self.menu_import.setEnabled(False)
-        # парсим файл netzsch
-        self.measurement_data = c2a(file_name)
+        
         self.init_measurement(has_massdata=False)
-
-    def on_click_netzsch(self):
-        # обработчик открытия измерения
-        options = QtWidgets.QFileDialog.Options(0x10)
-        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', '', 'All Files (*);;Text Files (*.txt)', options=options)
-        if file_name == '':
-            return
-        print('* импорт измерения Netzsch')
-        print(f"* открыт файл {file_name}")
-        # переключаем кнопки
-        self.action_open.setEnabled(False)
-        self.action_close.setEnabled(True)
-        self.menu_import.setEnabled(False)
-        # парсим файл netzsch
-        self.measurement_data = n2f(file_name)
-        self.init_measurement()
-
-    def on_click_setaram(self):
-        # обработчик открытия измерения
-        options = QtWidgets.QFileDialog.Options(0x10)
-        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', '', 'All Files (*);;Text Files (*.txt)', options=options)
-        if file_name == '':
-            return
-        print('* импорт измерения Setaram')
-        print(f"* открыт файл {file_name}")
-        # переключаем кнопки
-        self.action_open.setEnabled(False)
-        self.action_close.setEnabled(True)
-        self.menu_import.setEnabled(False)
-        # парсим файл netzsch
-        self.measurement_data = s2f(file_name, startmass=ask_mass())
-        self.init_measurement()
 
     def init_measurement(self, has_massdata=True):
         # добавляем доступные параметры в комбобоксы
@@ -438,6 +428,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.plotter.set_exo()
         self.plotter.set_visible(True)
         self.measurement_is_opened = True
+
+        # переключаем кнопки
+        self.action_open.setEnabled(False)
+        self.action_close.setEnabled(True)
+        self.menu_import.setEnabled(False)
 
     def on_item_changed(self, item: QtWidgets.QListWidgetItem):
         if self.measurement_is_opened:

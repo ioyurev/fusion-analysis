@@ -6,6 +6,10 @@ import math
 LINEAR_TYPE = 0
 BEZIER_TYPE = 1
 
+def error_message(message):
+    print(f'* Ошибка. {message}')
+    QtWidgets.QMessageBox.critical(None, "Ошибка", message)
+
 def warning_message(message):
     print(f'* Предупреждение. {message}')
     QtWidgets.QMessageBox.warning(None, "Предупреждение", message)
