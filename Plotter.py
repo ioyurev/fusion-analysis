@@ -9,6 +9,7 @@ from matplotlib.backend_bases import MouseEvent
 import itertools
 from libn2f import TYPE_COOL, TYPE_HEAT
 import pandas as pd
+from helpers import find_nearest
 
 colors = itertools.cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
 def get_next_color():
@@ -258,7 +259,10 @@ class Plotter(QtCore.QObject):
     def splittool_start(self):
         segment = self.picked_segment
         xdata = segment.get_xdata()
-        i = len(xdata) // 2
+        ax_t1, ax_t2 = self.ax.get_xlim()
+        ax_i1 = find_nearest(xdata, ax_t1)
+        ax_i2 = find_nearest(xdata, ax_t2)
+        i = ax_i1 + len(xdata[ax_i1:ax_i2]) // 2
         self.selectMode = 1
         self.selector_split = self.spawn_split_selector(t=xdata[i])
         for segment in self.segments_dta:
@@ -327,11 +331,16 @@ class Plotter(QtCore.QObject):
         self.canvas.draw()
 
     def peaktool_start(self):
-        x0 = self.picked_item.xmin
-        x1 = self.picked_item.xmax
-        r = x1 - x0
-        t1 = round(x0 + r/3, 1)
-        t2 = round(x0 + 2*r/3, 1)
+        x1 = self.picked_item.xmin
+        x2 = self.picked_item.xmax
+        ax_t1, ax_t2 = self.ax.get_xlim()
+        if ax_t1 > x1:
+            x1 = ax_t1
+        if ax_t2 < x2:
+            x2 = ax_t2
+        r = x2 - x1
+        t1 = round(x1 + r/3, 1)
+        t2 = round(x1 + 2*r/3, 1)
         self.spawn_selectors(t1=t1, t2=t2, selectMode=0)
         self.parent().spinbox_T1.setValue(t1)
         self.parent().spinbox_T2.setValue(t2)
@@ -354,7 +363,6 @@ class Plotter(QtCore.QObject):
                 limit_x1, limit_x2 = limit_x2, limit_x1
             spinbox1 = self.parent().spinbox_onsettool_T1
             spinbox2 = self.parent().spinbox_onsettool_T2
-        
         self.selector1 = Selector(ax=self.ax, x=t1, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=self.parent().spinbox_T1)
         self.selector2 = Selector(ax=self.ax, x=t2, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=self.parent().spinbox_T2)
         spinbox1.selector = self.selector1
