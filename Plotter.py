@@ -274,7 +274,7 @@ class Plotter(QtCore.QObject):
         if apply:
             segment1, segment2 = self.picked_segment.split(x=self.parent().spinbox_t.value())
             start_i = self.picked_segment.index
-            end_i = len(self.segments_dta) - 1
+            end_i = len(self.segments_dta)
             for i in range(start_i+1, end_i):
                 self.segments_dta[i].index += 1
             self.items.append(segment1)
