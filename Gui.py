@@ -42,13 +42,6 @@ def ask_mass():
     print(f"* Введенная масса: {mass}")
     return mass
 
-def layoutSetVisible(layout: QtWidgets.QLayout, visible: bool):
-    for i in range(layout.count()):
-        widget = layout.itemAt(i).widget()
-        if widget is not None:
-            widget.setVisible(visible)
-            widget.show() if visible else widget.hide()
-
 def layoutSetEnabled(layout: QtWidgets.QLayout, enabled: bool):
     for i in range(layout.count()):
         widget = layout.itemAt(i).widget()
@@ -177,7 +170,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             item: SegmentItem
             if self.plotter.picked_item is not None:
                 self.plotter.picked_item.setPickEffect(False)
-            if item.checkState(1):
+            if item.checkState(0) == QtCore.Qt.Checked:
                 self.on_pick_segment(True)
                 self.plotter.picked_item = item.artist
                 self.plotter.picked_item.setPickEffect(True)
