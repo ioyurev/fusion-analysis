@@ -19,6 +19,7 @@ class Selector(Line2D):
         self.ax = ax
         trans = self.ax.get_xaxis_transform(which='grid')
         self.spinbox = spinbox
+        self.spinbox.selector = self
         super().__init__(xdata=[x, x], ydata=[ymin,ymax], transform=trans, lw=0.5, color='black', *args, **kwargs)
         self.ax.add_line(self)
         self.set_picker(5)
@@ -32,6 +33,7 @@ class Selector(Line2D):
         if self.limit_x1 <= x <= self.limit_x2:
             if update_spinbox_value: self.spinbox.setValue(x, block_signal=True)
             super().set_xdata([x, x])
+            self.ax.figure.canvas.draw()
 
 class Plotter(QtCore.QObject):
     measurement_exo: int

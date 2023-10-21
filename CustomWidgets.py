@@ -23,7 +23,6 @@ class MySpinBox(QtWidgets.QDoubleSpinBox):
     def handle_value_changed(self, x: float):
         if self.isVisible():
             self.selector.set_x(x=x, update_spinbox_value=False)
-            self.selector.set_x(x=x, update_spinbox_value=False)
 
     def setValue(self, val: float, block_signal: bool = False):
         if block_signal:
