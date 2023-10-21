@@ -27,8 +27,8 @@ class Selector(Line2D):
         self.set_antialiased(False)
         self.limit_x1 = limit_x1
         self.limit_x2 = limit_x2
-        self.spinbox.setValue(x, block_signal=True)
         spinbox.setRange(limit_x1, limit_x2)
+        self.spinbox.setValue(x, block_signal=True)
 
     def set_x(self, x: float, update_spinbox_value: bool = True):
         if self.limit_x1 <= x <= self.limit_x2:
