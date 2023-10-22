@@ -95,7 +95,7 @@ class Plotter(QtCore.QObject):
         return int(self.canvas.get_renderer().width)
 
     def set_xlabel(self, xaxis: str):
-        self.ax_ddta.set_xlabel(f'{xaxis}, {self.get_units(xaxis)}')#, {self.segments[0].df[xaxis].units.to_compact()}')
+        self.ax.set_xlabel(f'{xaxis}, {self.get_units(xaxis)}')#, {self.segments[0].df[xaxis].units.to_compact()}')
 
     def get_units(self, axis: str):
         unit = str(self.units[axis])
@@ -107,7 +107,7 @@ class Plotter(QtCore.QObject):
     def set_visible(self, visible: bool):
         self.fig.set_visible(visible)
         if visible:
-            self.fig.tight_layout(pad=0)
+            self.fig.tight_layout()
         self.canvas.draw()
 
     def autoscale(self, redraw=True):
@@ -148,7 +148,7 @@ class Plotter(QtCore.QObject):
                 segment.peaksSetData(xaxis=xaxis)
             segment.set_visible_peaks(peaks_visible)
         self.autoscale(redraw=False)
-        self.fig.tight_layout(pad=0)
+        self.fig.tight_layout()
         self.canvas.draw()
 
     def remove_segments(self):

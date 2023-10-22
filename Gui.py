@@ -201,7 +201,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.cm_popup(obj=obj, pos=event.globalPos())
 
     def on_resize(self, event):
-        self.plotter.fig.tight_layout(pad=0)
+        self.plotter.fig.tight_layout()
         super().resizeEvent(event)
 
     def on_press_shiftsegment(self, event: QtGui.QMouseEvent):
