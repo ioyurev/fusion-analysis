@@ -1,4 +1,4 @@
-from helpers import find_nearest, make_peakbaseline, np, derivative_data, PolyArea, swap_values, sround, calc_peakonset, baseline_temp, xand_gate
+from helpers import find_nearest, make_peakbaseline, np, derivative_data, PolyArea, sround, calc_peakonset, baseline_temp, xand_gate
 import matplotlib.patheffects as path_effects
 from matplotlib.patches import Polygon
 from matplotlib.text import Annotation
@@ -141,7 +141,7 @@ class Peak(Polygon):
         self.i1 = find_nearest(segment_data_t, t1)
         self.i2 = find_nearest(segment_data_t, t2)
         if self.i1 > self.i2:
-            self.i1, self.i2 = swap_values(self.i1, self.i2)
+            self.i1, self.i2 = self.i2, self.i1
         self.df = pd.DataFrame()
         self.df['Time'] = self.segment.df['Time'][self.i1:self.i2].values
         self.df['Temp.'] = self.segment.df['Temp.'][self.i1:self.i2].values

@@ -2,16 +2,29 @@ from PySide6 import QtWidgets
 import numpy as np
 from typing import Callable
 import math
+import logging
 
 LINEAR_TYPE = 0
 BEZIER_TYPE = 1
 
+def log_critical(message: str):
+    print(f'CRTICALL: {message}')
+    logging.critical(f'{message}')
+
+def log_warning(message: str):
+    print(f'WARNING: {message}')
+    logging.warning(f'{message}')
+
+def log_info(message: str):
+    print(f'INFO: {message}')
+    logging.info(f'{message}')
+
 def error_message(message):
-    print(f'* Ошибка. {message}')
+    log_critical(f'{message}')
     QtWidgets.QMessageBox.critical(None, "Ошибка", message)
 
 def warning_message(message):
-    print(f'* Предупреждение. {message}')
+    log_warning(f'{message}')
     QtWidgets.QMessageBox.warning(None, "Предупреждение", message)
 
 def xand_gate(a, b):
@@ -33,10 +46,11 @@ def baseline_temp(data_temp, data_dta):
     return temp_expr
 
 def calc_peakonset(t1, t2, data_t: np.ndarray, data_dta: np.ndarray, data_ddta: np.ndarray, expr_baseline: Callable, is_onset:bool, peak_exo: bool):   
+    log_info(f"Ищем начало пика между {t1} и {t2}")
     i1 = find_nearest(data_t, t1)
     i2 = find_nearest(data_t, t2)
     if i1 > i2:
-        i1, i2 = swap_values(i1, i2)
+        i1, i2 = i2, i1
     if xand_gate(is_onset, peak_exo):
         bt = max(data_ddta[i1:i2])
     else:
@@ -55,13 +69,11 @@ def calc_peakonset(t1, t2, data_t: np.ndarray, data_dta: np.ndarray, data_ddta: 
         max_iter=10
     )
     bi = find_nearest(data_t, xi)
+    log_info(f"Начало пика найдено в точке {data_t[bi]}")
     return ci, bi
 
 def sround(x: float, n: int):
     return round(x, -int(math.floor(math.log10(abs(x)))) + (n - 1))
-
-def swap_values(a, b):
-    return b, a
 
 def PolyArea(vertices):
     x, y = np.transpose(vertices)
@@ -114,7 +126,7 @@ def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
         t_expr = lambda x: (-b + (d(x) ** (1 / 2))) / (2 * a)
         y_expr = lambda x: ((1 - t_expr(x)) ** 2) * y1 + 2 * (1 - t_expr(x)) * t_expr(x) * y2 + (t_expr(x) ** 2) * y3
     else:
-        print('\n* ERROR: none/wrong baselinetype provided\n')
+        log_critical('\n* ERROR: none/wrong baselinetype provided\n')
         return
     baseline_y = y_expr(np.asarray(xdata)[i1:i2])
     return baseline_y, y_expr
@@ -158,14 +170,14 @@ def newton(f,Df,x0,epsilon,max_iter):
     for n in range(0,max_iter):
         fxn = f(xn)
         if abs(fxn) < epsilon:
-            print(f'Found solution after {n} iterations.')
+            log_info(f'Found solution after {n} iterations.')
             return xn
         Dfxn = Df(xn)
         if Dfxn == 0:
-            print('Zero derivative. No solution found.')
+            log_warning('Zero derivative. No solution found.')
             return None
         xn = xn - fxn/Dfxn
-    print('Exceeded maximum iterations. No solution found.')
+    log_warning('Exceeded maximum iterations. No solution found.')
     return None
 
 def derivative_func(f,a,method='central',h=0.01):

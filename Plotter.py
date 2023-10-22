@@ -7,9 +7,8 @@ from matplotlib.backends.backend_qt5agg import (
     NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.backend_bases import MouseEvent
 import itertools
-from libn2f import TYPE_COOL, TYPE_HEAT
 import pandas as pd
-from helpers import find_nearest
+from helpers import find_nearest, log_info
 
 colors = itertools.cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
 def get_next_color():
@@ -49,7 +48,7 @@ class Plotter(QtCore.QObject):
     signal_split = QtCore.Signal(tuple)
 
     def __init__(self, parent, dpi, scale) -> None:
-        print("* инициализация плоттера")
+        log_info("* инициализация плоттера")
         super().__init__(parent)
         self.fig = plt.figure(dpi=dpi)
         self.scale = scale
@@ -278,7 +277,9 @@ class Plotter(QtCore.QObject):
         self.items.remove(self.selector_split)
         del self.selector_split
         if apply:
-            segment1, segment2 = self.picked_segment.split(x=self.parent().spinbox_t.value())
+            x = self.parent().spinbox_t.value()
+            log_info(f"Разделение сегмента {self.picked_segment.index} на {x}")
+            segment1, segment2 = self.picked_segment.split(x=x)
             start_i = self.picked_segment.index
             end_i = len(self.segments_dta)
             for i in range(start_i+1, end_i):
@@ -304,7 +305,9 @@ class Plotter(QtCore.QObject):
         self.parent().spinbox_onsettool_T1.selector = None
         self.parent().spinbox_onsettool_T2.selector = None
         if apply:
-            line = self.picked_peak.onset(t1=self.parent().spinbox_onsettool_T1.value(), t2=self.parent().spinbox_onsettool_T2.value(), is_onset=self.is_onset)
+            t1 = self.parent().spinbox_onsettool_T1.value()
+            t2 = self.parent().spinbox_onsettool_T2.value()
+            line = self.picked_peak.onset(t1=t1, t2=t2, is_onset=self.is_onset)
             self.items.append(line)
             self.items.append(line.ann)
         self.despawn_selectors()
@@ -383,9 +386,12 @@ class Plotter(QtCore.QObject):
             if segment.get_visible():
                 segment.set_picker(5)
         if apply:
+            t1 = self.selector1.get_xdata()[0]
+            t2 = self.selector2.get_xdata()[0]
+            log_info(f"Выделяем пик между {t1} и {t2}")
             peak = self.picked_segment.addPeak(
-                t1=self.selector1.get_xdata()[0],
-                t2=self.selector2.get_xdata()[0],
+                t1=t1,
+                t2=t2,
                 baseline_type=self.parent().combobox_baselinetype.currentIndex()
                 )
             self.items.append(peak)

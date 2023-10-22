@@ -7,7 +7,7 @@ from libc2a import c2a
 from ConfigWindow import ConfigWindow
 from CustomWidgets import RemoveAction, PropertiesAction, SegmentItem, DTAItem, MassItem, update_child_items_state
 from data_file.DataFile import pick_open_path
-from helpers import warning_message, error_message
+from helpers import warning_message, error_message, log_info
 from ui.MainWindow import Ui_MainWindow
 
 class TreeWidgetHandler(QtCore.QObject):
@@ -38,7 +38,7 @@ def ask_mass():
     ok = False
     while not ok:
         mass, ok = QtWidgets.QInputDialog.getDouble(None, "Введите массу", "Масса, мг:", decimals=1)
-    print(f"* Введенная масса: {mass}")
+    log_info(f"* Введенная масса: {mass}")
     return mass
 
 def layoutSetEnabled(layout: QtWidgets.QLayout, enabled: bool):
@@ -50,7 +50,7 @@ def layoutSetEnabled(layout: QtWidgets.QLayout, enabled: bool):
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, dpi, scale):
         self.list_segments: list[SegmentItem] = []
-        print('* загрузка интерфейса')
+        log_info('* загрузка интерфейса')
         super().__init__()
         self.setupUi(self)
         self.showMaximized()
@@ -332,13 +332,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
         if mode == 0:
             file_name = pick_open_path()
-            print('* импорт измерения Fusion Collection')
+            log_info('* импорт измерения Fusion Collection')
         elif mode in (1, 2):
             file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', '', 'All Files (*);;Text Files (*.txt)', options=options)
             if mode == 1:
-                print('* импорт измерения Netzsch')
+                log_info('* импорт измерения Netzsch')
             else:
-                print('* импорт измерения Setaram')
+                log_info('* импорт измерения Setaram')
         
         if file_name == '':
             return
@@ -354,7 +354,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             error_message('Не удалось открыть измерение')
             return
         
-        print(f"* открыт файл {file_name}")
+        log_info(f"* открыт файл {file_name}")
         
         self.init_measurement(has_massdata=False)
 
@@ -423,7 +423,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.btn_endtool.setEnabled(state)
 
     def on_pick(self, item: SegmentDTA | Peak | OnsetLine | MyAnn):
-        print(f'* выбран {item.__class__.__name__}')
+        # log_info(f'* выбран {item.__class__.__name__}')
         match item:
             case SegmentDTA():
                 self.on_pick_segment(True)

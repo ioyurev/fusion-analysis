@@ -4,3 +4,4 @@ deployment
 .venv
 test.py
 pyinstaller
+logs
