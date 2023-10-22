@@ -6,6 +6,14 @@ import warnings
 import logging
 import datetime
 
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    try:
+        import pyi_splash
+        pyi_splash.update_text('UI Loaded ...')
+        pyi_splash.close()
+    except:
+        pass
+
 warnings.filterwarnings("ignore", category=UserWarning, message="The figure layout has changed to tight")
 
 log_file = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S.log')

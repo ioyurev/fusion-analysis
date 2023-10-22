@@ -1,5 +1,6 @@
 <RCC>
   <qresource>
+    <file>icon.png</file>
     <file>end.png</file>
     <file>icon_cool.png</file>
     <file>icon_heat.png</file>

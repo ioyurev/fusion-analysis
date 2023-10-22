@@ -9,6 +9,7 @@ from CustomWidgets import RemoveAction, PropertiesAction, SegmentItem, DTAItem, 
 from data_file.DataFile import pick_open_path
 from helpers import warning_message, error_message, log_info
 from ui.MainWindow import Ui_MainWindow
+from AboutWindow import show_about
 
 class TreeWidgetHandler(QtCore.QObject):
     list_segments: list[SegmentItem]
@@ -53,6 +54,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         log_info('* загрузка интерфейса')
         super().__init__()
         self.setupUi(self)
+        self.setWindowIcon(QtGui.QIcon(":/icon.png"))
         self.showMaximized()
         self.resizeEvent = self.on_resize
 
@@ -70,6 +72,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.plotLayout.addWidget(self.plotter.toolbar)
         
         # обработчики меню
+        self.action_about.triggered.connect(show_about)
         self.action_open.triggered.connect(lambda: self.on_click_open(mode=0))
         self.action_netzsch.triggered.connect(lambda: self.on_click_open(mode=1))
         self.action_setaram.triggered.connect(lambda: self.on_click_open(mode=2))

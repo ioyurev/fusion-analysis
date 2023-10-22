@@ -585,6 +585,7 @@
     <addaction name="action_open"/>
     <addaction name="menu_import"/>
     <addaction name="action_close"/>
+    <addaction name="action_about"/>
    </widget>
    <widget class="QMenu" name="menu_editor">
     <property name="title">
@@ -622,6 +623,11 @@
   <action name="action_setaram">
    <property name="text">
     <string>Setaram ANSI TXT</string>
+   </property>
+  </action>
+  <action name="action_about">
+   <property name="text">
+    <string>О программе</string>
    </property>
   </action>
  </widget>
