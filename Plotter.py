@@ -220,14 +220,14 @@ class Plotter(QtCore.QObject):
         self.canvas.draw()
 
     def addSegment(self, df: pd.DataFrame, index: int, Type: int):
-        if self.config['autocolor']:
-            color = get_next_color()
-        else:
-            if Type == TYPE_COOL:
-                color = self.config['default_cool_color']
-            elif Type == TYPE_HEAT:
-                color = self.config['default_heat_color']
-        segment = SegmentDTA(df=df, plotter=self, index=index, Type=Type, color=color)
+        # if self.config['autocolor']:
+        #     color = get_next_color()
+        # else:
+        #     if Type == TYPE_COOL:
+        #         color = self.config['default_cool_color']
+        #     elif Type == TYPE_HEAT:
+        #         color = self.config['default_heat_color']
+        segment = SegmentDTA(df=df, plotter=self, index=index, Type=Type, color='blue')
         self.segments_dta.append(segment)
         self.items.append(segment)
         return segment

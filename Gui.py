@@ -3,7 +3,7 @@ from Plotter import Plotter, SegmentDTA, Peak, OnsetLine, MyAnn
 from libn2f import n2f, TYPE_HEAT, TYPE_COOL, TYPE_ISOTHERMAL
 from libs2f import s2f
 from libc2a import c2a
-from ConfigHandler import read_config, write_config
+# from ConfigHandler import read_config, write_config
 from ConfigWindow import ConfigWindow
 from CustomWidgets import RemoveAction, PropertiesAction, SegmentItem, DTAItem, MassItem, update_child_items_state
 from data_file.DataFile import pick_open_path
@@ -56,11 +56,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.showMaximized()
         self.resizeEvent = self.on_resize
 
-        self.config = read_config()
+        # self.config = read_config()
 
         # плоттер
         self.plotter = Plotter(self, dpi=dpi, scale=scale)
-        self.plotter.config = self.config['Plotter']
+        # self.plotter.config = self.config['Plotter']
         self.plotter.signal_pick.connect(self.on_pick)
         self.plotter.signal_cm.connect(self.cm_popup)
         self.plotter.signal_split.connect(self.on_split_done)
@@ -304,7 +304,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         result = c.exec()
         if result == QtWidgets.QDialog.Accepted and c.changes_are_made:
             self.config = c.config
-            write_config(self.config)
+            # write_config(self.config)
         elif result == QtWidgets.QDialog.Rejected:
             pass
 
