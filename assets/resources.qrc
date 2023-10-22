@@ -1,0 +1,12 @@
+<RCC>
+  <qresource>
+    <file>end.png</file>
+    <file>icon_cool.png</file>
+    <file>icon_heat.png</file>
+    <file>icon_isothermal.png</file>
+    <file>onset.png</file>
+    <file>peak.png</file>
+    <file>shift.png</file>
+    <file>split.png</file>
+  </qresource>
+</RCC>

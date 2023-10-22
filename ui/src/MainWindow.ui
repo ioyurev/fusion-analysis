@@ -151,8 +151,8 @@
            <string>Перемещение сегмента по оси y.</string>
           </property>
           <property name="icon">
-           <iconset>
-            <normaloff>assets/shift.png</normaloff>assets/shift.png</iconset>
+           <iconset resource="../../assets/resources.qrc">
+            <normaloff>:/shift.png</normaloff>:/shift.png</iconset>
           </property>
           <property name="iconSize">
            <size>
@@ -174,8 +174,8 @@
            <string/>
           </property>
           <property name="icon">
-           <iconset>
-            <normaloff>assets/split.png</normaloff>assets/split.png</iconset>
+           <iconset resource="../../assets/resources.qrc">
+            <normaloff>:/split.png</normaloff>:/split.png</iconset>
           </property>
           <property name="iconSize">
            <size>
@@ -197,8 +197,8 @@
            <string/>
           </property>
           <property name="icon">
-           <iconset>
-            <normaloff>assets/peak.png</normaloff>assets/peak.png</iconset>
+           <iconset resource="../../assets/resources.qrc">
+            <normaloff>:/peak.png</normaloff>:/peak.png</iconset>
           </property>
           <property name="iconSize">
            <size>
@@ -223,8 +223,8 @@
            <string/>
           </property>
           <property name="icon">
-           <iconset>
-            <normaloff>assets/onset.png</normaloff>assets/onset.png</iconset>
+           <iconset resource="../../assets/resources.qrc">
+            <normaloff>:/onset.png</normaloff>:/onset.png</iconset>
           </property>
           <property name="iconSize">
            <size>
@@ -246,8 +246,8 @@
            <string/>
           </property>
           <property name="icon">
-           <iconset>
-            <normaloff>assets/end.png</normaloff>assets/end.png</iconset>
+           <iconset resource="../../assets/resources.qrc">
+            <normaloff>:/end.png</normaloff>:/end.png</iconset>
           </property>
           <property name="iconSize">
            <size>
@@ -632,6 +632,8 @@
    <header>CustomWidgets</header>
   </customwidget>
  </customwidgets>
- <resources/>
+ <resources>
+  <include location="../../assets/resources.qrc"/>
+ </resources>
  <connections/>
 </ui>

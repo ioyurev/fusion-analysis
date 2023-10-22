@@ -113,11 +113,11 @@ class SegmentItem(QtWidgets.QTreeWidgetItem):
         self.index = artist.index
         self.artist = artist
         if artist.Type == TYPE_HEAT:
-            self.setIcon(0, QtGui.QIcon('assets/icon_heat.png'))
+            self.setIcon(0, QtGui.QIcon(':/icon_heat.png'))
         elif artist.Type == TYPE_COOL:
-            self.setIcon(0, QtGui.QIcon('assets/icon_cool.png'))
+            self.setIcon(0, QtGui.QIcon(':/icon_cool.png'))
         elif artist.Type == TYPE_ISOTHERMAL:
-                self.setIcon(0, QtGui.QIcon('assets/icon_isothermal.png'))
+            self.setIcon(0, QtGui.QIcon(':/icon_isothermal.png'))
         self.setCheckState(0, QtCore.Qt.Checked)
         t1 = round(artist.df["Temp."].values[0])
         t2 = round(artist.df["Temp."].values[-1])

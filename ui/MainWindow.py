@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (QAbstractButton, QApplication, QCheckBox, QComboB
     QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from CustomWidgets import MySpinBox
+import resources_rc
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -132,7 +133,7 @@ class Ui_MainWindow(object):
         self.btn_shiftsegment.setObjectName(u"btn_shiftsegment")
         self.btn_shiftsegment.setEnabled(False)
         icon = QIcon()
-        icon.addFile(u"assets/shift.png", QSize(), QIcon.Normal, QIcon.Off)
+        icon.addFile(u":/shift.png", QSize(), QIcon.Normal, QIcon.Off)
         self.btn_shiftsegment.setIcon(icon)
         self.btn_shiftsegment.setIconSize(QSize(32, 32))
 
@@ -142,7 +143,7 @@ class Ui_MainWindow(object):
         self.btn_split.setObjectName(u"btn_split")
         self.btn_split.setEnabled(False)
         icon1 = QIcon()
-        icon1.addFile(u"assets/split.png", QSize(), QIcon.Normal, QIcon.Off)
+        icon1.addFile(u":/split.png", QSize(), QIcon.Normal, QIcon.Off)
         self.btn_split.setIcon(icon1)
         self.btn_split.setIconSize(QSize(32, 32))
 
@@ -152,7 +153,7 @@ class Ui_MainWindow(object):
         self.btn_peaktool.setObjectName(u"btn_peaktool")
         self.btn_peaktool.setEnabled(False)
         icon2 = QIcon()
-        icon2.addFile(u"assets/peak.png", QSize(), QIcon.Normal, QIcon.Off)
+        icon2.addFile(u":/peak.png", QSize(), QIcon.Normal, QIcon.Off)
         self.btn_peaktool.setIcon(icon2)
         self.btn_peaktool.setIconSize(QSize(32, 32))
         self.btn_peaktool.setFlat(False)
@@ -163,7 +164,7 @@ class Ui_MainWindow(object):
         self.btn_onsettool.setObjectName(u"btn_onsettool")
         self.btn_onsettool.setEnabled(False)
         icon3 = QIcon()
-        icon3.addFile(u"assets/onset.png", QSize(), QIcon.Normal, QIcon.Off)
+        icon3.addFile(u":/onset.png", QSize(), QIcon.Normal, QIcon.Off)
         self.btn_onsettool.setIcon(icon3)
         self.btn_onsettool.setIconSize(QSize(32, 32))
 
@@ -173,7 +174,7 @@ class Ui_MainWindow(object):
         self.btn_endtool.setObjectName(u"btn_endtool")
         self.btn_endtool.setEnabled(False)
         icon4 = QIcon()
-        icon4.addFile(u"assets/end.png", QSize(), QIcon.Normal, QIcon.Off)
+        icon4.addFile(u":/end.png", QSize(), QIcon.Normal, QIcon.Off)
         self.btn_endtool.setIcon(icon4)
         self.btn_endtool.setIconSize(QSize(32, 32))
 
