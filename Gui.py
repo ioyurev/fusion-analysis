@@ -1,15 +1,14 @@
-from PySide6 import QtWidgets, QtCore, QtGui, QtUiTools
+from PySide6 import QtWidgets, QtCore, QtGui
 from Plotter import Plotter, SegmentDTA, Peak, OnsetLine, MyAnn
 from libn2f import n2f, TYPE_HEAT, TYPE_COOL, TYPE_ISOTHERMAL
 from libs2f import s2f
 from libc2a import c2a
-from Config import read_config, write_config
+from ConfigHandler import read_config, write_config
 from ConfigWindow import ConfigWindow
-from CustomWidgets import MySpinBox, RemoveAction, PropertiesAction, SegmentItem, DTAItem, MassItem, update_child_items_state
+from CustomWidgets import RemoveAction, PropertiesAction, SegmentItem, DTAItem, MassItem, update_child_items_state
 from data_file.DataFile import pick_open_path
 from helpers import warning_message, error_message
-
-Ui_MainWindow = QtUiTools.loadUiType('ui/MainWindow.ui')[0]
+from ui.MainWindow import Ui_MainWindow
 
 class TreeWidgetHandler(QtCore.QObject):
     list_segments: list[SegmentItem]
@@ -49,36 +48,6 @@ def layoutSetEnabled(layout: QtWidgets.QLayout, enabled: bool):
             widget.setEnabled(enabled)
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
-    tab_widget: QtWidgets.QTabWidget
-    btn_peaktool : QtWidgets.QPushButton
-    spinbox_T1 : MySpinBox
-    spinbox_T2 : MySpinBox
-    spinbox_onsettool_T1: MySpinBox
-    spinbox_onsettool_T2: MySpinBox
-    combobox_xaxis: QtWidgets.QComboBox
-    checkbox_grid: QtWidgets.QCheckBox
-    menu_file: QtWidgets.QMenu
-    menu_editor: QtWidgets.QMenu
-    menu_import: QtWidgets.QMenu
-    action_open: QtGui.QAction
-    action_netzsch: QtGui.QAction
-    action_setaram: QtGui.QAction
-    action_close: QtGui.QAction
-    action_config: QtGui.QAction
-    checkbox_autoscale: QtWidgets.QCheckBox
-    checkbox_derivative: QtWidgets.QCheckBox
-    leftpanel: QtWidgets.QGridLayout
-    combobox_baselinetype: QtWidgets.QComboBox
-    btn_onsettool: QtWidgets.QPushButton
-    btn_endtool: QtWidgets.QPushButton
-    btn_shiftsegment: QtWidgets.QPushButton
-    btn_split: QtWidgets.QPushButton
-    plotLayout: QtWidgets.QVBoxLayout
-    treewidget_segments: QtWidgets.QTreeWidget
-    buttonbox_peak: QtWidgets.QDialogButtonBox
-    buttonbox_onset: QtWidgets.QDialogButtonBox
-    buttonbox_split: QtWidgets.QDialogButtonBox
-    
     def __init__(self, dpi, scale):
         self.list_segments: list[SegmentItem] = []
         print('* загрузка интерфейса')

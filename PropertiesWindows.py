@@ -1,15 +1,11 @@
-from PySide6 import QtWidgets, QtGui, QtUiTools
+from PySide6 import QtWidgets, QtGui
 from Segment import SegmentDTA, Peak, OnsetLine
 from matplotlib.colors import to_hex
-
-Ui_SegmentDialog = QtUiTools.loadUiType('ui/SegmentProperties.ui')[0]
-Ui_PeakDialog = QtUiTools.loadUiType('ui/PeakProperties.ui')[0]
-Ui_OnsetDialog = QtUiTools.loadUiType('ui/OnsetProperties.ui')[0]
+from ui.OnsetProperties import Ui_Dialog as Ui_OnsetDialog
+from ui.PeakProperties import Ui_Dialog as Ui_PeakDialog
+from ui.SegmentProperties import Ui_Dialog as Ui_SegmentDialog
 
 class SegmentPropetiesWindow(QtWidgets.QDialog, Ui_SegmentDialog):
-    btn_color: QtWidgets.QPushButton
-    w_color: QtWidgets.QWidget
-
     def __init__(self, segment: SegmentDTA, parent=None):
         super().__init__(parent)
         self.setupUi(self)
@@ -31,8 +27,6 @@ class SegmentPropetiesWindow(QtWidgets.QDialog, Ui_SegmentDialog):
             self.w_color.setStyleSheet(f'background-color: {self.color.name()};')
 
 class PeakPropertiesWindow(QtWidgets.QDialog, Ui_PeakDialog):
-    checkbox_label: QtWidgets.QCheckBox
-
     def __init__(self, peak: Peak, parent=None):
         super().__init__(parent)
         self.setupUi(self)
@@ -47,11 +41,6 @@ class PeakPropertiesWindow(QtWidgets.QDialog, Ui_PeakDialog):
             self.setWindowTitle(f'{self.windowTitle()} *')
 
 class OnsetPropertiesWindow(QtWidgets.QDialog, Ui_OnsetDialog):
-    checkbox_label: QtWidgets.QCheckBox
-    checkbox_time: QtWidgets.QCheckBox
-    checkbox_temp: QtWidgets.QCheckBox
-    checkbox_dta: QtWidgets.QCheckBox
-
     def __init__(self, onsetline: OnsetLine, parent=None):
         self.onsetline = onsetline
         super().__init__(parent)

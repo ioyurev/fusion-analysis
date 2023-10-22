@@ -1,14 +1,7 @@
-from PySide6 import QtWidgets, QtGui, QtUiTools
-
-Ui_Dialog = QtUiTools.loadUiType('ui/Config.ui')[0]
+from PySide6 import QtWidgets, QtGui
+from ui.Config import Ui_Dialog
 
 class ConfigWindow(QtWidgets.QDialog, Ui_Dialog):
-    w_color_heat: QtWidgets.QWidget
-    w_color_cool: QtWidgets.QWidget
-    checkbox_autocolor: QtWidgets.QCheckBox
-    btn_color_heat: QtWidgets.QPushButton
-    btn_color_cool: QtWidgets.QPushButton
-
     def __init__(self, config: dict, parent=None):
         self.config = config.copy()
         super().__init__(parent)
