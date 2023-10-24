@@ -77,7 +77,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.action_netzsch.triggered.connect(lambda: self.on_click_open(mode=1))
         self.action_setaram.triggered.connect(lambda: self.on_click_open(mode=2))
         self.action_close.triggered.connect(self.on_click_close)
-        self.action_config.triggered.connect(self.on_click_config)
+        # self.action_config.triggered.connect(self.on_click_config)
         
         # контекстное меню
         self.cm = QtWidgets.QMenu(self)
