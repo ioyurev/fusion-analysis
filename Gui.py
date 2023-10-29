@@ -325,12 +325,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.list_segments.clear()
         self.menu_import.setEnabled(True)
         self.treewidget_segments.clear()
-        self.plotter.clear()
-        self.plotter.remove_segments()
         self.measurement_is_opened = False
         layoutSetEnabled(self.leftpanel, False)
-        self.plotter.set_visible(False)
         self.combobox_xaxis.clear()
+        self.plotter.on_close()
+        self.checkbox_temp.setChecked(False)
+        self.checkbox_derivative.setChecked(False)
 
     def on_click_open(self, mode: int):
         """

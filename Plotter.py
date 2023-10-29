@@ -56,8 +56,8 @@ class Plotter(QtCore.QObject):
         self.ax_ddta = self.ax.twinx()
         self.ax_ddta.set_visible(False)
         self.ax_ddta.autoscale(enable=True, axis='y', tight=True)
-        self.ax2 = self.ax.twinx()
-        self.ax2.set_visible(False)
+        self.ax_mass = self.ax.twinx()
+        self.ax_mass.set_visible(False)
         self.ax_temp = self.ax.twinx()
         self.ax_temp.set_visible(False)
         self.ax_temp_visible_2 = True
@@ -71,6 +71,11 @@ class Plotter(QtCore.QObject):
         self.picked = False
         self.set_visible(False)
         self.items: list[SegmentDTA | Peak | OnsetLine | MyAnn] = []
+
+    def on_close(self):
+        self.clear()
+        self.remove_segments()
+        self.set_visible(False)
 
     def update_axes_spines_position(self):
         shift = 0
@@ -211,12 +216,13 @@ class Plotter(QtCore.QObject):
         self.ax.set_ylabel(f'{"DTA"}, {self.get_units("DTA")}', color='blue')
         self.ax.spines['left'].set_color('blue')
         if has_massdata:
-            self.ax2.set_ylabel(f'{"Mass"}, {self.get_units("Mass")}')
+            self.ax_mass.set_ylabel(f'{"Mass"}, {self.get_units("Mass")}')
         self.ax.autoscale_view()
         self.ax_ddta.set_ylabel('dDTA/dT')
         self.ax_ddta.yaxis.set_label_position('right')
         self.ax_ddta.autoscale_view()
         self.ax_temp.set_ylabel(f'{"Temp."}, {self.get_units("Temp.")}', color='red')
+        self.ax_temp.yaxis.set_label_position('right')
         self.ax_temp.spines['right'].set_color('red')
         self.ax_temp.autoscale_view()
         self.canvas.draw()
@@ -231,8 +237,8 @@ class Plotter(QtCore.QObject):
                     case MyAnn():
                         if event.inaxes == self.ax:
                             ydata = event.ydata
-                        elif event.inaxes == self.ax2:
-                            trans = self.ax2.transAxes + self.ax.transData.inverted()
+                        else:
+                            trans = event.inaxes.transData + self.ax.transData.inverted()
                             ydata = trans.transform((event.xdata, event.ydata))[1]
                         self.holding_item.set_position((event.xdata, ydata))
                 self.canvas.draw()
@@ -287,6 +293,7 @@ class Plotter(QtCore.QObject):
     def clear(self):
         self.ax.clear()
         self.ax_ddta.clear()
+        self.ax_temp.clear()
         self.canvas.draw()
 
     def gridSetVisible(self, visible: bool):
