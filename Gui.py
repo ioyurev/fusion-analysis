@@ -132,8 +132,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             derivative = True
         else:
             derivative = False
-        self.plotter.ax_ddta.set_visible(derivative)
-        self.plotter.canvas.draw()
+        self.plotter.on_checkbox_ddta(derivative)
 
     def on_treewidget_selection_changed(self):
         selected = self.treewidget_segments.selectedItems()

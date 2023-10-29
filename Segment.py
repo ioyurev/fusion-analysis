@@ -64,7 +64,7 @@ class SegmentDTA(Segment, QtCore.QObject):
         df['dDTA/dTime'] = derivative_data(df['Time'].to_numpy(), df['DTA'].to_numpy())
         df['dDTA/dTemp'] = derivative_data(df['Temp.'].to_numpy(), df['DTA'].to_numpy())
         self.xaxis = 'Time'
-        self.dsegment = Line2D(xdata=df[self.xaxis], ydata=df['dDTA/dTime'], color=color, lw=1, linestyle='--')
+        self.dsegment = Line2D(xdata=df[self.xaxis], ydata=df['dDTA/dTime'], color='black', lw=1, linestyle='--')
         self.peaks : list[Peak] = []
         super().__init__(df=df, plotter=plotter, index=index, Type=Type, color=color, is_dta=True, *args, **kwargs)
         self.dy: float = 0
@@ -75,7 +75,7 @@ class SegmentDTA(Segment, QtCore.QObject):
         df1 = self.df.iloc[:i].copy()
         df2 = self.df.iloc[i:].copy()
         segment1 = SegmentDTA(df=df1, plotter=self.plotter, index=self.index, Type=self.Type, color='blue')
-        segment2 = SegmentDTA(df=df2, plotter=self.plotter, index=self.index+1, Type=self.Type, color='cyan')
+        segment2 = SegmentDTA(df=df2, plotter=self.plotter, index=self.index+1, Type=self.Type, color='blue')
         return segment1, segment2
 
     def shifty(self, dy):
@@ -118,7 +118,6 @@ class SegmentDTA(Segment, QtCore.QObject):
             self.set_path_effects(None)
 
     def set_color(self, color) -> None:
-        self.dsegment.set_color(color)
         if self.peaks:
             for peak in self.peaks:
                 peak.set_edgecolor(color)

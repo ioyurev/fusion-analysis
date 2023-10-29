@@ -69,6 +69,11 @@ class Plotter(QtCore.QObject):
         self.set_visible(False)
         self.items: list[SegmentDTA | Peak | OnsetLine | MyAnn] = []
 
+    def on_checkbox_ddta(self, checked: bool):
+        self.ax_ddta.set_visible(checked)
+        self.fig.tight_layout()
+        self.canvas.draw()
+
     def on_button_press(self, event: MouseEvent):
         if not event.inaxes:
             return # вне графика
@@ -164,6 +169,8 @@ class Plotter(QtCore.QObject):
         if has_massdata:
             self.ax2.set_ylabel(f'{"Mass"}, {self.get_units("Mass")}')
         self.ax_ddta.set_ylabel('dDTA/dT')
+        # self.ax_ddta.spines['right'].set_position(('outward', 0))
+        self.ax_ddta.yaxis.set_label_position('right')
         self.ax.autoscale_view()
         self.ax_ddta.autoscale_view()
         self.canvas.draw()
@@ -219,13 +226,6 @@ class Plotter(QtCore.QObject):
         self.canvas.draw()
 
     def addSegment(self, df: pd.DataFrame, index: int, Type: int):
-        # if self.config['autocolor']:
-        #     color = get_next_color()
-        # else:
-        #     if Type == TYPE_COOL:
-        #         color = self.config['default_cool_color']
-        #     elif Type == TYPE_HEAT:
-        #         color = self.config['default_heat_color']
         segment = SegmentDTA(df=df, plotter=self, index=index, Type=Type, color='blue')
         self.segments_dta.append(segment)
         self.items.append(segment)
