@@ -235,6 +235,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.tab_widget.setVisible(True)
             self.tab_widget.setCurrentIndex(2)
             layoutSetEnabled(self.leftpanel, False)
+            self.btn_endtool.setEnabled(False)
+            self.btn_onsettool.setEnabled(False)
+            self.btn_peaktool.setEnabled(False)
+            self.btn_shiftsegment.setEnabled(False)
+            self.btn_split.setEnabled(False)
 
     def on_click_onsettool_start(self, is_onset: bool = True):
         if self.onsettool_check_is_valid():
@@ -242,6 +247,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.tab_widget.setVisible(True)
             self.tab_widget.setCurrentIndex(1)
             layoutSetEnabled(self.leftpanel, False)
+            self.btn_onsettool.setEnabled(False)
+            self.btn_endtool.setEnabled(False)
             self.onsettools_initialized = True
 
     def on_click_onsettool_done(self, apply: bool):
@@ -268,8 +275,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.plotter.peaktool_done(apply=apply)
         self.tab_widget.setVisible(False)
         layoutSetEnabled(self.leftpanel, True)
-        self.btn_shiftsegment.setEnabled(True)
-        self.btn_peaktool.setEnabled(True)
         self.peaktool_initialized = False
 
     def on_click_peaktool_start(self):
@@ -280,6 +285,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             layoutSetEnabled(self.leftpanel, False)
             self.btn_shiftsegment.setEnabled(False)
             self.btn_peaktool.setEnabled(False)
+            self.btn_split.setEnabled(False)
             self.peaktool_initialized = True
 
     def onsettool_check_is_valid(self):
@@ -443,6 +449,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.on_pick_segment(False)
                 self.on_pick_peak(True)
                 self.treewidget_segments.clearSelection()
+            case None:
+                self.on_pick_segment(False)
+                self.on_pick_peak(False)
 
     def on_split_done(self, tpl: tuple[SegmentDTA, SegmentDTA, int]):
         self.treewidget_handler.on_split()

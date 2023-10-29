@@ -127,6 +127,7 @@ class SegmentDTA(Segment, QtCore.QObject):
     def remove(self) -> None:
         self.dsegment.remove()
         self.temp_segment.remove()
+        self.plotter.on_remove()
         return super().remove()
 
 class SegmentDDTA(Line2D):

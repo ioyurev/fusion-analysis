@@ -252,6 +252,12 @@ class Plotter(QtCore.QObject):
         self.on_unpick()
         self.holding_item = None
 
+    def on_remove(self):
+        self.picked_peak = None
+        self.picked_segment = None
+        self.picked = False
+        self.signal_pick.emit(None)
+
     def on_pick(self, item: SegmentDTA | Peak | OnsetLine| MyAnn, event: MouseEvent):
         x = event.x / self.scale
         y = (self.getHeight()-event.y) / self.scale
