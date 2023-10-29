@@ -65,10 +65,12 @@ class SegmentDTA(Segment, QtCore.QObject):
         df['dDTA/dTemp'] = derivative_data(df['Temp.'].to_numpy(), df['DTA'].to_numpy())
         self.xaxis = 'Time'
         self.dsegment = Line2D(xdata=df[self.xaxis], ydata=df['dDTA/dTime'], color='black', lw=1, linestyle='--')
+        self.temp_segment = Line2D(xdata=df['Time'], ydata=df['Temp.'], color='red', lw=1)
         self.peaks : list[Peak] = []
         super().__init__(df=df, plotter=plotter, index=index, Type=Type, color=color, is_dta=True, *args, **kwargs)
         self.dy: float = 0
         self.dsegment.set_antialiased(False)
+        self.temp_segment.set_antialiased(False)
     
     def split(self, x: float):
         i = find_nearest(self.df['Time'].values, x)
@@ -93,6 +95,7 @@ class SegmentDTA(Segment, QtCore.QObject):
     def set_visible(self, visible:bool):
         super().set_visible(visible)
         self.dsegment.set_visible(visible)
+        self.temp_segment.set_visible(visible)
         self.set_visible_peaks(visible)
 
     def set_visible_peaks(self, visible: bool):
@@ -125,6 +128,7 @@ class SegmentDTA(Segment, QtCore.QObject):
     
     def remove(self) -> None:
         self.dsegment.remove()
+        self.temp_segment.remove()
         return super().remove()
 
 class Peak(Polygon):

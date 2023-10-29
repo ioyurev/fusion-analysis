@@ -54,10 +54,13 @@ class Plotter(QtCore.QObject):
         self.scale = scale
         self.ax = self.fig.add_subplot(111)
         self.ax_ddta = self.ax.twinx()
-        self.ax2 = self.ax.twinx()
-        self.ax2.set_visible(False)
         self.ax_ddta.set_visible(False)
         self.ax_ddta.autoscale(enable=True, axis='y', tight=True)
+        self.ax2 = self.ax.twinx()
+        self.ax2.set_visible(False)
+        self.ax_temp = self.ax.twinx()
+        self.ax_temp.set_visible(False)
+        self.ax_temp_visible_2 = True
         self.canvas = FigureCanvas(self.fig)
         self.canvas.mpl_connect('button_release_event', self.on_button_release)
         self.canvas.mpl_connect('motion_notify_event', self.on_move)
@@ -69,8 +72,24 @@ class Plotter(QtCore.QObject):
         self.set_visible(False)
         self.items: list[SegmentDTA | Peak | OnsetLine | MyAnn] = []
 
+    def update_axes_spines_position(self):
+        shift = 0
+        if self.ax_temp.get_visible():
+            self.ax_temp.spines['right'].set_position(('outward', shift))
+            shift += 48
+        if self.ax_ddta.get_visible():
+            self.ax_ddta.spines['right'].set_position(('outward', shift))
+
+    def on_checkbox_temp(self, checked: bool):
+        state = checked and self.ax_temp_visible_2
+        self.ax_temp.set_visible(state)
+        self.update_axes_spines_position()
+        self.fig.tight_layout()
+        self.canvas.draw()
+
     def on_checkbox_ddta(self, checked: bool):
         self.ax_ddta.set_visible(checked)
+        self.update_axes_spines_position()
         self.fig.tight_layout()
         self.canvas.draw()
 
@@ -143,6 +162,9 @@ class Plotter(QtCore.QObject):
 
     def updateAxes(self):
         xaxis = self.getCurrentXaxis()
+        self.ax_temp_visible_2 = xaxis == 'Time'
+        self.on_checkbox_temp(self.parent().checkbox_temp.isChecked())
+        self.update_axes_spines_position()
         yaxis = 'DTA'
         self.set_xlabel(xaxis)
         peaks_visible = self.axesIsValidForPeaks()
@@ -164,15 +186,19 @@ class Plotter(QtCore.QObject):
             segment.set_axes(xaxis=xaxis, yaxis=yaxis)
             self.ax.add_line(segment)
             self.ax_ddta.add_line(segment.dsegment)
+            self.ax_temp.add_line(segment.temp_segment)
         self.set_xlabel(xaxis)
-        self.ax.set_ylabel(f'{"DTA"}, {self.get_units("DTA")}')
+        self.ax.set_ylabel(f'{"DTA"}, {self.get_units("DTA")}', color='blue')
+        self.ax.spines['left'].set_color('blue')
         if has_massdata:
             self.ax2.set_ylabel(f'{"Mass"}, {self.get_units("Mass")}')
-        self.ax_ddta.set_ylabel('dDTA/dT')
-        # self.ax_ddta.spines['right'].set_position(('outward', 0))
-        self.ax_ddta.yaxis.set_label_position('right')
         self.ax.autoscale_view()
+        self.ax_ddta.set_ylabel('dDTA/dT')
+        self.ax_ddta.yaxis.set_label_position('right')
         self.ax_ddta.autoscale_view()
+        self.ax_temp.set_ylabel(f'{"Temp."}, {self.get_units("Temp.")}', color='red')
+        self.ax_temp.spines['right'].set_color('red')
+        self.ax_temp.autoscale_view()
         self.canvas.draw()
 
     def on_move(self, event: MouseEvent):
@@ -292,6 +318,8 @@ class Plotter(QtCore.QObject):
             self.ax.add_artist(segment2)
             self.ax_ddta.add_line(segment1.dsegment)
             self.ax_ddta.add_line(segment2.dsegment)
+            self.ax_temp.add_line(segment1.temp_segment)
+            self.ax_temp.add_line(segment2.temp_segment)
             self.segments_dta[start_i] = segment2
             self.segments_dta.insert(start_i, segment1)
             self.signal_split.emit((segment1, segment2, start_i))

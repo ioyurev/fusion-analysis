@@ -112,6 +112,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.checkbox_autoscale.stateChanged.connect(self.on_checkbox_autoscale_changed)
         self.combobox_xaxis.currentIndexChanged.connect(self.on_combobox_changed)
         self.checkbox_derivative.stateChanged.connect(self.on_checkbox_derivative_changed)
+        self.checkbox_temp.stateChanged.connect(self.on_checkbox_temp_changed)
 
         # скрытие панелей инструментов
         self.tab_widget.tabBar().setVisible(False)
@@ -126,6 +127,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.comboboxes_is_set = False
         self.peaktool_initialized = False
         self.button_pressed = False
+
+    def on_checkbox_temp_changed(self, state):
+        if state == 2:
+            temp = True
+        else:
+            temp = False
+        self.plotter.on_checkbox_temp(temp)
 
     def on_checkbox_derivative_changed(self, state):
         if state == 2:
