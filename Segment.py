@@ -1,3 +1,4 @@
+from numpy.typing import ArrayLike
 from helpers import find_nearest, make_peakbaseline, np, derivative_data, PolyArea, sround, calc_peakonset, baseline_temp, xand_gate
 import matplotlib.patheffects as path_effects
 from matplotlib.patches import Polygon
@@ -59,18 +60,15 @@ class SegmentMass(Segment):
         super().__init__(df, plotter, index, Type, color='green', is_dta=False, *args, **kwargs)
 
 class SegmentDTA(Segment, QtCore.QObject):
-
     def __init__(self, df: pd.DataFrame, plotter, index: int, Type: int, color, *args, **kwargs):
         df['dDTA/dTime'] = derivative_data(df['Time'].to_numpy(), df['DTA'].to_numpy())
         df['dDTA/dTemp'] = derivative_data(df['Temp.'].to_numpy(), df['DTA'].to_numpy())
         self.xaxis = 'Time'
-        self.dsegment = Line2D(xdata=df[self.xaxis], ydata=df['dDTA/dTime'], color='black', lw=1, linestyle='--')
-        self.temp_segment = Line2D(xdata=df['Time'], ydata=df['Temp.'], color='red', lw=1)
+        self.dsegment = SegmentDDTA(xdata=df[self.xaxis], ydata=df['dDTA/dTime'])
+        self.temp_segment = SegmentTemp(xdata=df['Time'], ydata=df['Temp.'])
         self.peaks : list[Peak] = []
         super().__init__(df=df, plotter=plotter, index=index, Type=Type, color=color, is_dta=True, *args, **kwargs)
         self.dy: float = 0
-        self.dsegment.set_antialiased(False)
-        self.temp_segment.set_antialiased(False)
     
     def split(self, x: float):
         i = find_nearest(self.df['Time'].values, x)
@@ -130,6 +128,29 @@ class SegmentDTA(Segment, QtCore.QObject):
         self.dsegment.remove()
         self.temp_segment.remove()
         return super().remove()
+
+class SegmentDDTA(Line2D):
+    def __init__(self, xdata: pd.Series, ydata: pd.Series):
+        self.xmax = xdata.max()
+        self.xmin = xdata.min()
+        self.ymax = ydata.max()
+        self.ymin = ydata.min()
+        super().__init__(xdata=xdata, ydata=ydata, color='black', lw=1, linestyle='--')
+        self.set_antialiased(False)
+
+    def set_xdata(self, x: ArrayLike) -> None:
+        self.xmin = x.min()
+        self.xmax = x.max()
+        return super().set_xdata(x)
+
+class SegmentTemp(Line2D):
+    def __init__(self, xdata: pd.Series, ydata: pd.Series):
+        self.xmax = xdata.max()
+        self.xmin = xdata.min()
+        self.ymax = ydata.max()
+        self.ymin = ydata.min()
+        super().__init__(xdata=xdata, ydata=ydata, color='red', lw=1, linestyle=':')
+        self.set_antialiased(False)
 
 class Peak(Polygon):
     ann = None

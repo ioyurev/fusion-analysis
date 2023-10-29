@@ -134,25 +134,45 @@ class Plotter(QtCore.QObject):
         self.canvas.draw()
 
     def autoscale(self, redraw=True):
-        visible_segments = [segment for segment in self.segments_dta if segment.get_visible()]
+        self.autoscale_segments(0)
+        if self.ax_ddta.get_visible():
+            self.autoscale_segments(1)
+        if self.ax_temp.get_visible() and self.ax_temp_visible_2:
+            self.autoscale_segments(2)
+        if redraw:
+            self.canvas.draw()
+
+    def autoscale_segments(self, segments_type: int):
+        """
+        segments_type: 0 - dta, 1 - ddta, 2 - temp
+        """
+        if segments_type == 0:
+            visible_segments = [segment for segment in self.segments_dta if segment.get_visible()]
+        elif segments_type == 1:
+            visible_segments = [segment.dsegment for segment in self.segments_dta if segment.dsegment.get_visible()]
+        elif segments_type == 2:
+            visible_segments = [segment.temp_segment for segment in self.segments_dta if segment.temp_segment.get_visible()]
         if not visible_segments:
             return
         
         x_values = [segment.xmax for segment in visible_segments] + [segment.xmin for segment in visible_segments]
         y_values = [segment.ymax for segment in visible_segments] + [segment.ymin for segment in visible_segments]
-        
         x_max = max(x_values)
         x_min = min(x_values)
         y_max = max(y_values)
         y_min = min(y_values)
-        
         rx = x_max - x_min
         ry = y_max - y_min
-        
-        self.ax.set_xlim(xmin=x_min-rx*0.05, xmax=x_max+rx*0.05)
-        self.ax.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
-        if redraw:
-            self.canvas.draw()
+
+        if segments_type == 0:
+            self.ax.set_xlim(xmin=x_min-rx*0.05, xmax=x_max+rx*0.05)
+            self.ax.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
+        elif segments_type == 1:
+            self.ax_ddta.set_xlim(xmin=x_min-rx*0.05, xmax=x_max+rx*0.05)
+            self.ax_ddta.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
+        elif segments_type == 2:
+            self.ax_temp.set_xlim(xmin=x_min-rx*0.05, xmax=x_max+rx*0.05)
+            self.ax_temp.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
 
     def axesIsValidForPeaks(self):
         return self.getCurrentXaxis() in ("Time", "Temp.")
