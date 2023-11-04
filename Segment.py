@@ -207,8 +207,14 @@ class Peak(Polygon):
 
         # считаем площадь и делаем аннотацию
         self.label_enabled = True
-        area = PolyArea(self.get_xy()) * 60 
-        self.area = sround(area, 3) * UREG('J/g') * (2 * self.peak_effect - 1)
+        area = PolyArea(self.get_xy())
+        xaxis_units = UREG(self.segment.plotter.get_units(xaxis)).to('s')
+        yaxis_units = UREG(self.segment.plotter.get_units('DTA'))
+        if yaxis_units.check('mW/mg'):
+            units = (yaxis_units * xaxis_units).to('J/g')
+        else:
+            units = yaxis_units * xaxis_units
+        self.area = sround(area, 3) * units * (2 * self.peak_effect - 1)
         self.anni = len(self.df_baseline[xaxis]) // 2
         xy = (self.df_baseline[xaxis][self.anni], self.df_baseline['DTA'][self.anni])
         self.ann = MyAnn(
@@ -396,7 +402,6 @@ class MyAnn(Annotation):
         self.set_position(xytext)
 
     def updateXdata(self, xaxis=None):
-        y = self.xy[1]
         match self.parent:
             case OnsetLine():
                 xb = self.parent.xb
@@ -404,8 +409,8 @@ class MyAnn(Annotation):
                 xb = self.parent.df_baseline[xaxis].values[self.parent.anni]
             case _:
                 raise RuntimeError(f"Не предусмотренный родительский класс {self.parent.__class__.__name__}")
-        self.set(x=xb, y=y)
-        self.xy = (xb, y)
+        self.set(x=xb, y=self.get_position()[1])
+        self.xy = (xb, self.xy[1])
 
     def set_color(self, color) -> None:
         self.arrow_patch.set_color(color)

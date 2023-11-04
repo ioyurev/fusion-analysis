@@ -21,8 +21,8 @@ def c2a(path: str) -> MeasurementData:
     else:
         df['EMF'] = data.df[HEADER_T1].values
         df['DTA'] = data.df[HEADER_T1].values - data.df[HEADER_T2].values
-        units['EMF'] = 'mcV'
+        units['EMF'] = 'mV'
     data.info['EXO'] = '+'
     units['Time'] = 's'
-    units['DTA'] = 'mcV'
+    units['DTA'] = 'mV'
     return MeasurementData(segments=[df], info=data.info, units=units, hasMassData=False)
