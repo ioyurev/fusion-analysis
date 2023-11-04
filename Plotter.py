@@ -64,7 +64,7 @@ class Plotter(QtCore.QObject):
         self.ax_mass = self.ax.twinx()
         self.ax_mass.set_visible(False)
         self.ax_temp = self.ax.twinx()
-        self.ax_temp.set_visible(False)
+        # self.ax_temp.set_visible(False)
         self.ax_temp_visible_2 = True
         self.canvas = FigureCanvas(self.fig)
         self.canvas.mpl_connect('button_release_event', self.on_button_release)
@@ -190,6 +190,14 @@ class Plotter(QtCore.QObject):
     def updateAxes(self):
         xaxis = self.getCurrentXaxis()
         self.ax_temp_visible_2 = xaxis == 'Time'
+        if self.ax_temp_visible_2:
+            self.ax.spines.bottom.set_color('black')
+            self.ax.xaxis.set_tick_params(color='black')
+            self.ax.xaxis.label.set_color('black')
+        else:
+            self.ax.spines.bottom.set_color('red')
+            self.ax.xaxis.set_tick_params(color='red')
+            self.ax.xaxis.label.set_color('red')
         self.on_checkbox_temp(self.parent().checkbox_temp.isChecked())
         self.update_axes_spines_position()
         yaxis = 'DTA'
@@ -217,7 +225,8 @@ class Plotter(QtCore.QObject):
             self.ax_temp.add_line(segment.temp_segment)
         self.set_xlabel(xaxis)
         self.ax.set_ylabel(f'{"DTA"}, {self.get_units("DTA")}', color='blue')
-        self.ax.spines['left'].set_color('blue')
+        self.ax.yaxis.set_tick_params(color='blue')
+        self.ax.spines.left.set_color('blue')
         if has_massdata:
             self.ax_mass.set_ylabel(f'{"Mass"}, {self.get_units("Mass")}')
         self.ax.autoscale_view()
@@ -226,6 +235,7 @@ class Plotter(QtCore.QObject):
         self.ax_ddta.autoscale_view()
         self.ax_temp.set_ylabel(f'{temp_axis}, {self.get_units(temp_axis)}', color='red')
         self.ax_temp.yaxis.set_label_position('right')
+        self.ax_temp.yaxis.set_tick_params(color='red')
         self.ax_temp.spines['right'].set_color('red')
         self.ax_temp.autoscale_view()
         self.canvas.draw()

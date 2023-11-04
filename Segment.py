@@ -208,7 +208,7 @@ class Peak(Polygon):
         # считаем площадь и делаем аннотацию
         self.label_enabled = True
         area = PolyArea(self.get_xy())
-        xaxis_units = UREG(self.segment.plotter.get_units(xaxis)).to('s')
+        xaxis_units = UREG(self.segment.plotter.get_units('Time')).to('s')
         yaxis_units = UREG(self.segment.plotter.get_units('DTA'))
         if yaxis_units.check('mW/mg'):
             units = (yaxis_units * xaxis_units).to('J/g')
@@ -348,7 +348,7 @@ class OnsetLine(Line2D):
             self.t = 'Начало'
         else:
             self.t = 'Конец'
-        self.ann = MyAnn(parent=self, text=f'{self.t}: {self.info[xaxis]}', xy=xy, xytext=xy, color=self.peak.segment._color,
+        self.ann = MyAnn(parent=self, text=f'{self.t}: {self.info[xaxis]} {self.units[xaxis]}', xy=xy, xytext=xy, color=self.peak.segment._color,
                          arrowprops=dict(arrowstyle="-", color=self.peak.segment._color, antialiased=False, lw=LW)
                          )
         super().__init__(xdata=xdata, ydata=ydata, lw=LW, *args, **kwargs)
