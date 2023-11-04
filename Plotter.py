@@ -1,4 +1,4 @@
-from PySide6 import QtCore
+from PySide6 import QtCore, QtWidgets
 from Segment import SegmentDTA, Line2D, Peak, MyAnn, OnsetLine
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -15,7 +15,7 @@ def get_next_color():
     return next(colors)
 
 class Selector(Line2D):
-    def __init__(self, ax: Axes, x: float, spinbox, limit_x1: float, limit_x2: float, ymin=0, ymax=1, *args, **kwargs) -> None:
+    def __init__(self, ax: Axes, x: float, spinbox: QtWidgets.QDoubleSpinBox, limit_x1: float, limit_x2: float, ymin=0, ymax=1, *args, **kwargs) -> None:
         self.ax = ax
         trans = self.ax.get_xaxis_transform(which='grid')
         self.spinbox = spinbox
@@ -26,13 +26,14 @@ class Selector(Line2D):
         self.set_antialiased(False)
         self.limit_x1 = limit_x1
         self.limit_x2 = limit_x2
-        spinbox.setRange(limit_x1, limit_x2)
+        self.spinbox.setRange(self.limit_x1, self.limit_x2)
         self.spinbox.setValue(x, block_signal=True)
 
     def set_x(self, x: float, update_spinbox_value: bool = True):
         if self.limit_x1 <= x <= self.limit_x2:
-            if update_spinbox_value: self.spinbox.setValue(x, block_signal=True)
             super().set_xdata([x, x])
+            if update_spinbox_value:
+                self.spinbox.setValue(x, block_signal=True)
             self.ax.figure.canvas.draw()
 
 class Plotter(QtCore.QObject):
@@ -41,11 +42,15 @@ class Plotter(QtCore.QObject):
     picked_item: SegmentDTA | Peak | OnsetLine | MyAnn = None
     picked_segment: SegmentDTA = None
     picked_peak: Peak = None
-    holding_item: SegmentDTA | Peak | OnsetLine | MyAnn = None
+    holding_item: SegmentDTA | Peak | OnsetLine | MyAnn | Selector = None
     config: dict = None
     signal_pick = QtCore.Signal(object)
     signal_cm = QtCore.Signal(tuple)
     signal_split = QtCore.Signal(tuple)
+    spinbox_T1: QtWidgets.QDoubleSpinBox
+    spinbox_T2: QtWidgets.QDoubleSpinBox
+    spinbox_onsettool_T1: QtWidgets.QDoubleSpinBox
+    spinbox_onsettool_T2: QtWidgets.QDoubleSpinBox
 
     def __init__(self, parent, dpi, scale) -> None:
         log_info("* инициализация плоттера")
@@ -381,19 +386,19 @@ class Plotter(QtCore.QObject):
     def onsettool_start(self, is_onset: bool):
         self.is_onset = is_onset
         peak = self.picked_item
-        peak_xdata = peak.df_baseline[self.getCurrentXaxis()]
-        x0 = min(peak_xdata)
-        x1 = max(peak_xdata)
-        ci = len(peak_xdata) // 2
-        xc = peak_xdata[ci]
+        peak_xdata = peak.df_baseline[self.getCurrentXaxis()].values
+        x0 = float(peak_xdata.min())
+        x1 = float(peak_xdata.max())
+        ci = peak_xdata.size // 2
+        xc = float(peak_xdata[ci])
         if is_onset:
             self.spawn_selectors(t1=x0, t2=xc, selectMode=1)
-            self.parent().spinbox_onsettool_T1.setValue(x0)
-            self.parent().spinbox_onsettool_T2.setValue(xc)
+            self.spinbox_onsettool_T1.setValue(x0)
+            self.spinbox_onsettool_T2.setValue(xc)
         else:
             self.spawn_selectors(t1=xc, t2=x1, selectMode=1)
-            self.parent().spinbox_onsettool_T1.setValue(xc)
-            self.parent().spinbox_onsettool_T2.setValue(x1)
+            self.spinbox_onsettool_T1.setValue(xc)
+            self.spinbox_onsettool_T2.setValue(x1)
         for segment in self.segments_dta:
             segment.set_picker(False)
         self.canvas.draw()
@@ -410,29 +415,32 @@ class Plotter(QtCore.QObject):
         t1 = round(x1 + r/3, 1)
         t2 = round(x1 + 2*r/3, 1)
         self.spawn_selectors(t1=t1, t2=t2, selectMode=0)
-        self.parent().spinbox_T1.setValue(t1)
-        self.parent().spinbox_T2.setValue(t2)
+        self.spinbox_T1.setValue(t1)
+        self.spinbox_T2.setValue(t2)
         for segment in self.segments_dta:
             segment.set_picker(False)
         self.canvas.draw()
 
-    def spawn_selectors(self, t1, t2, selectMode):
+    def spawn_selectors(self, t1:float, t2:float, selectMode:int):
+        """
+        selectMode: 0 - выделение пика, 1 - выделение начала пика
+        """
         self.selectMode = selectMode
         if self.selectMode == 0:
             limit_x1 = self.picked_item.xmin
             limit_x2 = self.picked_item.xmax
-            spinbox1 = self.parent().spinbox_T1
-            spinbox2 = self.parent().spinbox_T2
+            spinbox1 = self.spinbox_T1
+            spinbox2 = self.spinbox_T2
         elif self.selectMode == 1:
             xaxis = self.getCurrentXaxis()
-            limit_x1 = self.picked_item.df_baseline[xaxis].values[0]
-            limit_x2 = self.picked_item.df_baseline[xaxis].values[-1]
+            limit_x1 = float(self.picked_item.df_baseline[xaxis].values[0])
+            limit_x2 = float(self.picked_item.df_baseline[xaxis].values[-1])
             if limit_x1 > limit_x2:
                 limit_x1, limit_x2 = limit_x2, limit_x1
-            spinbox1 = self.parent().spinbox_onsettool_T1
-            spinbox2 = self.parent().spinbox_onsettool_T2
-        self.selector1 = Selector(ax=self.ax, x=t1, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=self.parent().spinbox_T1)
-        self.selector2 = Selector(ax=self.ax, x=t2, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=self.parent().spinbox_T2)
+            spinbox1 = self.spinbox_onsettool_T1
+            spinbox2 = self.spinbox_onsettool_T2
+        self.selector1 = Selector(ax=self.ax, x=t1, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=spinbox1)
+        self.selector2 = Selector(ax=self.ax, x=t2, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=spinbox2)
         spinbox1.selector = self.selector1
         spinbox2.selector = self.selector2
         self.items.append(self.selector1)
@@ -461,7 +469,7 @@ class Plotter(QtCore.QObject):
                 )
             self.items.append(peak)
             self.items.append(peak.ann)
-        self.parent().spinbox_T1.selector = None
-        self.parent().spinbox_T2.selector = None
+        self.spinbox_T1.selector = None
+        self.spinbox_T2.selector = None
         self.despawn_selectors()
         self.canvas.draw()        

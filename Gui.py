@@ -62,6 +62,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # плоттер
         self.plotter = Plotter(self, dpi=dpi, scale=scale)
+        self.plotter.spinbox_T1 = self.spinbox_T1
+        self.plotter.spinbox_T2 = self.spinbox_T2
+        self.plotter.spinbox_onsettool_T1 = self.spinbox_onsettool_T1
+        self.plotter.spinbox_onsettool_T2 = self.spinbox_onsettool_T2
         # self.plotter.config = self.config['Plotter']
         self.plotter.signal_pick.connect(self.on_pick)
         self.plotter.signal_cm.connect(self.cm_popup)

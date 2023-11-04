@@ -52,9 +52,9 @@ def calc_peakonset(t1, t2, data_t: np.ndarray, data_dta: np.ndarray, data_ddta: 
     if i1 > i2:
         i1, i2 = i2, i1
     if xand_gate(is_onset, peak_exo):
-        bt = max(data_ddta[i1:i2])
+        bt = data_ddta[i1:i2].max()
     else:
-        bt = min(data_ddta[i1:i2])
+        bt = data_ddta[i1:i2].min()
     ci = np.where(data_ddta[i1:i2] == bt)[0][0] + i1
     xt = data_t[ci]
     yt = data_dta[ci]

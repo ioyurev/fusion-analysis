@@ -27,10 +27,10 @@ class Segment(Line2D):
         else:
             ydata = self.df['Mass'].values
             self.ax = plotter.ax2
-        self.xmax = xdata.max()
-        self.xmin = xdata.min()
-        self.ymax = ydata.max()
-        self.ymin = ydata.min()
+        self.xmax = float(xdata.max())
+        self.xmin = float(xdata.min())
+        self.ymax = float(ydata.max())
+        self.ymin = float(ydata.min())
         super().__init__(xdata=xdata, ydata=ydata, color=color, lw=LW, *args, **kwargs)
         self.set_picker(5)
         self.set_antialiased(False)
@@ -43,12 +43,12 @@ class Segment(Line2D):
         self.xaxis = xaxis
         xdata = self.df[xaxis].values
         ydata = self.df[yaxis].values
-        self.xmax = xdata.max()
-        self.xmin = xdata.min()
-        self.ymax = ydata.max()
-        self.ymin = ydata.min()
+        self.xmax = float(xdata.max())
+        self.xmin = float(xdata.min())
+        self.ymax = float(ydata.max())
+        self.ymin = float(ydata.min())
         self.set_data(xdata, ydata)
-
+    
     def setPickEffect(self, bool):
         if bool:
             self.set_path_effects(PATH_EFFECT)
