@@ -396,14 +396,12 @@ class MyAnn(Annotation):
         self.set_position(xytext)
 
     def updateXdata(self, xaxis=None):
-        y = self.get_position()[1]
+        y = self.xy[1]
         match self.parent:
             case OnsetLine():
                 xb = self.parent.xb
-                # yb = self.parent.yb
             case Peak():
                 xb = self.parent.df_baseline[xaxis].values[self.parent.anni]
-                # yb = self.parent.df_baseline['DTA'].values[self.parent.anni]
             case _:
                 raise RuntimeError(f"Не предусмотренный родительский класс {self.parent.__class__.__name__}")
         self.set(x=xb, y=y)

@@ -184,9 +184,6 @@ class Plotter(QtCore.QObject):
             self.ax_temp.set_xlim(xmin=x_min-rx*0.05, xmax=x_max+rx*0.05)
             self.ax_temp.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
 
-    def axesIsValidForPeaks(self):
-        return self.getCurrentXaxis() in ("Time", "Temp.", 'EMF')
-
     def getCurrentXaxis(self) -> str:
         return self.parent().combobox_xaxis.currentText()
 
@@ -197,12 +194,9 @@ class Plotter(QtCore.QObject):
         self.update_axes_spines_position()
         yaxis = 'DTA'
         self.set_xlabel(xaxis)
-        peaks_visible = self.axesIsValidForPeaks()
         for segment in self.segments_dta:
             segment.set_axes(xaxis=xaxis, yaxis=yaxis)
-            if peaks_visible:
-                segment.peaksSetData(xaxis=xaxis)
-            segment.set_visible_peaks(peaks_visible)
+            segment.peaksSetData(xaxis=xaxis)
         self.autoscale(redraw=False)
         self.fig.tight_layout()
         self.canvas.draw()
