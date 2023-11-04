@@ -51,6 +51,7 @@ class Plotter(QtCore.QObject):
     spinbox_T2: QtWidgets.QDoubleSpinBox
     spinbox_onsettool_T1: QtWidgets.QDoubleSpinBox
     spinbox_onsettool_T2: QtWidgets.QDoubleSpinBox
+    spinbox_t: QtWidgets.QDoubleSpinBox
 
     def __init__(self, parent, dpi, scale) -> None:
         log_info("* инициализация плоттера")
@@ -302,13 +303,6 @@ class Plotter(QtCore.QObject):
         self.items.append(segment)
         return segment
 
-    def segmentsVisible(self, arrb: list[bool]):
-        for i, segment in enumerate(self.segments_dta):
-            segment.set_visible(arrb[i])
-
-    def segmentVisible(self, index: int, visible: bool):
-        self.segments_dta[index].set_visible(visible)
-
     def clear(self):
         self.ax.clear()
         self.ax_ddta.clear()
@@ -323,7 +317,7 @@ class Plotter(QtCore.QObject):
         selector = Selector(ax=self.ax, x=t,
                             limit_x1=self.picked_item.xmin,
                             limit_x2=self.picked_item.xmax,
-                            spinbox=self.parent().spinbox_t)
+                            spinbox=self.spinbox_t)
         self.items.append(selector)
         return selector
 
@@ -344,12 +338,12 @@ class Plotter(QtCore.QObject):
         for segment in self.segments_dta:
             if segment.get_visible():
                 segment.set_picker(5)
-        self.parent().spinbox_t.selector = None
+        self.spinbox_t.selector = None
         self.selector_split.remove()
         self.items.remove(self.selector_split)
         del self.selector_split
         if apply:
-            x = self.parent().spinbox_t.value()
+            x = self.spinbox_t.value()
             log_info(f"Разделение сегмента {self.picked_segment.index} на {x}")
             segment1, segment2 = self.picked_segment.split(x=x)
             start_i = self.picked_segment.index
@@ -376,11 +370,11 @@ class Plotter(QtCore.QObject):
         for segment in self.segments_dta:
             if segment.get_visible():
                 segment.set_picker(5)
-        self.parent().spinbox_onsettool_T1.selector = None
-        self.parent().spinbox_onsettool_T2.selector = None
+        self.spinbox_onsettool_T1.selector = None
+        self.spinbox_onsettool_T2.selector = None
         if apply:
-            t1 = self.parent().spinbox_onsettool_T1.value()
-            t2 = self.parent().spinbox_onsettool_T2.value()
+            t1 = self.spinbox_onsettool_T1.value()
+            t2 = self.spinbox_onsettool_T2.value()
             line = self.picked_peak.onset(t1=t1, t2=t2, is_onset=self.is_onset)
             self.items.append(line)
             self.items.append(line.ann)

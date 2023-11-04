@@ -110,7 +110,6 @@ class PropertiesAction(QtGui.QAction):
 class SegmentItem(QtWidgets.QTreeWidgetItem):
     def __init__(self, parent: QtWidgets.QListWidget, artist: SegmentDTA):
         super().__init__(parent)
-        self.index = artist.index
         self.artist = artist
         if artist.Type == TYPE_HEAT:
             self.setIcon(0, QtGui.QIcon(':/icon_heat.png'))
@@ -128,12 +127,18 @@ class DTAItem(QtWidgets.QTreeWidgetItem):
         super().__init__(parent)
         self.setText(0, 'DTA')
         self.setCheckState(0, QtCore.Qt.Checked)
-
-    def parent(self) -> SegmentItem:
-        return super().parent()
+        self.artist = parent.artist
 
 class MassItem(QtWidgets.QTreeWidgetItem):
     def __init__(self, parent: SegmentItem):
         super().__init__(parent)
         self.setText(0, 'Mass')
         self.setCheckState(0, QtCore.Qt.Checked)
+        # self.artist = parent.artist
+
+class TempItem(QtWidgets.QTreeWidgetItem):
+    def __init__(self, parent: SegmentItem):
+        super().__init__(parent)
+        self.setText(0, 'Temp.')
+        self.setCheckState(0, QtCore.Qt.Checked)
+        self.artist = parent.artist.temp_segment

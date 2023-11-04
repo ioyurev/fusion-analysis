@@ -5,7 +5,7 @@ from libs2f import s2f
 from libc2a import c2a
 # from ConfigHandler import read_config, write_config
 from ConfigWindow import ConfigWindow
-from CustomWidgets import RemoveAction, PropertiesAction, SegmentItem, DTAItem, MassItem, update_child_items_state
+from CustomWidgets import RemoveAction, PropertiesAction, SegmentItem, DTAItem, MassItem, TempItem, update_child_items_state
 from data_file.DataFile import pick_open_path
 from helpers import warning_message, error_message, log_info
 from ui.MainWindow import Ui_MainWindow
@@ -29,6 +29,7 @@ class TreeWidgetHandler(QtCore.QObject):
             parent_item = SegmentItem(self.widget, artist=segment)
             self.list_segments.append(parent_item)
             child_item_dta = DTAItem(parent_item)
+            child_item_temp = TempItem(parent_item)
             # child_item_mass = MassItem(parent_item)
     
     def on_split(self):
@@ -62,6 +63,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # плоттер
         self.plotter = Plotter(self, dpi=dpi, scale=scale)
+        self.plotter.spinbox_t = self.spinbox_t
         self.plotter.spinbox_T1 = self.spinbox_T1
         self.plotter.spinbox_T2 = self.spinbox_T2
         self.plotter.spinbox_onsettool_T1 = self.spinbox_onsettool_T1
@@ -124,6 +126,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # дерево сегментов
         self.treewidget_handler = TreeWidgetHandler(self.treewidget_segments, self.plotter)
+        self.treewidget_paused = False
         self.treewidget_segments.itemChanged.connect(self.on_treewidget_changed)
         self.treewidget_segments.itemSelectionChanged.connect(self.on_treewidget_selection_changed)
         
@@ -150,33 +153,28 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         selected = self.treewidget_segments.selectedItems()
         if selected:
             item = selected[0]
-            item: SegmentItem
             if self.plotter.picked_item is not None:
                 self.plotter.picked_item.setPickEffect(False)
             if item.checkState(0) == QtCore.Qt.Checked:
-                self.on_pick_segment(True)
-                self.plotter.picked_item = item.artist
-                self.plotter.picked_item.setPickEffect(True)
+                if isinstance(item.artist, SegmentDTA):
+                    self.on_pick_segment(True)
+                    self.plotter.picked_item = item.artist
+                    self.plotter.picked_item.setPickEffect(True)
             else:
                 self.plotter.picked_item = None
                 self.on_pick_segment(False)
             self.plotter.canvas.draw()
 
-    def on_treewidget_changed(self, item: SegmentItem | DTAItem | MassItem):
-        if self.measurement_is_opened:
-            match item:
-                case SegmentItem():
-                    update_child_items_state(item)
-                case DTAItem():
-                    index = item.parent().index
-                    state = item.checkState(0) == QtCore.Qt.Checked
-                    self.plotter.segmentVisible(index, state)
-                    if self.checkbox_autoscale.checkState() == QtCore.Qt.Checked:
-                        self.plotter.autoscale()
-                    else:
-                        self.plotter.canvas.draw()
-                case MassItem():
-                    pass   
+    def on_treewidget_changed(self, item: SegmentItem | DTAItem | MassItem | TempItem):
+        if self.measurement_is_opened and (not self.treewidget_paused):
+            state = item.checkState(0) == QtCore.Qt.Checked
+            if isinstance(item, SegmentItem):
+                update_child_items_state(item)
+                if self.checkbox_autoscale.checkState() == QtCore.Qt.Checked:
+                    self.plotter.autoscale(redraw=False)
+            else:
+                item.artist.set_visible(state)
+            self.plotter.canvas.draw()
 
     def on_cm_list_segments(self, event: QtGui.QContextMenuEvent):
         index = self.list_segments.indexAt(event.pos()).row()
@@ -217,10 +215,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.cm.popup(pos)
 
     def on_click_splittool_done(self, apply: bool):
+        self.treewidget_paused = True
         self.plotter.splittool_done(apply=apply)
         self.tab_widget.setVisible(False)
         layoutSetEnabled(self.leftpanel, True)
         self.splittool_initialized = False
+        self.treewidget_paused = False
 
     def splittool_check_is_valid(self):
         if not isinstance(self.plotter.picked_item, SegmentDTA):
@@ -423,16 +423,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.action_open.setEnabled(False)
         self.action_close.setEnabled(True)
         self.menu_import.setEnabled(False)
-
-    def on_item_changed(self, item: QtWidgets.QListWidgetItem):
-        if self.measurement_is_opened:
-            index = self.list_segments.row(item)
-            state = item.checkState() == QtCore.Qt.Checked
-            self.plotter.segmentVisible(index, state)
-            if self.checkbox_autoscale.checkState() == QtCore.Qt.Checked:
-                self.plotter.autoscale()
-            else:
-                self.plotter.canvas.draw()
 
     def on_pick_segment(self, state):
         self.btn_peaktool.setEnabled(state)

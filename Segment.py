@@ -94,7 +94,7 @@ class SegmentDTA(Segment, QtCore.QObject):
     def set_visible(self, visible:bool):
         super().set_visible(visible)
         self.dsegment.set_visible(visible)
-        self.temp_segment.set_visible(visible)
+        # self.temp_segment.set_visible(visible)
         self.set_visible_peaks(visible)
 
     def set_visible_peaks(self, visible: bool):
