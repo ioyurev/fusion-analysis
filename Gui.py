@@ -309,10 +309,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         return True
 
     def chech_xaxis(self):
-        if self.combobox_xaxis.currentText() in ('Time', 'Temp.'):
+        if self.combobox_xaxis.currentText() in ('Time', 'Temp.', 'EMF'):
             return True
         else:
-            warning_message('Неправильно выбрана ось абцисс!\nДолжна быть Time или Temp.')
+            warning_message('Неправильно выбрана ось абцисс!\nДолжна быть Time, Temp. или EMF.')
             return False
 
     def on_click_config(self):
@@ -366,20 +366,20 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.measurement_data = n2f(file_name)
             elif mode == 2:
                 self.measurement_data = s2f(file_name, startmass=ask_mass())
-        except:
+        except Exception as e:
             error_message('Не удалось открыть измерение')
-            return
-        
+            raise e
         log_info(f"* открыт файл {file_name}")
-        
-        self.init_measurement(has_massdata=False)
+        self.init_measurement()
 
-    def init_measurement(self, has_massdata=True):
+    def init_measurement(self):
+        if self.measurement_data.has_tempdata:
+            string = 'Temp.'
+        else:
+            string = 'EMF'
+        xaxes = ('Time', string)
+
         # добавляем доступные параметры в комбобоксы
-        xaxes = ('Time', 'Temp.')
-        yaxes = list(self.measurement_data.units.keys())
-        for yaxis in xaxes:
-            yaxes.remove(yaxis)
         for header in xaxes:
             self.combobox_xaxis.addItem(header)
 
@@ -390,15 +390,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # добавляем сегменты
         artists = []
         for index, df in enumerate(self.measurement_data.segments):
-            t1 = round(df["Temp."].values[0])
-            t2 = round(df["Temp."].values[-1])
+            t1 = round(df[string].values[0])
+            t2 = round(df[string].values[-1])
             if t2 > t1:
                 Type = TYPE_HEAT
             elif t2 < t1:
                 Type = TYPE_COOL
             elif t2 == t1:
                 Type = TYPE_ISOTHERMAL
-            artist = self.plotter.addSegment(df=df, index=index, Type=Type)
+            artist = self.plotter.addSegment(df=df, index=index, Type=Type, temp_axis=string)
             artists.append(artist)
         self.treewidget_handler.init(artists)
 
@@ -408,7 +408,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.plotter.plot(
             self.combobox_xaxis.currentText(),
             "DTA",
-            has_massdata=has_massdata
+            has_massdata=self.measurement_data.has_massdata,
+            has_tempdata=self.measurement_data.has_tempdata
         )
         self.plotter.set_exo()
         self.plotter.set_visible(True)

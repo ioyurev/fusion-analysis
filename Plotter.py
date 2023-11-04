@@ -180,7 +180,7 @@ class Plotter(QtCore.QObject):
             self.ax_temp.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
 
     def axesIsValidForPeaks(self):
-        return self.getCurrentXaxis() in ("Time", "Temp.")
+        return self.getCurrentXaxis() in ("Time", "Temp.", 'EMF')
 
     def getCurrentXaxis(self) -> str:
         return self.parent().combobox_xaxis.currentText()
@@ -205,7 +205,11 @@ class Plotter(QtCore.QObject):
     def remove_segments(self):
         self.segments_dta.clear()
 
-    def plot(self, xaxis: str, yaxis: str, has_massdata=True):
+    def plot(self, xaxis: str, yaxis: str, has_massdata=True, has_tempdata=True):
+        if has_tempdata:
+            temp_axis = "Temp."
+        else:
+            temp_axis = 'EMF'
         self.clear()
         for segment in self.segments_dta:
             segment.set_axes(xaxis=xaxis, yaxis=yaxis)
@@ -221,7 +225,7 @@ class Plotter(QtCore.QObject):
         self.ax_ddta.set_ylabel('dDTA/dT')
         self.ax_ddta.yaxis.set_label_position('right')
         self.ax_ddta.autoscale_view()
-        self.ax_temp.set_ylabel(f'{"Temp."}, {self.get_units("Temp.")}', color='red')
+        self.ax_temp.set_ylabel(f'{temp_axis}, {self.get_units(temp_axis)}', color='red')
         self.ax_temp.yaxis.set_label_position('right')
         self.ax_temp.spines['right'].set_color('red')
         self.ax_temp.autoscale_view()
@@ -283,8 +287,8 @@ class Plotter(QtCore.QObject):
         self.signal_pick.emit(item)
         self.canvas.draw()
 
-    def addSegment(self, df: pd.DataFrame, index: int, Type: int):
-        segment = SegmentDTA(df=df, plotter=self, index=index, Type=Type, color='blue')
+    def addSegment(self, df: pd.DataFrame, index: int, Type: int, temp_axis: str):
+        segment = SegmentDTA(df=df, plotter=self, index=index, Type=Type, color='blue', temp_axis=temp_axis)
         self.segments_dta.append(segment)
         self.items.append(segment)
         return segment

@@ -60,12 +60,13 @@ class SegmentMass(Segment):
         super().__init__(df, plotter, index, Type, color='green', is_dta=False, *args, **kwargs)
 
 class SegmentDTA(Segment, QtCore.QObject):
-    def __init__(self, df: pd.DataFrame, plotter, index: int, Type: int, color, *args, **kwargs):
+    def __init__(self, df: pd.DataFrame, plotter, index: int, Type: int, color, temp_axis='Temp.', *args, **kwargs):
+        self.temp_axis = temp_axis
         df['dDTA/dTime'] = derivative_data(df['Time'].to_numpy(), df['DTA'].to_numpy())
-        df['dDTA/dTemp'] = derivative_data(df['Temp.'].to_numpy(), df['DTA'].to_numpy())
+        df[f'dDTA/d{self.temp_axis}'] = derivative_data(df[self.temp_axis].to_numpy(), df['DTA'].to_numpy())
         self.xaxis = 'Time'
         self.dsegment = SegmentDDTA(xdata=df[self.xaxis], ydata=df['dDTA/dTime'])
-        self.temp_segment = SegmentTemp(xdata=df['Time'], ydata=df['Temp.'])
+        self.temp_segment = SegmentTemp(xdata=df['Time'], ydata=df[self.temp_axis])
         self.peaks : list[Peak] = []
         super().__init__(df=df, plotter=plotter, index=index, Type=Type, color=color, is_dta=True, *args, **kwargs)
         self.dy: float = 0
@@ -74,8 +75,8 @@ class SegmentDTA(Segment, QtCore.QObject):
         i = find_nearest(self.df['Time'].values, x)
         df1 = self.df.iloc[:i].copy()
         df2 = self.df.iloc[i:].copy()
-        segment1 = SegmentDTA(df=df1, plotter=self.plotter, index=self.index, Type=self.Type, color='blue')
-        segment2 = SegmentDTA(df=df2, plotter=self.plotter, index=self.index+1, Type=self.Type, color='blue')
+        segment1 = SegmentDTA(df=df1, plotter=self.plotter, index=self.index, Type=self.Type, color='blue', temp_axis=self.temp_axis)
+        segment2 = SegmentDTA(df=df2, plotter=self.plotter, index=self.index+1, Type=self.Type, color='blue', temp_axis=self.temp_axis)
         return segment1, segment2
 
     def shifty(self, dy):
@@ -160,6 +161,7 @@ class Peak(Polygon):
         self.onset_lines: list[OnsetLine] = []
         self.ax = segment.ax
         self.segment = segment
+        self.temp_axis = segment.temp_axis
         xaxis = segment.xaxis
         # наследуем данные для кривой из сегмента
         segment_data_t = self.segment.get_xdata()
@@ -169,15 +171,15 @@ class Peak(Polygon):
             self.i1, self.i2 = self.i2, self.i1
         self.df = pd.DataFrame()
         self.df['Time'] = self.segment.df['Time'][self.i1:self.i2].values
-        self.df['Temp.'] = self.segment.df['Temp.'][self.i1:self.i2].values
         self.df['DTA'] = self.segment.df['DTA'][self.i1:self.i2].values # self.segment.get_ydata()[self.i1:self.i2]
         self.df['dDTA/dTime'] = self.segment.df['dDTA/dTime'][self.i1:self.i2].values
-        self.df['dDTA/dTemp'] = self.segment.df['dDTA/dTemp'][self.i1:self.i2].values
-
+        self.df[self.temp_axis] = self.segment.df[self.temp_axis][self.i1:self.i2].values
+        self.df[f'dDTA/d{self.temp_axis}'] = self.segment.df[f'dDTA/d{self.temp_axis}'][self.i1:self.i2].values
+        
         # наследуем данные для базовой линии
         self.df_baseline = pd.DataFrame()
         self.df_baseline['Time'] = self.df['Time']
-        self.df_baseline['Temp.'] = self.df['Temp.']
+        self.df_baseline[self.temp_axis] = self.df[self.temp_axis]
 
         # расчитываем базовую линию
         baseline, self.baseline_time_expr = make_peakbaseline(
@@ -186,7 +188,7 @@ class Peak(Polygon):
             xdata=self.segment.df['Time'].to_list(),
             ydata=self.segment.df['DTA'].to_list()
             )
-        self.baseline_temp_expr = baseline_temp(data_temp=self.df['Temp.'], data_dta=baseline)
+        self.baseline_temp_expr = baseline_temp(data_temp=self.df[self.temp_axis], data_dta=baseline)
         self.df_baseline['DTA'] = baseline
 
         # определяем знак площади пика
@@ -234,9 +236,9 @@ class Peak(Polygon):
         if xaxis == 'Time':
             baseline_expr = self.baseline_time_expr
             data_ddta = self.df['dDTA/dTime'].values
-        elif xaxis == 'Temp.':
+        elif xaxis == self.temp_axis:
             baseline_expr = self.baseline_temp_expr
-            data_ddta = self.df['dDTA/dTemp'].values
+            data_ddta = self.df[f'dDTA/d{self.temp_axis}'].values
         ci, bi = calc_peakonset(
             t1=t1,
             t2=t2,
@@ -314,6 +316,7 @@ class Peak(Polygon):
 class OnsetLine(Line2D):
     def __init__(self, peak: Peak, ci: int, bi: int, is_onset: bool, *args, **kwargs) -> None:
         self.peak = peak
+        self.temp_axis = peak.temp_axis
         self.label_enabled = True
         self.label_dta_enabled = False
         self.is_onset = is_onset
@@ -323,10 +326,10 @@ class OnsetLine(Line2D):
         self.ci = ci
         self.bi = bi
         self.info = dict()
-        self.info['Temp.'] = int(round(self.peak.df_baseline['Temp.'][bi], 0))
+        self.info[self.temp_axis] = int(round(self.peak.df_baseline[self.temp_axis][bi], 0))
         self.info['Time'] = round(self.peak.df_baseline['Time'][bi], 5)
         self.info['DTA'] = round(self.peak.df_baseline['DTA'][bi], 5)
-        self.units = {'Temp.': self.peak.segment.plotter.get_units('Temp.'),
+        self.units = {self.temp_axis: self.peak.segment.plotter.get_units(self.temp_axis),
                       'Time': self.peak.segment.plotter.get_units('Time'),
                       'DTA': self.peak.segment.plotter.get_units('DTA')}
         xdata = [self.info[xaxis],

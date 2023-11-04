@@ -90,7 +90,7 @@ class PropertiesAction(QtGui.QAction):
                     else:
                         label_time = ''
                     if self.obj.label_temp_enabled:
-                        label_temp = f"{self.obj.info['Temp.']} {self.obj.units['Temp.']}"
+                        label_temp = f"{self.obj.info[self.obj.temp_axis]} {self.obj.units[self.obj.temp_axis]}"
                         if self.obj.label_time_enabled:
                             label_temp = f', {label_temp}'
                     else:
@@ -119,8 +119,8 @@ class SegmentItem(QtWidgets.QTreeWidgetItem):
         elif artist.Type == TYPE_ISOTHERMAL:
             self.setIcon(0, QtGui.QIcon(':/icon_isothermal.png'))
         self.setCheckState(0, QtCore.Qt.Checked)
-        t1 = round(artist.df["Temp."].values[0])
-        t2 = round(artist.df["Temp."].values[-1])
+        t1 = round(artist.df[artist.temp_axis].values[0])
+        t2 = round(artist.df[artist.temp_axis].values[-1])
         self.setText(0, f'{t1} - {t2}')
 
 class DTAItem(QtWidgets.QTreeWidgetItem):

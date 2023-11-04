@@ -9,7 +9,8 @@ class MeasurementData:
         self.segments = segments
         self.info = info
         self.units = units
-        self.hasMassData = hasMassData
+        self.has_massdata = hasMassData
+        self.has_tempdata = 'Temp.' in self.units
         if '+' in self.info['EXO']:
             self.exo = 1
         elif '-' in self.info['EXO']:
