@@ -134,7 +134,7 @@ class MassItem(QtWidgets.QTreeWidgetItem):
         super().__init__(parent)
         self.setText(0, 'Mass')
         self.setCheckState(0, QtCore.Qt.Checked)
-        # self.artist = parent.artist
+        self.artist = parent.artist.mass_segment
 
 class TempItem(QtWidgets.QTreeWidgetItem):
     def __init__(self, parent: SegmentItem):

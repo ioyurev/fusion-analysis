@@ -13,6 +13,7 @@ from AboutWindow import show_about
 
 class TreeWidgetHandler(QtCore.QObject):
     list_segments: list[SegmentItem]
+    has_massdata: bool
     def __init__(self, widget: QtWidgets.QTreeWidget, plotter: Plotter):
         super().__init__(parent=None)
         self.plotter = plotter
@@ -23,18 +24,20 @@ class TreeWidgetHandler(QtCore.QObject):
             item.setSelected(False)
         self.list_segments[artist.index].setSelected(True)
 
-    def init(self, segments: list[SegmentDTA]):
+    def init(self, segments: list[SegmentDTA], has_massdata: bool):
+        self.has_massdata = has_massdata
         self.list_segments = []
         for segment in segments:
             parent_item = SegmentItem(self.widget, artist=segment)
             self.list_segments.append(parent_item)
             child_item_dta = DTAItem(parent_item)
             child_item_temp = TempItem(parent_item)
-            # child_item_mass = MassItem(parent_item)
+            if self.has_massdata:
+                child_item_mass = MassItem(parent_item)
     
     def on_split(self):
         self.widget.clear()
-        self.init(self.plotter.segments_dta)        
+        self.init(segments=self.plotter.segments_dta, has_massdata=self.has_massdata)        
 
 def ask_mass():
     ok = False
@@ -119,6 +122,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.combobox_xaxis.currentIndexChanged.connect(self.on_combobox_changed)
         self.checkbox_derivative.stateChanged.connect(self.on_checkbox_derivative_changed)
         self.checkbox_temp.stateChanged.connect(self.on_checkbox_temp_changed)
+        self.checkbox_tg.stateChanged.connect(self.on_checkbox_tg_changed)
 
         # скрытие панелей инструментов
         self.tab_widget.tabBar().setVisible(False)
@@ -135,12 +139,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.peaktool_initialized = False
         self.button_pressed = False
 
-    def on_checkbox_temp_changed(self, state):
-        if state == 2:
-            temp = True
-        else:
-            temp = False
-        self.plotter.on_checkbox_temp(temp)
+    def on_checkbox_temp_changed(self, state: int):
+        self.plotter.on_checkbox_temp(state == 2)
+
+    def on_checkbox_tg_changed(self, state: int):
+        self.plotter.on_checkbox_tg(state == 2)
+
 
     def on_checkbox_derivative_changed(self, state):
         if state == 2:
@@ -404,7 +408,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 Type = TYPE_ISOTHERMAL
             artist = self.plotter.addSegment(df=df, index=index, Type=Type, temp_axis=string)
             artists.append(artist)
-        self.treewidget_handler.init(artists)
+        self.treewidget_handler.init(artists, has_massdata=self.measurement_data.has_massdata)
 
         # рисуем график
         self.plotter.units = self.measurement_data.units

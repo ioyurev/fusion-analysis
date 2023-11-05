@@ -15,16 +15,19 @@ LW = 0.5
 class Segment(Line2D):
     ax: Axes
 
-    def __init__(self, df: pd.DataFrame, plotter, index: int, Type: int, color, is_dta: bool, *args, **kwargs):
+    def __init__(self, df: pd.DataFrame, plotter, index: int, Type: int, color, mode: bool, *args, **kwargs):
+        """
+        mode: 0 - DTA, 1 - temp, 2 - mass
+        """
         self.plotter = plotter
         self.df = df
         self.Type = Type
         self.index = index
         xdata = self.df['Time'].values
-        if is_dta:
+        if mode == 0:
             ydata = self.df['DTA'].values
             self.ax = plotter.ax
-        else:
+        elif mode == 2:
             ydata = self.df['Mass'].values
             self.ax = plotter.ax2
         self.xmax = float(xdata.max())
@@ -55,9 +58,19 @@ class Segment(Line2D):
         else:
             self.set_path_effects(None)
 
-class SegmentMass(Segment):
-    def __init__(self, df: pd.DataFrame, plotter, index: int, Type: int, *args, **kwargs):
-        super().__init__(df, plotter, index, Type, color='green', is_dta=False, *args, **kwargs)
+class SegmentMass(Line2D):
+    def __init__(self, xdata: pd.Series, ydata: pd.Series, *args, **kwargs):
+        self.xmax = xdata.max()
+        self.xmin = xdata.min()
+        self.ymax = ydata.max()
+        self.ymin = ydata.min()
+        super().__init__(xdata=xdata, ydata=ydata, color='green', lw=LW, *args, **kwargs)
+        self.set_antialiased(False)
+
+    def set_xdata(self, x: ArrayLike) -> None:
+        self.xmin = x.min()
+        self.xmax = x.max()
+        return super().set_xdata(x)
 
 class SegmentDTA(Segment, QtCore.QObject):
     def __init__(self, df: pd.DataFrame, plotter, index: int, Type: int, color, temp_axis='Temp.', *args, **kwargs):
@@ -67,8 +80,11 @@ class SegmentDTA(Segment, QtCore.QObject):
         self.xaxis = 'Time'
         self.dsegment = SegmentDDTA(xdata=df[self.xaxis], ydata=df['dDTA/dTime'])
         self.temp_segment = SegmentTemp(xdata=df['Time'], ydata=df[self.temp_axis])
+        self.has_massdata = 'Mass' in df.columns
+        if self.has_massdata:
+            self.mass_segment = SegmentMass(xdata=df['Time'], ydata=df['Mass'])
         self.peaks : list[Peak] = []
-        super().__init__(df=df, plotter=plotter, index=index, Type=Type, color=color, is_dta=True, *args, **kwargs)
+        super().__init__(df=df, plotter=plotter, index=index, Type=Type, color=color, mode=0, *args, **kwargs)
         self.dy: float = 0
     
     def split(self, x: float):
@@ -105,6 +121,8 @@ class SegmentDTA(Segment, QtCore.QObject):
     def set_axes(self, xaxis: str, yaxis: str):
         super().set_axes(xaxis=xaxis, yaxis=yaxis)
         self.dsegment.set_xdata(self.df[xaxis].values)
+        if self.has_massdata:
+            self.mass_segment.set_xdata(self.df[xaxis].values)
         self.dy = 0
 
     def addPeak(self, t1:float, t2:float, baseline_type:int):
@@ -128,6 +146,8 @@ class SegmentDTA(Segment, QtCore.QObject):
     def remove(self) -> None:
         self.dsegment.remove()
         self.temp_segment.remove()
+        if self.has_massdata:
+            self.mass_segment.remove()
         self.plotter.on_remove()
         return super().remove()
 

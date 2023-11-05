@@ -67,6 +67,8 @@ class Plotter(QtCore.QObject):
         self.ax_temp = self.ax.twinx()
         # self.ax_temp.set_visible(False)
         self.ax_temp_visible_2 = True
+        self.ax_mass_visible_2 = False
+        self.update_axes_spines_position()
         self.canvas = FigureCanvas(self.fig)
         self.canvas.mpl_connect('button_release_event', self.on_button_release)
         self.canvas.mpl_connect('motion_notify_event', self.on_move)
@@ -88,6 +90,9 @@ class Plotter(QtCore.QObject):
         if self.ax_temp.get_visible():
             self.ax_temp.spines['right'].set_position(('outward', shift))
             shift += 48
+        if self.ax_mass.get_visible():
+            self.ax_mass.spines['right'].set_position(('outward', shift))
+            shift += 48
         if self.ax_ddta.get_visible():
             self.ax_ddta.spines['right'].set_position(('outward', shift))
 
@@ -95,12 +100,26 @@ class Plotter(QtCore.QObject):
         state = checked and self.ax_temp_visible_2
         self.ax_temp.set_visible(state)
         self.update_axes_spines_position()
+        self.autoscale_xaxis()
+        self.autoscale_segments(2)
+        self.fig.tight_layout()
+        self.canvas.draw()
+
+    def on_checkbox_tg(self, checked: bool):
+        state = checked and self.ax_mass_visible_2
+        self.ax_mass.set_visible(state)
+        if state:
+            self.update_axes_spines_position()
+            self.autoscale_xaxis()
+            self.autoscale_segments(3)
         self.fig.tight_layout()
         self.canvas.draw()
 
     def on_checkbox_ddta(self, checked: bool):
         self.ax_ddta.set_visible(checked)
         self.update_axes_spines_position()
+        self.autoscale_xaxis()
+        self.autoscale_segments(1)
         self.fig.tight_layout()
         self.canvas.draw()
 
@@ -145,17 +164,20 @@ class Plotter(QtCore.QObject):
         self.canvas.draw()
 
     def autoscale(self, redraw=True):
+        self.autoscale_xaxis()
         self.autoscale_segments(0)
         if self.ax_ddta.get_visible():
             self.autoscale_segments(1)
         if self.ax_temp.get_visible() and self.ax_temp_visible_2:
             self.autoscale_segments(2)
+        if self.ax_mass.get_visible() and self.ax_mass_visible_2:
+            self.autoscale_segments(3)
         if redraw:
             self.canvas.draw()
 
     def autoscale_segments(self, segments_type: int):
         """
-        segments_type: 0 - dta, 1 - ddta, 2 - temp
+        segments_type: 0 - dta, 1 - ddta, 2 - temp, 3 - mass
         """
         if segments_type == 0:
             visible_segments = [segment for segment in self.segments_dta if segment.get_visible()]
@@ -163,27 +185,45 @@ class Plotter(QtCore.QObject):
             visible_segments = [segment.dsegment for segment in self.segments_dta if segment.dsegment.get_visible()]
         elif segments_type == 2:
             visible_segments = [segment.temp_segment for segment in self.segments_dta if segment.temp_segment.get_visible()]
+        elif segments_type == 3:
+            visible_segments = [segment.mass_segment for segment in self.segments_dta if segment.mass_segment.get_visible()]
         if not visible_segments:
             return
         
-        x_values = [segment.xmax for segment in visible_segments] + [segment.xmin for segment in visible_segments]
         y_values = [segment.ymax for segment in visible_segments] + [segment.ymin for segment in visible_segments]
-        x_max = max(x_values)
-        x_min = min(x_values)
         y_max = max(y_values)
         y_min = min(y_values)
-        rx = x_max - x_min
         ry = y_max - y_min
 
         if segments_type == 0:
-            self.ax.set_xlim(xmin=x_min-rx*0.05, xmax=x_max+rx*0.05)
-            self.ax.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
+            ax_to_scale = self.ax
         elif segments_type == 1:
-            self.ax_ddta.set_xlim(xmin=x_min-rx*0.05, xmax=x_max+rx*0.05)
-            self.ax_ddta.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
+            ax_to_scale = self.ax_ddta
         elif segments_type == 2:
-            self.ax_temp.set_xlim(xmin=x_min-rx*0.05, xmax=x_max+rx*0.05)
-            self.ax_temp.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
+            ax_to_scale = self.ax_temp
+        elif segments_type == 3:
+            ax_to_scale = self.ax_mass
+        ax_to_scale.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
+
+    def autoscale_xaxis(self):
+        visible_segments_dta = [segment for segment in self.segments_dta if segment.get_visible()]
+        if self.ax_temp.get_visible():
+            visible_segments_temp = [segment.temp_segment for segment in self.segments_dta if segment.temp_segment.get_visible()]
+        else:
+            visible_segments_temp = []
+        if self.segments_dta[0].has_massdata:
+            visible_segments_mass = [segment.mass_segment for segment in self.segments_dta if segment.mass_segment.get_visible()]
+        else:
+            visible_segments_mass = []
+        visible_segments = visible_segments_dta + visible_segments_temp + visible_segments_mass
+        if not visible_segments:
+            return
+        x_values = [segment.xmax for segment in visible_segments] + [segment.xmin for segment in visible_segments]
+        x_max = max(x_values)
+        x_min = min(x_values)
+        rx = x_max - x_min
+        xlim = (x_min-rx*0.05, x_max+rx*0.05)
+        self.ax.set_xlim(*xlim)
 
     def getCurrentXaxis(self) -> str:
         return self.parent().combobox_xaxis.currentText()
@@ -206,9 +246,7 @@ class Plotter(QtCore.QObject):
         for segment in self.segments_dta:
             segment.set_axes(xaxis=xaxis, yaxis=yaxis)
             segment.peaksSetData(xaxis=xaxis)
-        self.autoscale(redraw=False)
-        self.fig.tight_layout()
-        self.canvas.draw()
+        self.autoscale(redraw=True)
 
     def remove_segments(self):
         self.segments_dta.clear()
@@ -224,22 +262,28 @@ class Plotter(QtCore.QObject):
             self.ax.add_line(segment)
             self.ax_ddta.add_line(segment.dsegment)
             self.ax_temp.add_line(segment.temp_segment)
+            if has_massdata:
+                self.ax_mass.add_line(segment.mass_segment)
         self.set_xlabel(xaxis)
         self.ax.set_ylabel(f'{"DTA"}, {self.get_units("DTA")}', color='blue')
         self.ax.yaxis.set_tick_params(color='blue')
         self.ax.spines.left.set_color('blue')
         if has_massdata:
-            self.ax_mass.set_ylabel(f'{"Mass"}, {self.get_units("Mass")}')
-        self.ax.autoscale_view()
+            self.ax_mass_visible_2 = True
+            self.ax_mass.set_visible(True)
+            self.ax_mass.set_ylabel(f'{"Mass"}, {self.get_units("Mass")}', color='green')
+            self.ax_mass.yaxis.set_label_position('right')
+            self.ax_mass.yaxis.set_tick_params(color='green')
+            self.ax_mass.spines.right.set_color('green')
         self.ax_ddta.set_ylabel('dDTA/dT')
         self.ax_ddta.yaxis.set_label_position('right')
         self.ax_ddta.autoscale_view()
         self.ax_temp.set_ylabel(f'{temp_axis}, {self.get_units(temp_axis)}', color='red')
         self.ax_temp.yaxis.set_label_position('right')
         self.ax_temp.yaxis.set_tick_params(color='red')
-        self.ax_temp.spines['right'].set_color('red')
-        self.ax_temp.autoscale_view()
-        self.canvas.draw()
+        self.ax_temp.spines.right.set_color('red')
+        self.update_axes_spines_position()
+        self.autoscale()
 
     def on_move(self, event: MouseEvent):
         if event.button == 1:
@@ -307,6 +351,7 @@ class Plotter(QtCore.QObject):
         self.ax.clear()
         self.ax_ddta.clear()
         self.ax_temp.clear()
+        self.ax_mass.clear()
         self.canvas.draw()
 
     def gridSetVisible(self, visible: bool):
@@ -360,6 +405,9 @@ class Plotter(QtCore.QObject):
             self.ax_ddta.add_line(segment2.dsegment)
             self.ax_temp.add_line(segment1.temp_segment)
             self.ax_temp.add_line(segment2.temp_segment)
+            if segment1.has_massdata:
+                self.ax_mass.add_line(segment1.mass_segment)
+                self.ax_mass.add_line(segment2.mass_segment)
             self.segments_dta[start_i] = segment2
             self.segments_dta.insert(start_i, segment1)
             self.signal_split.emit((segment1, segment2, start_i))

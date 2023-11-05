@@ -17,24 +17,7 @@
    <layout class="QGridLayout" name="gridLayout_2" columnstretch="0,0,0">
     <item row="0" column="0">
      <layout class="QGridLayout" name="leftpanel">
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_xaxis">
-        <property name="text">
-         <string>Ось абцисс:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="0" colspan="2">
-       <widget class="QCheckBox" name="checkbox_derivative">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Включить график производной ДТА</string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="0" colspan="2">
+      <item row="7" column="0" colspan="2">
        <widget class="QCheckBox" name="checkbox_grid">
         <property name="enabled">
          <bool>false</bool>
@@ -44,26 +27,7 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="1">
-       <widget class="QComboBox" name="combobox_xaxis">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="9" column="0">
-       <widget class="QLabel" name="label">
-        <property name="font">
-         <font>
-          <pointsize>10</pointsize>
-         </font>
-        </property>
-        <property name="text">
-         <string>Список сегментов</string>
-        </property>
-       </widget>
-      </item>
-      <item row="11" column="0">
+      <item row="12" column="0">
        <spacer name="verticalSpacer">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
@@ -76,14 +40,34 @@
         </property>
        </spacer>
       </item>
-      <item row="8" column="0" colspan="2">
+      <item row="9" column="0" colspan="2">
        <widget class="Line" name="line_3">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
         </property>
        </widget>
       </item>
-      <item row="10" column="0" colspan="2">
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_xaxis">
+        <property name="text">
+         <string>Ось абцисс:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0" colspan="2">
+       <widget class="QCheckBox" name="checkbox_temp">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Включить график температуры</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="11" column="0" colspan="2">
        <widget class="QTreeWidget" name="treewidget_segments">
         <property name="headerHidden">
          <bool>true</bool>
@@ -93,6 +77,25 @@
           <string notr="true">1</string>
          </property>
         </column>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QComboBox" name="combobox_xaxis">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="0">
+       <widget class="QLabel" name="label">
+        <property name="font">
+         <font>
+          <pointsize>10</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>Список сегментов</string>
+        </property>
        </widget>
       </item>
       <item row="2" column="0" colspan="2">
@@ -120,13 +123,23 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="0" colspan="2">
-       <widget class="QCheckBox" name="checkbox_temp">
+      <item row="4" column="0" colspan="2">
+       <widget class="QCheckBox" name="checkbox_derivative">
         <property name="enabled">
          <bool>false</bool>
         </property>
         <property name="text">
-         <string>Включить график температуры</string>
+         <string>Включить график производной ДТА</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0" colspan="2">
+       <widget class="QCheckBox" name="checkbox_tg">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Включить график ТГ</string>
         </property>
         <property name="checked">
          <bool>true</bool>
