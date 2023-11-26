@@ -1,26 +1,49 @@
 from PySide6 import QtCore, QtWidgets
-from Segment import SegmentDTA, Line2D, Peak, MyAnn, OnsetLine
+from app.Segment import SegmentDTA, Line2D, Peak, MyAnn, OnsetLine
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,
-    NavigationToolbar2QT as NavigationToolbar)
+    NavigationToolbar2QT as NavigationToolbar,
+)
 from matplotlib.backend_bases import MouseEvent
 import itertools
 import pandas as pd
-from helpers import find_nearest, log_info
+from app.helpers import find_nearest, log_info
 
-colors = itertools.cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
+colors = itertools.cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])
+
+
 def get_next_color():
     return next(colors)
 
+
 class Selector(Line2D):
-    def __init__(self, ax: Axes, x: float, spinbox: QtWidgets.QDoubleSpinBox, limit_x1: float, limit_x2: float, ymin=0, ymax=1, *args, **kwargs) -> None:
+    def __init__(
+        self,
+        ax: Axes,
+        x: float,
+        spinbox: QtWidgets.QDoubleSpinBox,
+        limit_x1: float,
+        limit_x2: float,
+        ymin=0,
+        ymax=1,
+        *args,
+        **kwargs,
+    ) -> None:
         self.ax = ax
-        trans = self.ax.get_xaxis_transform(which='grid')
+        trans = self.ax.get_xaxis_transform(which="grid")
         self.spinbox = spinbox
         self.spinbox.selector = self
-        super().__init__(xdata=[x, x], ydata=[ymin,ymax], transform=trans, lw=0.5, color='black', *args, **kwargs)
+        super().__init__(
+            xdata=[x, x],
+            ydata=[ymin, ymax],
+            transform=trans,
+            lw=0.5,
+            color="black",
+            *args,
+            **kwargs,
+        )
         self.ax.add_line(self)
         self.set_picker(5)
         self.set_antialiased(False)
@@ -35,6 +58,7 @@ class Selector(Line2D):
             if update_spinbox_value:
                 self.spinbox.setValue(x, block_signal=True)
             self.ax.figure.canvas.draw()
+
 
 class Plotter(QtCore.QObject):
     measurement_exo: int
@@ -61,7 +85,7 @@ class Plotter(QtCore.QObject):
         self.ax = self.fig.add_subplot(111)
         self.ax_ddta = self.ax.twinx()
         self.ax_ddta.set_visible(False)
-        self.ax_ddta.autoscale(enable=True, axis='y', tight=True)
+        self.ax_ddta.autoscale(enable=True, axis="y", tight=True)
         self.ax_mass = self.ax.twinx()
         self.ax_mass.set_visible(False)
         self.ax_temp = self.ax.twinx()
@@ -70,12 +94,12 @@ class Plotter(QtCore.QObject):
         self.ax_mass_visible_2 = False
         self.update_axes_spines_position()
         self.canvas = FigureCanvas(self.fig)
-        self.canvas.mpl_connect('button_release_event', self.on_button_release)
-        self.canvas.mpl_connect('motion_notify_event', self.on_move)
-        self.canvas.mpl_connect('button_press_event', self.on_button_press)
+        self.canvas.mpl_connect("button_release_event", self.on_button_release)
+        self.canvas.mpl_connect("motion_notify_event", self.on_move)
+        self.canvas.mpl_connect("button_press_event", self.on_button_press)
         self.toolbar = NavigationToolbar(self.canvas, None)
         self.segments_dta: list[SegmentDTA] = []
-        self.selectMode = None # 0 - peaktool, 1 - onsettool
+        self.selectMode = None  # 0 - peaktool, 1 - onsettool
         self.picked = False
         self.set_visible(False)
         self.items: list[SegmentDTA | Peak | OnsetLine | MyAnn] = []
@@ -88,13 +112,13 @@ class Plotter(QtCore.QObject):
     def update_axes_spines_position(self):
         shift = 0
         if self.ax_temp.get_visible():
-            self.ax_temp.spines['right'].set_position(('outward', shift))
+            self.ax_temp.spines["right"].set_position(("outward", shift))
             shift += 48
         if self.ax_mass.get_visible():
-            self.ax_mass.spines['right'].set_position(('outward', shift))
+            self.ax_mass.spines["right"].set_position(("outward", shift))
             shift += 48
         if self.ax_ddta.get_visible():
-            self.ax_ddta.spines['right'].set_position(('outward', shift))
+            self.ax_ddta.spines["right"].set_position(("outward", shift))
 
     def on_checkbox_temp(self, checked: bool):
         state = checked and self.ax_temp_visible_2
@@ -125,7 +149,7 @@ class Plotter(QtCore.QObject):
 
     def on_button_press(self, event: MouseEvent):
         if not event.inaxes:
-            return # вне графика
+            return  # вне графика
         picked = [item for item in self.items if item.contains(event)[0]]
         if not picked:
             return
@@ -135,26 +159,34 @@ class Plotter(QtCore.QObject):
 
     def set_exo(self):
         if self.measurement_exo:
-            a = '↑'
+            a = "↑"
         else:
-            a = '↓'
-        self.ax.text(0 + 5 / self.getWidth(), 1 - 5 / self.getHeight(), s=f'exo{a}', horizontalalignment='left',
-                        verticalalignment='top', transform=self.ax.transAxes)
+            a = "↓"
+        self.ax.text(
+            0 + 5 / self.getWidth(),
+            1 - 5 / self.getHeight(),
+            s=f"exo{a}",
+            horizontalalignment="left",
+            verticalalignment="top",
+            transform=self.ax.transAxes,
+        )
 
     def getHeight(self) -> int:
         return int(self.canvas.get_renderer().height)
-    
+
     def getWidth(self) -> int:
         return int(self.canvas.get_renderer().width)
 
     def set_xlabel(self, xaxis: str):
-        self.ax.set_xlabel(f'{xaxis}, {self.get_units(xaxis)}')#, {self.segments[0].df[xaxis].units.to_compact()}')
+        self.ax.set_xlabel(
+            f"{xaxis}, {self.get_units(xaxis)}"
+        )  # , {self.segments[0].df[xaxis].units.to_compact()}')
 
     def get_units(self, axis: str):
         unit = str(self.units[axis])
         # убрать пробелы перед и после / в unit
-        if '/' in unit:
-            unit = unit.replace(' ', '')
+        if "/" in unit:
+            unit = unit.replace(" ", "")
         return unit
 
     def set_visible(self, visible: bool):
@@ -180,17 +212,33 @@ class Plotter(QtCore.QObject):
         segments_type: 0 - dta, 1 - ddta, 2 - temp, 3 - mass
         """
         if segments_type == 0:
-            visible_segments = [segment for segment in self.segments_dta if segment.get_visible()]
+            visible_segments = [
+                segment for segment in self.segments_dta if segment.get_visible()
+            ]
         elif segments_type == 1:
-            visible_segments = [segment.dsegment for segment in self.segments_dta if segment.dsegment.get_visible()]
+            visible_segments = [
+                segment.dsegment
+                for segment in self.segments_dta
+                if segment.dsegment.get_visible()
+            ]
         elif segments_type == 2:
-            visible_segments = [segment.temp_segment for segment in self.segments_dta if segment.temp_segment.get_visible()]
+            visible_segments = [
+                segment.temp_segment
+                for segment in self.segments_dta
+                if segment.temp_segment.get_visible()
+            ]
         elif segments_type == 3:
-            visible_segments = [segment.mass_segment for segment in self.segments_dta if segment.mass_segment.get_visible()]
+            visible_segments = [
+                segment.mass_segment
+                for segment in self.segments_dta
+                if segment.mass_segment.get_visible()
+            ]
         if not visible_segments:
             return
-        
-        y_values = [segment.ymax for segment in visible_segments] + [segment.ymin for segment in visible_segments]
+
+        y_values = [segment.ymax for segment in visible_segments] + [
+            segment.ymin for segment in visible_segments
+        ]
         y_max = max(y_values)
         y_min = min(y_values)
         ry = y_max - y_min
@@ -203,26 +251,40 @@ class Plotter(QtCore.QObject):
             ax_to_scale = self.ax_temp
         elif segments_type == 3:
             ax_to_scale = self.ax_mass
-        ax_to_scale.set_ylim(ymin=y_min-ry*0.05, ymax=y_max+ry*0.05)
+        ax_to_scale.set_ylim(ymin=y_min - ry * 0.05, ymax=y_max + ry * 0.05)
 
     def autoscale_xaxis(self):
-        visible_segments_dta = [segment for segment in self.segments_dta if segment.get_visible()]
+        visible_segments_dta = [
+            segment for segment in self.segments_dta if segment.get_visible()
+        ]
         if self.ax_temp.get_visible():
-            visible_segments_temp = [segment.temp_segment for segment in self.segments_dta if segment.temp_segment.get_visible()]
+            visible_segments_temp = [
+                segment.temp_segment
+                for segment in self.segments_dta
+                if segment.temp_segment.get_visible()
+            ]
         else:
             visible_segments_temp = []
         if self.segments_dta[0].has_massdata:
-            visible_segments_mass = [segment.mass_segment for segment in self.segments_dta if segment.mass_segment.get_visible()]
+            visible_segments_mass = [
+                segment.mass_segment
+                for segment in self.segments_dta
+                if segment.mass_segment.get_visible()
+            ]
         else:
             visible_segments_mass = []
-        visible_segments = visible_segments_dta + visible_segments_temp + visible_segments_mass
+        visible_segments = (
+            visible_segments_dta + visible_segments_temp + visible_segments_mass
+        )
         if not visible_segments:
             return
-        x_values = [segment.xmax for segment in visible_segments] + [segment.xmin for segment in visible_segments]
+        x_values = [segment.xmax for segment in visible_segments] + [
+            segment.xmin for segment in visible_segments
+        ]
         x_max = max(x_values)
         x_min = min(x_values)
         rx = x_max - x_min
-        xlim = (x_min-rx*0.05, x_max+rx*0.05)
+        xlim = (x_min - rx * 0.05, x_max + rx * 0.05)
         self.ax.set_xlim(*xlim)
 
     def getCurrentXaxis(self) -> str:
@@ -230,18 +292,18 @@ class Plotter(QtCore.QObject):
 
     def updateAxes(self):
         xaxis = self.getCurrentXaxis()
-        self.ax_temp_visible_2 = xaxis == 'Time'
+        self.ax_temp_visible_2 = xaxis == "Time"
         if self.ax_temp_visible_2:
-            self.ax.spines.bottom.set_color('black')
-            self.ax.xaxis.set_tick_params(color='black')
-            self.ax.xaxis.label.set_color('black')
+            self.ax.spines.bottom.set_color("black")
+            self.ax.xaxis.set_tick_params(color="black")
+            self.ax.xaxis.label.set_color("black")
         else:
-            self.ax.spines.bottom.set_color('red')
-            self.ax.xaxis.set_tick_params(color='red')
-            self.ax.xaxis.label.set_color('red')
+            self.ax.spines.bottom.set_color("red")
+            self.ax.xaxis.set_tick_params(color="red")
+            self.ax.xaxis.label.set_color("red")
         self.on_checkbox_temp(self.parent().checkbox_temp.isChecked())
         self.update_axes_spines_position()
-        yaxis = 'DTA'
+        yaxis = "DTA"
         self.set_xlabel(xaxis)
         for segment in self.segments_dta:
             segment.set_axes(xaxis=xaxis, yaxis=yaxis)
@@ -255,7 +317,7 @@ class Plotter(QtCore.QObject):
         if has_tempdata:
             temp_axis = "Temp."
         else:
-            temp_axis = 'EMF'
+            temp_axis = "EMF"
         self.clear()
         for segment in self.segments_dta:
             segment.set_axes(xaxis=xaxis, yaxis=yaxis)
@@ -265,23 +327,27 @@ class Plotter(QtCore.QObject):
             if has_massdata:
                 self.ax_mass.add_line(segment.mass_segment)
         self.set_xlabel(xaxis)
-        self.ax.set_ylabel(f'{"DTA"}, {self.get_units("DTA")}', color='blue')
-        self.ax.yaxis.set_tick_params(color='blue')
-        self.ax.spines.left.set_color('blue')
+        self.ax.set_ylabel(f'{"DTA"}, {self.get_units("DTA")}', color="blue")
+        self.ax.yaxis.set_tick_params(color="blue")
+        self.ax.spines.left.set_color("blue")
         if has_massdata:
             self.ax_mass_visible_2 = True
             self.ax_mass.set_visible(True)
-            self.ax_mass.set_ylabel(f'{"Mass"}, {self.get_units("Mass")}', color='green')
-            self.ax_mass.yaxis.set_label_position('right')
-            self.ax_mass.yaxis.set_tick_params(color='green')
-            self.ax_mass.spines.right.set_color('green')
-        self.ax_ddta.set_ylabel('dDTA/dT')
-        self.ax_ddta.yaxis.set_label_position('right')
+            self.ax_mass.set_ylabel(
+                f'{"Mass"}, {self.get_units("Mass")}', color="green"
+            )
+            self.ax_mass.yaxis.set_label_position("right")
+            self.ax_mass.yaxis.set_tick_params(color="green")
+            self.ax_mass.spines.right.set_color("green")
+        self.ax_ddta.set_ylabel("dDTA/dT")
+        self.ax_ddta.yaxis.set_label_position("right")
         self.ax_ddta.autoscale_view()
-        self.ax_temp.set_ylabel(f'{temp_axis}, {self.get_units(temp_axis)}', color='red')
-        self.ax_temp.yaxis.set_label_position('right')
-        self.ax_temp.yaxis.set_tick_params(color='red')
-        self.ax_temp.spines.right.set_color('red')
+        self.ax_temp.set_ylabel(
+            f"{temp_axis}, {self.get_units(temp_axis)}", color="red"
+        )
+        self.ax_temp.yaxis.set_label_position("right")
+        self.ax_temp.yaxis.set_tick_params(color="red")
+        self.ax_temp.spines.right.set_color("red")
         self.update_axes_spines_position()
         self.autoscale()
 
@@ -296,11 +362,13 @@ class Plotter(QtCore.QObject):
                         if event.inaxes == self.ax:
                             ydata = event.ydata
                         else:
-                            trans = event.inaxes.transData + self.ax.transData.inverted()
+                            trans = (
+                                event.inaxes.transData + self.ax.transData.inverted()
+                            )
                             ydata = trans.transform((event.xdata, event.ydata))[1]
                         self.holding_item.set_position((event.xdata, ydata))
                 self.canvas.draw()
-                
+
     def on_unpick(self):
         if isinstance(self.holding_item, Selector):
             self.picked_item = None
@@ -316,24 +384,26 @@ class Plotter(QtCore.QObject):
         self.picked = False
         self.signal_pick.emit(None)
 
-    def on_pick(self, item: SegmentDTA | Peak | OnsetLine| MyAnn, event: MouseEvent):
+    def on_pick(self, item: SegmentDTA | Peak | OnsetLine | MyAnn, event: MouseEvent):
         x = event.x / self.scale
-        y = (self.getHeight()-event.y) / self.scale
-        pos = self.canvas.mapToGlobal(QtCore.QPoint(x,y))
-        if self.picked_peak is not None: self.picked_peak.setPickEffect(False)
-        if self.picked_segment is not None: self.picked_segment.setPickEffect(False)
+        y = (self.getHeight() - event.y) / self.scale
+        pos = self.canvas.mapToGlobal(QtCore.QPoint(x, y))
+        if self.picked_peak is not None:
+            self.picked_peak.setPickEffect(False)
+        if self.picked_segment is not None:
+            self.picked_segment.setPickEffect(False)
         self.picked = True
         match item:
             case MyAnn():
                 pass
             case SegmentDTA():
-                self.picked_segment = item            
+                self.picked_segment = item
                 item.setPickEffect(True)
             case Peak():
                 self.picked_peak = item
                 item.setPickEffect(True)
         if event.button == 3:
-            if isinstance(item, MyAnn):  
+            if isinstance(item, MyAnn):
                 self.signal_cm.emit((item.parent, pos))
             else:
                 self.signal_cm.emit((item, pos))
@@ -342,7 +412,14 @@ class Plotter(QtCore.QObject):
         self.canvas.draw()
 
     def addSegment(self, df: pd.DataFrame, index: int, Type: int, temp_axis: str):
-        segment = SegmentDTA(df=df, plotter=self, index=index, Type=Type, color='blue', temp_axis=temp_axis)
+        segment = SegmentDTA(
+            df=df,
+            plotter=self,
+            index=index,
+            Type=Type,
+            color="blue",
+            temp_axis=temp_axis,
+        )
         self.segments_dta.append(segment)
         self.items.append(segment)
         return segment
@@ -359,10 +436,13 @@ class Plotter(QtCore.QObject):
         self.canvas.draw()
 
     def spawn_split_selector(self, t: float):
-        selector = Selector(ax=self.ax, x=t,
-                            limit_x1=self.picked_item.xmin,
-                            limit_x2=self.picked_item.xmax,
-                            spinbox=self.spinbox_t)
+        selector = Selector(
+            ax=self.ax,
+            x=t,
+            limit_x1=self.picked_item.xmin,
+            limit_x2=self.picked_item.xmax,
+            spinbox=self.spinbox_t,
+        )
         self.items.append(selector)
         return selector
 
@@ -393,7 +473,7 @@ class Plotter(QtCore.QObject):
             segment1, segment2 = self.picked_segment.split(x=x)
             start_i = self.picked_segment.index
             end_i = len(self.segments_dta)
-            for i in range(start_i+1, end_i):
+            for i in range(start_i + 1, end_i):
                 self.segments_dta[i].index += 1
             self.items.append(segment1)
             self.items.append(segment2)
@@ -411,7 +491,7 @@ class Plotter(QtCore.QObject):
             self.segments_dta[start_i] = segment2
             self.segments_dta.insert(start_i, segment1)
             self.signal_split.emit((segment1, segment2, start_i))
-            
+
         self.canvas.draw()
 
     def onsettool_done(self, apply: bool):
@@ -458,8 +538,8 @@ class Plotter(QtCore.QObject):
         if ax_t2 < x2:
             x2 = ax_t2
         r = x2 - x1
-        t1 = round(x1 + r/3, 1)
-        t2 = round(x1 + 2*r/3, 1)
+        t1 = round(x1 + r / 3, 1)
+        t2 = round(x1 + 2 * r / 3, 1)
         self.spawn_selectors(t1=t1, t2=t2, selectMode=0)
         self.spinbox_T1.setValue(t1)
         self.spinbox_T2.setValue(t2)
@@ -467,7 +547,7 @@ class Plotter(QtCore.QObject):
             segment.set_picker(False)
         self.canvas.draw()
 
-    def spawn_selectors(self, t1:float, t2:float, selectMode:int):
+    def spawn_selectors(self, t1: float, t2: float, selectMode: int):
         """
         selectMode: 0 - выделение пика, 1 - выделение начала пика
         """
@@ -485,8 +565,12 @@ class Plotter(QtCore.QObject):
                 limit_x1, limit_x2 = limit_x2, limit_x1
             spinbox1 = self.spinbox_onsettool_T1
             spinbox2 = self.spinbox_onsettool_T2
-        self.selector1 = Selector(ax=self.ax, x=t1, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=spinbox1)
-        self.selector2 = Selector(ax=self.ax, x=t2, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=spinbox2)
+        self.selector1 = Selector(
+            ax=self.ax, x=t1, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=spinbox1
+        )
+        self.selector2 = Selector(
+            ax=self.ax, x=t2, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=spinbox2
+        )
         spinbox1.selector = self.selector1
         spinbox2.selector = self.selector2
         self.items.append(self.selector1)
@@ -511,11 +595,11 @@ class Plotter(QtCore.QObject):
             peak = self.picked_segment.addPeak(
                 t1=t1,
                 t2=t2,
-                baseline_type=self.parent().combobox_baselinetype.currentIndex()
-                )
+                baseline_type=self.parent().combobox_baselinetype.currentIndex(),
+            )
             self.items.append(peak)
             self.items.append(peak.ann)
         self.spinbox_T1.selector = None
         self.spinbox_T2.selector = None
         self.despawn_selectors()
-        self.canvas.draw()        
+        self.canvas.draw()

@@ -7,25 +7,31 @@ import logging
 LINEAR_TYPE = 0
 BEZIER_TYPE = 1
 
+
 def log_critical(message: str):
-    print(f'CRTICALL: {message}')
-    logging.critical(f'{message}')
+    print(f"CRTICALL: {message}")
+    logging.critical(f"{message}")
+
 
 def log_warning(message: str):
-    print(f'WARNING: {message}')
-    logging.warning(f'{message}')
+    print(f"WARNING: {message}")
+    logging.warning(f"{message}")
+
 
 def log_info(message: str):
-    print(f'INFO: {message}')
-    logging.info(f'{message}')
+    print(f"INFO: {message}")
+    logging.info(f"{message}")
+
 
 def error_message(message):
-    log_critical(f'{message}')
+    log_critical(f"{message}")
     QtWidgets.QMessageBox.critical(None, "Ошибка", message)
 
+
 def warning_message(message):
-    log_warning(f'{message}')
+    log_warning(f"{message}")
     QtWidgets.QMessageBox.warning(None, "Предупреждение", message)
+
 
 def xand_gate(a, b):
     """
@@ -40,12 +46,28 @@ def xand_gate(a, b):
     """
     return (not a and not b) or (a and b)
 
+
 def baseline_temp(data_temp, data_dta):
     coeff = np.polyfit(data_temp, data_dta, 4)
-    temp_expr = lambda x: coeff[0] * x**4 + coeff[1] * x**3 + coeff[2] * x**2 + coeff[3] * x + coeff[4]
-    return temp_expr
+    return (
+        lambda x: coeff[0] * x**4
+        + coeff[1] * x**3
+        + coeff[2] * x**2
+        + coeff[3] * x
+        + coeff[4]
+    )
 
-def calc_peakonset(t1, t2, data_t: np.ndarray, data_dta: np.ndarray, data_ddta: np.ndarray, expr_baseline: Callable, is_onset:bool, peak_exo: bool):   
+
+def calc_peakonset(
+    t1,
+    t2,
+    data_t: np.ndarray,
+    data_dta: np.ndarray,
+    data_ddta: np.ndarray,
+    expr_baseline: Callable,
+    is_onset: bool,
+    peak_exo: bool,
+):
     log_info(f"Ищем начало пика между {t1} и {t2}")
     i1 = find_nearest(data_t, t1)
     i2 = find_nearest(data_t, t2)
@@ -59,36 +81,44 @@ def calc_peakonset(t1, t2, data_t: np.ndarray, data_dta: np.ndarray, data_ddta: 
     xt = data_t[ci]
     yt = data_dta[ci]
     at = yt - bt * xt
-    expr_tangent = lambda x: at + bt * x
-    f = lambda x: expr_tangent(x) - expr_baseline(x)
+
+    def expr_tangent(x):
+        return at + bt * x
+
+    def f(x):
+        return expr_tangent(x) - expr_baseline(x)
+
     xi = newton(
         f=f,
-        Df = lambda x: derivative_func(f=f, a=x, h=1e-7),
+        Df=lambda x: derivative_func(f=f, a=x, h=1e-7),
         x0=xt,
         epsilon=1e-7,
-        max_iter=10
+        max_iter=10,
     )
     bi = find_nearest(data_t, xi)
     log_info(f"Начало пика найдено в точке {data_t[bi]}")
     return ci, bi
 
+
 def sround(x: float, n: int):
     return round(x, -int(math.floor(math.log10(abs(x)))) + (n - 1))
+
 
 def PolyArea(vertices):
     x, y = np.transpose(vertices)
     # source: https://stackoverflow.com/a/30408825/11709825
-    return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
+    return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+
 
 def find_nearest(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return idx
 
+
 def derivative_data(xdata, ydata):
-    return np.insert(
-        np.diff(ydata) / np.diff(xdata), 0, 0, axis=0
-    )
+    return np.insert(np.diff(ydata) / np.diff(xdata), 0, 0, axis=0)
+
 
 def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
     baseline_y = []
@@ -99,7 +129,9 @@ def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
         y2 = ydata[i2]
         slope = (y2 - y1) / (x2 - x1)
         intercept = y1 - x1 * slope
-        y_expr = lambda x: intercept + slope * x
+
+        def y_expr(x):
+            return intercept + slope * x
     elif baselinetype == BEZIER_TYPE:
         x1prev = xdata[i1 - 1]
         x1 = xdata[i1]
@@ -119,21 +151,33 @@ def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
         y2 = a1 + b1 * x2
 
         a = x1 - 2 * x2 + x3
-        b = 2 * (x2 -x1)
-        c = lambda x: x1 - x
-        d = lambda x: (b ** 2) - 4 * a * c(x)
+        b = 2 * (x2 - x1)
 
-        t_expr = lambda x: (-b + (d(x) ** (1 / 2))) / (2 * a)
-        y_expr = lambda x: ((1 - t_expr(x)) ** 2) * y1 + 2 * (1 - t_expr(x)) * t_expr(x) * y2 + (t_expr(x) ** 2) * y3
+        def c(x):
+            return x1 - x
+
+        def d(x):
+            return b**2 - 4 * a * c(x)
+
+        def t_expr(x):
+            return (-b + d(x) ** (1 / 2)) / (2 * a)
+
+        def y_expr(x):
+            return (
+                (1 - t_expr(x)) ** 2 * y1
+                + 2 * (1 - t_expr(x)) * t_expr(x) * y2
+                + t_expr(x) ** 2 * y3
+            )
     else:
-        log_critical('\n* ERROR: none/wrong baselinetype provided\n')
+        log_critical("\n* ERROR: none/wrong baselinetype provided\n")
         return
     baseline_y = y_expr(np.asarray(xdata)[i1:i2])
     return baseline_y, y_expr
 
-def newton(f,Df,x0,epsilon,max_iter):
+
+def newton(f, Df, x0, epsilon, max_iter):
     # source: https://patrickwalls.github.io/mathematicalpython/root-finding/newton/
-    '''Approximate solution of f(x)=0 by Newton's method.
+    """Approximate solution of f(x)=0 by Newton's method.
 
     Parameters
     ----------
@@ -165,24 +209,25 @@ def newton(f,Df,x0,epsilon,max_iter):
     >>> newton(f,Df,1,1e-8,10)
     Found solution after 5 iterations.
     1.618033988749989
-    '''
+    """
     xn = x0
-    for n in range(0,max_iter):
+    for n in range(0, max_iter):
         fxn = f(xn)
         if abs(fxn) < epsilon:
-            log_info(f'Found solution after {n} iterations.')
+            log_info(f"Found solution after {n} iterations.")
             return xn
         Dfxn = Df(xn)
         if Dfxn == 0:
-            log_warning('Zero derivative. No solution found.')
+            log_warning("Zero derivative. No solution found.")
             return None
-        xn = xn - fxn/Dfxn
-    log_warning('Exceeded maximum iterations. No solution found.')
+        xn = xn - fxn / Dfxn
+    log_warning("Exceeded maximum iterations. No solution found.")
     return None
 
-def derivative_func(f,a,method='central',h=0.01):
+
+def derivative_func(f, a, method="central", h=0.01):
     # source: https://patrickwalls.github.io/mathematicalpython/differentiation/differentiation/
-    '''Compute the difference formula for f'(a) with step size h.
+    """Compute the difference formula for f'(a) with step size h.
 
     Parameters
     ----------
@@ -201,13 +246,13 @@ def derivative_func(f,a,method='central',h=0.01):
         Difference formula:
             central: f(a+h) - f(a-h))/2h
             forward: f(a+h) - f(a))/h
-            backward: f(a) - f(a-h))/h            
-    '''
-    if method == 'central':
-        return (f(a + h) - f(a - h))/(2*h)
-    elif method == 'forward':
-        return (f(a + h) - f(a))/h
-    elif method == 'backward':
-        return (f(a) - f(a - h))/h
+            backward: f(a) - f(a-h))/h
+    """
+    if method == "central":
+        return (f(a + h) - f(a - h)) / (2 * h)
+    elif method == "forward":
+        return (f(a + h) - f(a)) / h
+    elif method == "backward":
+        return (f(a) - f(a - h)) / h
     else:
         raise ValueError("Method must be 'central', 'forward' or 'backward'.")

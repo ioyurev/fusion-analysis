@@ -661,7 +661,7 @@
   <customwidget>
    <class>MySpinBox</class>
    <extends>QDoubleSpinBox</extends>
-   <header>CustomWidgets</header>
+   <header>app/CustomWidgets</header>
   </customwidget>
  </customwidgets>
  <resources>

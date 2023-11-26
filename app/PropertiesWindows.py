@@ -1,9 +1,10 @@
 from PySide6 import QtWidgets, QtGui
-from Segment import SegmentDTA, Peak, OnsetLine
+from app.Segment import SegmentDTA, Peak, OnsetLine
 from matplotlib.colors import to_hex
 from ui.OnsetProperties import Ui_Dialog as Ui_OnsetDialog
 from ui.PeakProperties import Ui_Dialog as Ui_PeakDialog
 from ui.SegmentProperties import Ui_Dialog as Ui_SegmentDialog
+
 
 class SegmentPropetiesWindow(QtWidgets.QDialog, Ui_SegmentDialog):
     def __init__(self, segment: SegmentDTA, parent=None):
@@ -13,7 +14,7 @@ class SegmentPropetiesWindow(QtWidgets.QDialog, Ui_SegmentDialog):
         self.setFixedHeight(self.height())
         self.changes_are_made = False
         self.color = QtGui.QColor(to_hex(segment.get_color()))
-        self.w_color.setStyleSheet(f'background-color: {self.color.name()};')
+        self.w_color.setStyleSheet(f"background-color: {self.color.name()};")
         self.btn_color.clicked.connect(self.change_color)
 
     def change_color(self):
@@ -22,9 +23,10 @@ class SegmentPropetiesWindow(QtWidgets.QDialog, Ui_SegmentDialog):
         color = w.getColor()
         if color.isValid():
             self.changes_are_made = True
-            self.setWindowTitle(f'{self.windowTitle()} *')
+            self.setWindowTitle(f"{self.windowTitle()} *")
             self.color = color
-            self.w_color.setStyleSheet(f'background-color: {self.color.name()};')
+            self.w_color.setStyleSheet(f"background-color: {self.color.name()};")
+
 
 class PeakPropertiesWindow(QtWidgets.QDialog, Ui_PeakDialog):
     def __init__(self, peak: Peak, parent=None):
@@ -36,9 +38,10 @@ class PeakPropertiesWindow(QtWidgets.QDialog, Ui_PeakDialog):
         self.checkbox_label.stateChanged.connect(self.change_label)
 
     def change_label(self):
-        if self.changes_are_made == False:
+        if self.changes_are_made is False:
             self.changes_are_made = True
-            self.setWindowTitle(f'{self.windowTitle()} *')
+            self.setWindowTitle(f"{self.windowTitle()} *")
+
 
 class OnsetPropertiesWindow(QtWidgets.QDialog, Ui_OnsetDialog):
     def __init__(self, onsetline: OnsetLine, parent=None):
@@ -57,14 +60,14 @@ class OnsetPropertiesWindow(QtWidgets.QDialog, Ui_OnsetDialog):
         self.checkbox_temp.stateChanged.connect(self.change_label)
         self.checkbox_dta.stateChanged.connect(self.change_label)
         if self.onsetline.is_onset:
-            self.setWindowTitle(f'Свойства начала пика')
+            self.setWindowTitle("Свойства начала пика")
         else:
-            self.setWindowTitle(f'Свойства конца пика')
-    
+            self.setWindowTitle("Свойства конца пика")
+
     def change_label(self):
-        if self.changes_are_made == False:
+        if self.changes_are_made is False:
             self.changes_are_made = True
-            self.setWindowTitle(f'{self.windowTitle()} *')
+            self.setWindowTitle(f"{self.windowTitle()} *")
 
     def exec(self) -> int:
         result = super().exec()
