@@ -7,3 +7,4 @@ pyinstaller
 logs
 ui/*.py
 resources_rc.py
+__hash__.py
