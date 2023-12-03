@@ -1,7 +1,17 @@
 from PySide6 import QtCore, QtWidgets
-from app.Segment import SegmentDTA, Line2D, Peak, MyAnn, OnsetLine
+from app.Segment import (
+    SegmentDTA,
+    SegmentDDTA,
+    SegmentTemp,
+    SegmentMass,
+    Peak,
+    MyAnn,
+    OnsetLine,
+)
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
+from matplotlib.axes._base import _AxesBase
+from matplotlib.lines import Line2D
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,
     NavigationToolbar2QT as NavigationToolbar,
@@ -10,6 +20,8 @@ from matplotlib.backend_bases import MouseEvent
 import itertools
 import pandas as pd
 from app.helpers import find_nearest, log_info
+from app.CustomWidgets import MySpinBox
+import numpy as np
 
 colors = itertools.cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])
 
@@ -23,26 +35,18 @@ class Selector(Line2D):
         self,
         ax: Axes,
         x: float,
-        spinbox: QtWidgets.QDoubleSpinBox,
+        spinbox: MySpinBox,
         limit_x1: float,
         limit_x2: float,
         ymin=0,
         ymax=1,
-        *args,
-        **kwargs,
     ) -> None:
         self.ax = ax
         trans = self.ax.get_xaxis_transform(which="grid")
         self.spinbox = spinbox
         self.spinbox.selector = self
         super().__init__(
-            xdata=[x, x],
-            ydata=[ymin, ymax],
-            transform=trans,
-            lw=0.5,
-            color="black",
-            *args,
-            **kwargs,
+            xdata=[x, x], ydata=[ymin, ymax], transform=trans, lw=0.5, color="black"
         )
         self.ax.add_line(self)
         self.set_picker(5)
@@ -57,25 +61,30 @@ class Selector(Line2D):
             super().set_xdata([x, x])
             if update_spinbox_value:
                 self.spinbox.setValue(x, block_signal=True)
-            self.ax.figure.canvas.draw()
+            if self.ax.figure:
+                self.ax.figure.canvas.draw()
 
 
 class Plotter(QtCore.QObject):
     measurement_exo: int
     units: dict
-    picked_item: SegmentDTA | Peak | OnsetLine | MyAnn = None
-    picked_segment: SegmentDTA = None
-    picked_peak: Peak = None
-    holding_item: SegmentDTA | Peak | OnsetLine | MyAnn | Selector = None
-    config: dict = None
+    picked_item: SegmentDTA | Peak | OnsetLine | MyAnn | Selector | None = None
+    picked_segment: SegmentDTA | None = None
+    picked_peak: Peak | None = None
+    picked_selector: Selector | None = None
+    holding_item: SegmentDTA | Peak | OnsetLine | MyAnn | Selector | None = None
+    config: dict | None = None
     signal_pick = QtCore.Signal(object)
     signal_cm = QtCore.Signal(tuple)
     signal_split = QtCore.Signal(tuple)
-    spinbox_T1: QtWidgets.QDoubleSpinBox
-    spinbox_T2: QtWidgets.QDoubleSpinBox
-    spinbox_onsettool_T1: QtWidgets.QDoubleSpinBox
-    spinbox_onsettool_T2: QtWidgets.QDoubleSpinBox
-    spinbox_t: QtWidgets.QDoubleSpinBox
+    spinbox_T1: MySpinBox
+    spinbox_T2: MySpinBox
+    spinbox_onsettool_T1: MySpinBox
+    spinbox_onsettool_T2: MySpinBox
+    spinbox_t: MySpinBox
+    combobox_xaxis: QtWidgets.QComboBox
+    combobox_baselinetype: QtWidgets.QComboBox
+    selectMode: int  # 0 - peaktool, 1 - onsettool
 
     def __init__(self, parent, dpi, scale) -> None:
         log_info("* инициализация плоттера")
@@ -99,10 +108,9 @@ class Plotter(QtCore.QObject):
         self.canvas.mpl_connect("button_press_event", self.on_button_press)
         self.toolbar = NavigationToolbar(self.canvas, None)
         self.segments_dta: list[SegmentDTA] = []
-        self.selectMode = None  # 0 - peaktool, 1 - onsettool
         self.picked = False
         self.set_visible(False)
-        self.items: list[SegmentDTA | Peak | OnsetLine | MyAnn] = []
+        self.items: list[SegmentDTA | Peak | OnsetLine | MyAnn | Selector | None] = []
 
     def on_close(self):
         self.clear()
@@ -147,10 +155,11 @@ class Plotter(QtCore.QObject):
         self.fig.tight_layout()
         self.canvas.draw()
 
-    def on_button_press(self, event: MouseEvent):
+    def on_button_press(self, event):
+        # Здесь event - это matplotlib.backend_bases.MouseEvent, но mypy считает его matplotlib.backend_bases.Event. Вероятно имеет место ошибка в stubs модуля.
         if not event.inaxes:
             return  # вне графика
-        picked = [item for item in self.items if item.contains(event)[0]]
+        picked = [item for item in self.items if item if item.contains(event)[0]]
         if not picked:
             return
         item = picked[0]
@@ -211,6 +220,7 @@ class Plotter(QtCore.QObject):
         """
         segments_type: 0 - dta, 1 - ddta, 2 - temp, 3 - mass
         """
+        visible_segments: list[SegmentDTA | SegmentDDTA | SegmentTemp | SegmentMass]
         if segments_type == 0:
             visible_segments = [
                 segment for segment in self.segments_dta if segment.get_visible()
@@ -243,6 +253,7 @@ class Plotter(QtCore.QObject):
         y_min = min(y_values)
         ry = y_max - y_min
 
+        ax_to_scale: Axes | _AxesBase
         if segments_type == 0:
             ax_to_scale = self.ax
         elif segments_type == 1:
@@ -288,7 +299,7 @@ class Plotter(QtCore.QObject):
         self.ax.set_xlim(*xlim)
 
     def getCurrentXaxis(self) -> str:
-        return self.parent().combobox_xaxis.currentText()
+        return self.combobox_xaxis.currentText()
 
     def updateAxes(self):
         xaxis = self.getCurrentXaxis()
@@ -351,13 +362,17 @@ class Plotter(QtCore.QObject):
         self.update_axes_spines_position()
         self.autoscale()
 
-    def on_move(self, event: MouseEvent):
+    def on_move(self, event):
+        # Здесь event - это matplotlib.backend_bases.MouseEvent, но mypy считает его matplotlib.backend_bases.Event. Вероятно имеет место ошибка в stubs модуля.
         if event.button == 1:
             if event.inaxes:
                 match self.holding_item:
                     case Selector():
                         x = event.xdata
-                        self.holding_item.set_x(x)
+                        if (
+                            x
+                        ):  # Без этого mypy ругается. Нужно придумать как это убрать.
+                            self.holding_item.set_x(x)
                     case MyAnn():
                         if event.inaxes == self.ax:
                             ydata = event.ydata
@@ -365,8 +380,12 @@ class Plotter(QtCore.QObject):
                             trans = (
                                 event.inaxes.transData + self.ax.transData.inverted()
                             )
-                            ydata = trans.transform((event.xdata, event.ydata))[1]
-                        self.holding_item.set_position((event.xdata, ydata))
+                            # np.array и проверка на None нужны чтобы избежать ошибки mypy
+                            ydata = trans.transform(
+                                np.array([event.xdata, event.ydata])
+                            )[1]
+                        if event.xdata and ydata:
+                            self.holding_item.set_position((event.xdata, ydata))
                 self.canvas.draw()
 
     def on_unpick(self):
@@ -374,7 +393,7 @@ class Plotter(QtCore.QObject):
             self.picked_item = None
             self.picked = False
 
-    def on_button_release(self, event: MouseEvent):
+    def on_button_release(self, event):
         self.on_unpick()
         self.holding_item = None
 
@@ -384,7 +403,9 @@ class Plotter(QtCore.QObject):
         self.picked = False
         self.signal_pick.emit(None)
 
-    def on_pick(self, item: SegmentDTA | Peak | OnsetLine | MyAnn, event: MouseEvent):
+    def on_pick(
+        self, item: SegmentDTA | Peak | OnsetLine | MyAnn | Selector, event: MouseEvent
+    ):
         x = event.x / self.scale
         y = (self.getHeight() - event.y) / self.scale
         pos = self.canvas.mapToGlobal(QtCore.QPoint(x, y))
@@ -407,7 +428,8 @@ class Plotter(QtCore.QObject):
                 self.signal_cm.emit((item.parent, pos))
             else:
                 self.signal_cm.emit((item, pos))
-        self.picked_item = item
+        if item:  # Без этого mypy ругается. Нужно придумать как это убрать.
+            self.picked_item = item
         self.signal_pick.emit(item)
         self.canvas.draw()
 
@@ -437,12 +459,12 @@ class Plotter(QtCore.QObject):
         self.ax.grid(visible=visible)
         self.canvas.draw()
 
-    def spawn_split_selector(self, t: float):
+    def spawn_split_selector(self, t: float, limit_x1: float, limit_x2: float):
         selector = Selector(
             ax=self.ax,
             x=t,
-            limit_x1=self.picked_item.xmin,
-            limit_x2=self.picked_item.xmax,
+            limit_x1=limit_x1,
+            limit_x2=limit_x2,
             spinbox=self.spinbox_t,
         )
         self.items.append(selector)
@@ -456,7 +478,9 @@ class Plotter(QtCore.QObject):
         ax_i2 = find_nearest(xdata, ax_t2)
         i = ax_i1 + len(xdata[ax_i1:ax_i2]) // 2
         self.selectMode = 1
-        self.selector_split = self.spawn_split_selector(t=xdata[i])
+        self.selector_split = self.spawn_split_selector(
+            t=xdata[i], limit_x1=segment.xmin, limit_x2=segment.xmax
+        )
         for segment in self.segments_dta:
             segment.set_picker(False)
         self.canvas.draw()
@@ -470,6 +494,11 @@ class Plotter(QtCore.QObject):
         self.items.remove(self.selector_split)
         del self.selector_split
         if apply:
+            self.apply_split()
+        self.canvas.draw()
+
+    def apply_split(self):
+        if self.picked_segment:
             x = self.spinbox_t.value()
             log_info(f"Разделение сегмента {self.picked_segment.index} на {x}")
             segment1, segment2 = self.picked_segment.split(x=x)
@@ -493,31 +522,37 @@ class Plotter(QtCore.QObject):
             self.segments_dta[start_i] = segment2
             self.segments_dta.insert(start_i, segment1)
             self.signal_split.emit((segment1, segment2, start_i))
-
-        self.canvas.draw()
+        else:
+            raise ValueError("picked_segment is None")
 
     def onsettool_done(self, apply: bool):
-        for segment in self.segments_dta:
-            if segment.get_visible():
-                segment.set_picker(5)
-        self.spinbox_onsettool_T1.selector = None
-        self.spinbox_onsettool_T2.selector = None
-        if apply:
-            t1 = self.spinbox_onsettool_T1.value()
-            t2 = self.spinbox_onsettool_T2.value()
-            line = self.picked_peak.onset(t1=t1, t2=t2, is_onset=self.is_onset)
-            self.items.append(line)
-            self.items.append(line.ann)
-        self.despawn_selectors()
-        self.canvas.draw()
+        if self.picked_peak:
+            for segment in self.segments_dta:
+                if segment.get_visible():
+                    segment.set_picker(5)
+            self.spinbox_onsettool_T1.selector = None
+            self.spinbox_onsettool_T2.selector = None
+            if apply:
+                t1 = self.spinbox_onsettool_T1.value()
+                t2 = self.spinbox_onsettool_T2.value()
+                line = self.picked_peak.onset(t1=t1, t2=t2, is_onset=self.is_onset)
+                self.items.append(line)
+                self.items.append(line.ann)
+            self.despawn_selectors()
+            self.canvas.draw()
+        else:
+            raise Exception("Peak not picked")
 
     def onsettool_start(self, is_onset: bool):
         self.is_onset = is_onset
-        peak = self.picked_item
-        peak_xdata = peak.df_baseline[self.getCurrentXaxis()].values
-        x0 = float(peak_xdata.min())
-        x1 = float(peak_xdata.max())
-        ci = peak_xdata.size // 2
+        peak = self.picked_peak
+        if peak:
+            peak_xdata = peak.df_baseline[self.getCurrentXaxis()].values
+        else:
+            raise Exception("Peak not picked")
+        x0 = float(min(peak_xdata))
+        x1 = float(max(peak_xdata))
+        ci = len(peak_xdata) // 2
         xc = float(peak_xdata[ci])
         if is_onset:
             self.spawn_selectors(t1=x0, t2=xc, selectMode=1)
@@ -553,30 +588,37 @@ class Plotter(QtCore.QObject):
         """
         selectMode: 0 - выделение пика, 1 - выделение начала пика
         """
-        self.selectMode = selectMode
-        if self.selectMode == 0:
-            limit_x1 = self.picked_item.xmin
-            limit_x2 = self.picked_item.xmax
-            spinbox1 = self.spinbox_T1
-            spinbox2 = self.spinbox_T2
-        elif self.selectMode == 1:
-            xaxis = self.getCurrentXaxis()
-            limit_x1 = float(self.picked_item.df_baseline[xaxis].values[0])
-            limit_x2 = float(self.picked_item.df_baseline[xaxis].values[-1])
-            if limit_x1 > limit_x2:
-                limit_x1, limit_x2 = limit_x2, limit_x1
-            spinbox1 = self.spinbox_onsettool_T1
-            spinbox2 = self.spinbox_onsettool_T2
-        self.selector1 = Selector(
-            ax=self.ax, x=t1, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=spinbox1
-        )
-        self.selector2 = Selector(
-            ax=self.ax, x=t2, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=spinbox2
-        )
-        spinbox1.selector = self.selector1
-        spinbox2.selector = self.selector2
-        self.items.append(self.selector1)
-        self.items.append(self.selector2)
+        if self.picked_item:
+            self.selectMode = selectMode
+            if self.selectMode == 0:
+                if self.picked_segment:
+                    limit_x1 = self.picked_segment.xmin
+                    limit_x2 = self.picked_segment.xmax
+                    spinbox1 = self.spinbox_T1
+                    spinbox2 = self.spinbox_T2
+                else:
+                    raise Exception("No picked segment")
+            elif self.selectMode == 1:
+                xaxis = self.getCurrentXaxis()
+                if self.picked_peak:
+                    limit_x1 = float(self.picked_peak.df_baseline[xaxis].to_numpy()[0])
+                    limit_x2 = float(self.picked_peak.df_baseline[xaxis].to_numpy()[-1])
+                if limit_x1 > limit_x2:
+                    limit_x1, limit_x2 = limit_x2, limit_x1
+                spinbox1 = self.spinbox_onsettool_T1
+                spinbox2 = self.spinbox_onsettool_T2
+            self.selector1 = Selector(
+                ax=self.ax, x=t1, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=spinbox1
+            )
+            self.selector2 = Selector(
+                ax=self.ax, x=t2, limit_x1=limit_x1, limit_x2=limit_x2, spinbox=spinbox2
+            )
+            spinbox1.selector = self.selector1
+            spinbox2.selector = self.selector2
+            self.items.append(self.selector1)
+            self.items.append(self.selector2)
+        else:
+            raise Exception("No picked item")
 
     def despawn_selectors(self):
         self.selector1.remove()
@@ -591,16 +633,19 @@ class Plotter(QtCore.QObject):
             if segment.get_visible():
                 segment.set_picker(5)
         if apply:
-            t1 = self.selector1.get_xdata()[0]
-            t2 = self.selector2.get_xdata()[0]
-            log_info(f"Выделяем пик между {t1} и {t2}")
-            peak = self.picked_segment.addPeak(
-                t1=t1,
-                t2=t2,
-                baseline_type=self.parent().combobox_baselinetype.currentIndex(),
-            )
-            self.items.append(peak)
-            self.items.append(peak.ann)
+            if self.picked_segment:
+                t1 = np.array(self.selector1.get_xdata())[0]
+                t2 = np.array(self.selector2.get_xdata())[0]
+                log_info(f"Выделяем пик между {t1!r} и {t2!r}")
+                peak = self.picked_segment.addPeak(
+                    t1=t1,
+                    t2=t2,
+                    baseline_type=self.combobox_baselinetype.currentIndex(),
+                )
+                self.items.append(peak)
+                self.items.append(peak.ann)
+            else:
+                raise Exception("No picked segment")
         self.spinbox_T1.selector = None
         self.spinbox_T2.selector = None
         self.despawn_selectors()

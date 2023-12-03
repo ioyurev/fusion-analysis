@@ -27,7 +27,8 @@ def _lines_to_df(lines: list[str], sep: str, dec: str) -> tuple[pd.DataFrame, di
             units[param] = UREG.parse_units(unit)
         else:
             params.append(col)
-            units[col] = UREG.dimensionless
+            # Здесь можно было бы использовать UREG.dimensionless, но mypy ругается
+            units[col] = UREG.parse_units("")
     values = []
     for line in lines[1:-1]:
         values.append(line.split(sep))
@@ -38,7 +39,7 @@ def _lines_to_df(lines: list[str], sep: str, dec: str) -> tuple[pd.DataFrame, di
     return df, units
 
 
-def _split_lines(lines) -> tuple[dict, dict, pd.DataFrame]:
+def _split_lines(lines: list[str]) -> tuple[dict, dict, pd.DataFrame]:
     for index, line in enumerate(lines):
         if line.startswith("##"):
             info = _lines_to_infodict(lines[: index - 1])
@@ -54,7 +55,8 @@ def _split_lines(lines) -> tuple[dict, dict, pd.DataFrame]:
             else:
                 raise RuntimeError(f'Разделитель {info["SEPARATOR"]} не распознан.')
             df, units = _lines_to_df(lines[index:], sep, dec)
-            return info, units, df
+            break
+    return info, units, df
 
 
 def data_to_segment(df: pd.DataFrame, hasMassData: bool) -> pd.DataFrame:
@@ -79,7 +81,7 @@ def n2f(filepath) -> MeasurementData:
             segment_df = df[df["Segment"] == segment_num].drop(columns=["Segment"])
             segments.append(data_to_segment(df=segment_df, hasMassData=hasMassData))
     else:
-        segments.append(data_to_segment(df=df, units=units, hasMassData=hasMassData))
+        segments.append(data_to_segment(df=df, hasMassData=hasMassData))
     return MeasurementData(
         info=info, segments=segments, units=units, hasMassData=hasMassData
     )

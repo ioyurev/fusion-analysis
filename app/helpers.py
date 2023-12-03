@@ -66,7 +66,7 @@ def calc_peakonset(
     data_ddta: np.ndarray,
     expr_baseline: Callable,
     is_onset: bool,
-    peak_exo: bool,
+    peak_exo: int,
 ):
     log_info(f"Ищем начало пика между {t1} и {t2}")
     i1 = find_nearest(data_t, t1)

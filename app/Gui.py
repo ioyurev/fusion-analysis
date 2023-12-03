@@ -1,6 +1,7 @@
 from PySide6 import QtWidgets, QtCore, QtGui
 from app.Plotter import Plotter, SegmentDTA, Peak, OnsetLine, MyAnn
 from app.libfusiondata import ThermalType
+from app.libn2f import n2f
 from app.libs2f import s2f
 from app.libc2a import c2a
 
@@ -72,14 +73,13 @@ def layoutSetEnabled(layout: QtWidgets.QLayout, enabled: bool):
 
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
-    def __init__(self, dpi, scale):
+    def __init__(self, dpi: float, scale: float):
         self.list_segments: list[SegmentItem] = []
         log_info("* загрузка интерфейса")
         super().__init__()
         self.setupUi(self)
         self.setWindowIcon(QtGui.QIcon(":/icon.png"))
         self.showMaximized()
-        self.resizeEvent = self.on_resize
 
         # self.config = read_config()
 
@@ -90,6 +90,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.plotter.spinbox_T2 = self.spinbox_T2
         self.plotter.spinbox_onsettool_T1 = self.spinbox_onsettool_T1
         self.plotter.spinbox_onsettool_T2 = self.spinbox_onsettool_T2
+        self.plotter.combobox_xaxis = self.combobox_xaxis
+        self.plotter.combobox_baselinetype = self.combobox_baselinetype
         # self.plotter.config = self.config['Plotter']
         self.plotter.signal_pick.connect(self.on_pick)
         self.plotter.signal_cm.connect(self.cm_popup)
@@ -209,22 +211,18 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def on_treewidget_changed(self, item: SegmentItem | DTAItem | MassItem | TempItem):
         if self.measurement_is_opened and (not self.treewidget_paused):
-            state = item.checkState(0) == QtCore.Qt.Checked
+            state = item.checkState(0) == QtCore.Qt.CheckState.Checked
             if isinstance(item, SegmentItem):
                 update_child_items_state(item)
-                if self.checkbox_autoscale.checkState() == QtCore.Qt.Checked:
+                if self.checkbox_autoscale.checkState() == QtCore.Qt.CheckState.Checked:
                     self.plotter.autoscale(redraw=False)
             else:
                 item.artist.set_visible(state)
             self.plotter.canvas.draw()
 
-    def on_cm_list_segments(self, event: QtGui.QContextMenuEvent):
-        index = self.list_segments.indexAt(event.pos()).row()
-        obj = self.plotter.segments_dta[index]
-        self.cm_popup(obj=obj, pos=event.globalPos())
-
-    def on_resize(self, event):
-        self.plotter.fig.tight_layout()
+    def resizeEvent(self, event):
+        if hasattr(self, "plotter"):
+            self.plotter.fig.tight_layout()
         super().resizeEvent(event)
 
     def on_press_shiftsegment(self, event: QtGui.QMouseEvent):
@@ -238,9 +236,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.plotter.canvas.draw()
             self.press_position = y
 
-    def cm_popup(self, tpl: tuple[SegmentDTA | Peak | OnsetLine, QtCore.QPoint]):
-        obj = tpl[0]
-        pos = tpl[1]
+    def cm_popup(self, tpl):
+        obj: SegmentDTA | Peak | OnsetLine = tpl[0]
+        pos: QtCore.QPoint = tpl[1]
         match obj:
             case SegmentDTA():
                 name = f"Сегмент {obj.index}"
@@ -391,7 +389,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         Parameters:
             mode (int): 0 - измерение Fusion Collection, 1 - измерение Netzsch, 2 - измерение Setaram
         """
-        options = QtWidgets.QFileDialog.Options(0x10)
+        options = QtWidgets.QFileDialog.Option(0x10)
         file_name = ""
 
         if mode == 0:

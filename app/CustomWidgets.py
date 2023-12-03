@@ -1,5 +1,4 @@
 from PySide6 import QtWidgets, QtGui, QtCore
-from app.Plotter import Selector
 from app.Segment import SegmentDTA, Peak, OnsetLine
 from app.PropertiesWindows import (
     SegmentPropetiesWindow,
@@ -7,6 +6,10 @@ from app.PropertiesWindows import (
     OnsetPropertiesWindow,
 )
 from app.libfusiondata import ThermalType
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.Plotter import Selector
 
 
 def update_child_items_state(item: QtWidgets.QTreeWidgetItem):
@@ -21,14 +24,15 @@ def update_child_items_state(item: QtWidgets.QTreeWidgetItem):
 
 
 class MySpinBox(QtWidgets.QDoubleSpinBox):
-    selector: Selector
+    if TYPE_CHECKING:
+        selector: None | "Selector"
 
-    def __init__(self, parent: QtWidgets.QWidget | None = ...) -> None:
+    def __init__(self, parent) -> None:
         super().__init__(parent)
         self.valueChanged.connect(self.handle_value_changed)
 
     def handle_value_changed(self, x: float):
-        if self.isVisible():
+        if self.isVisible() and self.selector:
             self.selector.set_x(x=x, update_spinbox_value=False)
 
     def setValue(self, val: float, block_signal: bool = False):
@@ -41,15 +45,19 @@ class MySpinBox(QtWidgets.QDoubleSpinBox):
 
 
 class RemoveAction(QtGui.QAction):
-    obj: SegmentDTA | Peak | OnsetLine = None
+    obj: SegmentDTA | Peak | OnsetLine | None = None
 
     def __init__(self, parent: QtWidgets.QWidget):
         super().__init__("Удалить", parent)
-        self.triggered.connect(lambda: self.obj.remove(redraw=True))
+        self.triggered.connect(self.remove_object)
+
+    def remove_object(self):
+        if self.obj:
+            self.obj.remove(redraw=True)
 
 
 class PropertiesAction(QtGui.QAction):
-    obj: SegmentDTA | Peak | OnsetLine = None
+    obj: SegmentDTA | Peak | OnsetLine | None = None
     signal_prop_applied = QtCore.Signal()
 
     def __init__(self, parent: QtWidgets.QWidget):
@@ -61,7 +69,10 @@ class PropertiesAction(QtGui.QAction):
             case SegmentDTA():
                 w = SegmentPropetiesWindow(self.obj)
                 result = w.exec()
-                if result == QtWidgets.QDialog.Accepted and w.changes_are_made:
+                if (
+                    result == QtWidgets.QDialog.DialogCode.Accepted
+                    and w.changes_are_made
+                ):
                     self.obj.set_color(
                         (
                             w.color.red() / 255,
@@ -70,7 +81,7 @@ class PropertiesAction(QtGui.QAction):
                         )
                     )
                     self.signal_prop_applied.emit()
-                elif result == QtWidgets.QDialog.Rejected:
+                elif result == QtWidgets.QDialog.DialogCode.Rejected:
                     pass
                 else:
                     raise RuntimeError("Непрерудсмотренное значение")
@@ -78,7 +89,10 @@ class PropertiesAction(QtGui.QAction):
                 w = PeakPropertiesWindow(self.obj)
                 w.checkbox_label.setChecked(self.obj.label_enabled)
                 result = w.exec()
-                if result == QtWidgets.QDialog.Accepted and w.changes_are_made:
+                if (
+                    result == QtWidgets.QDialog.DialogCode.Accepted
+                    and w.changes_are_made
+                ):
                     self.obj.label_enabled = w.checkbox_label.isChecked()
                     if self.obj.label_enabled:
                         label = "Площадь: "
@@ -86,12 +100,15 @@ class PropertiesAction(QtGui.QAction):
                         label = ""
                     self.obj.ann.set_text(f"{label}{self.obj.area}")
                     self.signal_prop_applied.emit()
-                elif result == QtWidgets.QDialog.Rejected:
+                elif result == QtWidgets.QDialog.DialogCode.Rejected:
                     pass
             case OnsetLine():
                 w = OnsetPropertiesWindow(onsetline=self.obj)
                 result = w.exec()
-                if result == QtWidgets.QDialog.Accepted and w.changes_are_made:
+                if (
+                    result == QtWidgets.QDialog.DialogCode.Accepted
+                    and w.changes_are_made
+                ):
                     if self.obj.label_enabled:
                         label = f"{self.obj.t}: "
                     else:
@@ -114,13 +131,13 @@ class PropertiesAction(QtGui.QAction):
                         label_dta = ""
                     self.obj.ann.set_text(f"{label}{label_time}{label_temp}{label_dta}")
                     self.signal_prop_applied.emit()
-                elif result == QtWidgets.QDialog.Rejected:
+                elif result == QtWidgets.QDialog.DialogCode.Rejected:
                     pass
         del w
 
 
 class SegmentItem(QtWidgets.QTreeWidgetItem):
-    def __init__(self, parent: QtWidgets.QListWidget, artist: SegmentDTA):
+    def __init__(self, parent, artist: SegmentDTA):
         super().__init__(parent)
         self.artist = artist
         if artist.thermal_type == ThermalType.HEAT:
@@ -139,7 +156,7 @@ class DTAItem(QtWidgets.QTreeWidgetItem):
     def __init__(self, parent: SegmentItem):
         super().__init__(parent)
         self.setText(0, "DTA")
-        self.setCheckState(0, QtCore.Qt.Checked)
+        self.setCheckState(0, QtCore.Qt.CheckState.Checked)
         self.artist = parent.artist
 
 
@@ -147,7 +164,7 @@ class MassItem(QtWidgets.QTreeWidgetItem):
     def __init__(self, parent: SegmentItem):
         super().__init__(parent)
         self.setText(0, "Mass")
-        self.setCheckState(0, QtCore.Qt.Checked)
+        self.setCheckState(0, QtCore.Qt.CheckState.Checked)
         self.artist = parent.artist.mass_segment
 
 
@@ -155,5 +172,5 @@ class TempItem(QtWidgets.QTreeWidgetItem):
     def __init__(self, parent: SegmentItem):
         super().__init__(parent)
         self.setText(0, "Temp.")
-        self.setCheckState(0, QtCore.Qt.Checked)
+        self.setCheckState(0, QtCore.Qt.CheckState.Checked)
         self.artist = parent.artist.temp_segment

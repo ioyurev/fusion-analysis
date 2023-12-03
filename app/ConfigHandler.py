@@ -49,4 +49,4 @@ def write_config(dct: dict):
     with open(DEFAULT_CONFIG_PATH, "w") as f:
         config.write(f)
     log_info(f"* записан конфиг файл {DEFAULT_CONFIG_PATH}")
-    log_info(dct)
+    log_info(dct.__repr__())

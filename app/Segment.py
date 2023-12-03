@@ -1,4 +1,3 @@
-from numpy.typing import ArrayLike
 from app.helpers import (
     find_nearest,
     make_peakbaseline,
@@ -15,9 +14,15 @@ from matplotlib.patches import Polygon
 from matplotlib.text import Annotation
 from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
+from matplotlib.axes._base import _AxesBase
 import pandas as pd
 from app.libn2f import UREG
 from PySide6 import QtCore
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.Plotter import Plotter
+
 
 PATH_EFFECT = [
     path_effects.Stroke(linewidth=2, foreground="black"),
@@ -27,18 +32,16 @@ LW = 0.5
 
 
 class Segment(Line2D):
-    ax: Axes
+    ax: Axes | _AxesBase
 
     def __init__(
         self,
         df: pd.DataFrame,
-        plotter,
+        plotter: "Plotter",
         index: int,
         thermal_type: int,
         color,
-        mode: bool,
-        *args,
-        **kwargs,
+        mode: int,
     ):
         """
         mode: 0 - DTA, 1 - temp, 2 - mass
@@ -47,18 +50,18 @@ class Segment(Line2D):
         self.df = df
         self.thermal_type = thermal_type
         self.index = index
-        xdata = self.df["Time"].values
+        xdata = self.df["Time"].to_numpy()
         if mode == 0:
-            ydata = self.df["DTA"].values
+            ydata = self.df["DTA"].to_numpy()
             self.ax = plotter.ax
         elif mode == 2:
-            ydata = self.df["Mass"].values
-            self.ax = plotter.ax2
+            ydata = self.df["Mass"].to_numpy()
+            self.ax = plotter.ax_mass
         self.xmax = float(xdata.max())
         self.xmin = float(xdata.min())
         self.ymax = float(ydata.max())
         self.ymin = float(ydata.min())
-        super().__init__(xdata=xdata, ydata=ydata, color=color, lw=LW, *args, **kwargs)
+        super().__init__(xdata=xdata, ydata=ydata, color=color, lw=LW)
         self.set_picker(5)
         self.set_antialiased(False)
 
@@ -68,8 +71,8 @@ class Segment(Line2D):
 
     def set_axes(self, xaxis: str, yaxis: str):
         self.xaxis = xaxis
-        xdata = self.df[xaxis].values
-        ydata = self.df[yaxis].values
+        xdata = self.df[xaxis].to_numpy()
+        ydata = self.df[yaxis].to_numpy()
         self.xmax = float(xdata.max())
         self.xmin = float(xdata.min())
         self.ymax = float(ydata.max())
@@ -84,19 +87,17 @@ class Segment(Line2D):
 
 
 class SegmentMass(Line2D):
-    def __init__(self, xdata: pd.Series, ydata: pd.Series, *args, **kwargs):
+    def __init__(self, xdata: pd.Series, ydata: pd.Series):
         self.xmax = xdata.max()
         self.xmin = xdata.min()
         self.ymax = ydata.max()
         self.ymin = ydata.min()
-        super().__init__(
-            xdata=xdata, ydata=ydata, color="green", lw=LW, *args, **kwargs
-        )
+        super().__init__(xdata=xdata, ydata=ydata, color="green", lw=LW)
         self.set_antialiased(False)
 
-    def set_xdata(self, x: ArrayLike) -> None:
-        self.xmin = x.min()
-        self.xmax = x.max()
+    def set_xdata(self, x) -> None:
+        self.xmin = min(x)
+        self.xmax = max(x)
         return super().set_xdata(x)
 
 
@@ -109,8 +110,6 @@ class SegmentDTA(Segment, QtCore.QObject):
         thermal_type: int,
         color,
         temp_axis="Temp.",
-        *args,
-        **kwargs,
     ):
         self.temp_axis = temp_axis
         df["dDTA/dTime"] = derivative_data(df["Time"].to_numpy(), df["DTA"].to_numpy())
@@ -131,8 +130,6 @@ class SegmentDTA(Segment, QtCore.QObject):
             thermal_type=thermal_type,
             color=color,
             mode=0,
-            *args,
-            **kwargs,
         )
         self.dy: float = 0
 
@@ -166,7 +163,6 @@ class SegmentDTA(Segment, QtCore.QObject):
                 peak.shifty(dy / 10)
 
     def peaksSetData(self, xaxis):
-        peak: Peak
         for peak in self.peaks:
             peak.set_data(xaxis=xaxis)
 
@@ -183,9 +179,9 @@ class SegmentDTA(Segment, QtCore.QObject):
 
     def set_axes(self, xaxis: str, yaxis: str):
         super().set_axes(xaxis=xaxis, yaxis=yaxis)
-        self.dsegment.set_xdata(self.df[xaxis].values)
+        self.dsegment.set_xdata(self.df[xaxis].to_numpy())
         if self.has_massdata:
-            self.mass_segment.set_xdata(self.df[xaxis].values)
+            self.mass_segment.set_xdata(self.df[xaxis].to_numpy())
         self.dy = 0
 
     def addPeak(self, t1: float, t2: float, baseline_type: int):
@@ -206,12 +202,14 @@ class SegmentDTA(Segment, QtCore.QObject):
                 peak.set_edgecolor(color)
         return super().set_color(color)
 
-    def remove(self) -> None:
+    def remove(self, redraw=False) -> None:
         self.dsegment.remove()
         self.temp_segment.remove()
         if self.has_massdata:
             self.mass_segment.remove()
         self.plotter.on_remove()
+        if redraw:
+            self.plotter.canvas.draw_idle()
         return super().remove()
 
 
@@ -224,9 +222,9 @@ class SegmentDDTA(Line2D):
         super().__init__(xdata=xdata, ydata=ydata, color="black", lw=1, linestyle="--")
         self.set_antialiased(False)
 
-    def set_xdata(self, x: ArrayLike) -> None:
-        self.xmin = x.min()
-        self.xmax = x.max()
+    def set_xdata(self, x) -> None:
+        self.xmin = min(x)
+        self.xmax = max(x)
         return super().set_xdata(x)
 
 
@@ -309,7 +307,7 @@ class Peak(Polygon):
         super().__init__(
             self.get_data_by_xaxis("Time"),
             hatch="//",
-            edgecolor=self.segment._color,
+            edgecolor=self.segment.get_color(),
             facecolor="none",
             lw=LW,
             *args,
@@ -335,10 +333,6 @@ class Peak(Polygon):
             text=f'Площадь: {str(self.area).replace(" / ", "/")}',
             xy=xy,
             xytext=(0, self.df_baseline["DTA"][self.anni]),
-            color=self.segment._color,
-            arrowprops=dict(
-                arrowstyle="-", color=self.segment._color, antialiased=False, lw=LW
-            ),
         )
         self.ax.add_artist(self.ann)
         self.set_data(xaxis)
@@ -347,8 +341,8 @@ class Peak(Polygon):
     def shifty(self, dy: float):
         if dy != 0:
             self.set_xy([(x, y - dy) for x, y in self.get_xy()])
-            self.ann.shifty(dy)
-            line: OnsetLine
+            if self.ann:
+                self.ann.shifty(dy)
             if self.onset_lines:
                 for line in self.onset_lines:
                     line.shifty(dy)
@@ -357,23 +351,21 @@ class Peak(Polygon):
         xaxis = self.segment.xaxis
         if xaxis == "Time":
             baseline_expr = self.baseline_time_expr
-            data_ddta = self.df["dDTA/dTime"].values
+            data_ddta = self.df["dDTA/dTime"].to_numpy()
         elif xaxis == self.temp_axis:
             baseline_expr = self.baseline_temp_expr
-            data_ddta = self.df[f"dDTA/d{self.temp_axis}"].values
+            data_ddta = self.df[f"dDTA/d{self.temp_axis}"].to_numpy()
         ci, bi = calc_peakonset(
             t1=t1,
             t2=t2,
-            data_t=self.df[xaxis].values,
-            data_dta=self.df["DTA"].values,
+            data_t=self.df[xaxis].to_numpy(),
+            data_dta=self.df["DTA"].to_numpy(),
             data_ddta=data_ddta,
             expr_baseline=baseline_expr,
             is_onset=is_onset,
             peak_exo=self.peak_exo,
         )
-        line = OnsetLine(
-            peak=self, ci=ci, bi=bi, color=self.segment._color, is_onset=is_onset
-        )
+        line = OnsetLine(peak=self, ci=ci, bi=bi, is_onset=is_onset)
         self.onset_lines.append(line)
         self.ax.add_line(self.onset_lines[-1])
         return line
@@ -382,7 +374,8 @@ class Peak(Polygon):
         self.segment.peaks.remove(self)
         self.segment.plotter.items.remove(self)
         self.segment.plotter.items.remove(self.ann)
-        self.ann.remove()
+        if self.ann:
+            self.ann.remove()
         for line in self.onset_lines:
             line.remove(exclude_from_list=False)
         self.onset_lines = []
@@ -402,7 +395,8 @@ class Peak(Polygon):
 
     def set_visible(self, b: bool) -> None:
         self.set_picker(5 if b else b)
-        self.ann.set_visible(b)
+        if self.ann:
+            self.ann.set_visible(b)
         if self.onset_lines:
             for line in self.onset_lines:
                 line.set_visible(b)
@@ -413,7 +407,6 @@ class Peak(Polygon):
         self.set_xy(self.get_data_by_xaxis())
         self.ann.updateXdata(xaxis)
         # self.ann.xy = (self.df_baseline[xaxis][self.anni], self.ann.xy[1])
-        line: OnsetLine
         if self.onset_lines:
             for line in self.onset_lines:
                 line.updateXdata(xaxis)
@@ -436,9 +429,7 @@ class Peak(Polygon):
 
 
 class OnsetLine(Line2D):
-    def __init__(
-        self, peak: Peak, ci: int, bi: int, is_onset: bool, *args, **kwargs
-    ) -> None:
+    def __init__(self, peak: Peak, ci: int, bi: int, is_onset: bool) -> None:
         self.peak = peak
         self.temp_axis = peak.temp_axis
         self.label_enabled = True
@@ -463,22 +454,20 @@ class OnsetLine(Line2D):
         xdata = [self.info[xaxis], self.peak.df[xaxis][ci]]
         ydata = [self.info["DTA"], self.peak.df["DTA"][ci]]
 
-        xy = [xdata[0], ydata[0]]
+        xy = (xdata[0], ydata[0])
         if is_onset:
             self.t = "Начало"
         else:
             self.t = "Конец"
+        super().__init__(
+            xdata=xdata, ydata=ydata, lw=LW, color=self.peak.segment.get_color()
+        )
         self.ann = MyAnn(
             parent=self,
             text=f"{self.t}: {self.info[xaxis]} {self.units[xaxis]}",
             xy=xy,
             xytext=xy,
-            color=self.peak.segment._color,
-            arrowprops=dict(
-                arrowstyle="-", color=self.peak.segment._color, antialiased=False, lw=LW
-            ),
         )
-        super().__init__(xdata=xdata, ydata=ydata, lw=LW, *args, **kwargs)
         self.set_antialiased(False)
         self.peak.segment.plotter.ax.add_artist(self.ann)
         self.shifty(self.peak.segment.dy)
@@ -513,14 +502,32 @@ class OnsetLine(Line2D):
             self.peak.segment.plotter.canvas.draw_idle()
 
     def set_color(self, color) -> None:
-        self.ann.set_color(color)
+        if hasattr(self, "ann"):
+            self.ann.set_color(color)
         return super().set_color(color)
 
 
 class MyAnn(Annotation):
-    def __init__(self, parent, *args, **kwargs) -> None:
-        self.parent: Peak | OnsetLine = parent
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self, parent: Peak | OnsetLine, text: str, xy: tuple, xytext: tuple
+    ) -> None:
+        self.parent = parent
+        match parent:
+            case Peak():
+                color = parent.segment.get_color()
+            case OnsetLine():
+                color = parent.peak.segment.get_color()
+            case _:
+                raise RuntimeError(
+                    f"Не предусмотренный родительский класс {parent.__class__.__name__}"
+                )
+        super().__init__(
+            xy=xy,
+            xytext=xytext,
+            text=text,
+            color=color,
+            arrowprops=dict(arrowstyle="-", color=color, antialiased=False, lw=LW),
+        )
         self.set_picker(5)
 
     def shifty(self, dy):
@@ -543,5 +550,6 @@ class MyAnn(Annotation):
         self.xy = (xb, self.xy[1])
 
     def set_color(self, color) -> None:
-        self.arrow_patch.set_color(color)
+        if self.arrow_patch:
+            self.arrow_patch.set_color(color)
         return super().set_color(color)
