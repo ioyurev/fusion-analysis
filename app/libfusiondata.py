@@ -1,8 +1,11 @@
 import pandas as pd
+from enum import Enum
 
-TYPE_ISOTHERMAL = 2
-TYPE_HEAT = 1
-TYPE_COOL = 0
+
+class ThermalType(Enum):
+    COOL = 0
+    HEAT = 1
+    ISOTHERMAL = 2
 
 
 class MeasurementData:

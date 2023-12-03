@@ -34,7 +34,7 @@ class Segment(Line2D):
         df: pd.DataFrame,
         plotter,
         index: int,
-        Type: int,
+        thermal_type: int,
         color,
         mode: bool,
         *args,
@@ -45,7 +45,7 @@ class Segment(Line2D):
         """
         self.plotter = plotter
         self.df = df
-        self.Type = Type
+        self.thermal_type = thermal_type
         self.index = index
         xdata = self.df["Time"].values
         if mode == 0:
@@ -106,7 +106,7 @@ class SegmentDTA(Segment, QtCore.QObject):
         df: pd.DataFrame,
         plotter,
         index: int,
-        Type: int,
+        thermal_type: int,
         color,
         temp_axis="Temp.",
         *args,
@@ -128,7 +128,7 @@ class SegmentDTA(Segment, QtCore.QObject):
             df=df,
             plotter=plotter,
             index=index,
-            Type=Type,
+            thermal_type=thermal_type,
             color=color,
             mode=0,
             *args,
@@ -144,7 +144,7 @@ class SegmentDTA(Segment, QtCore.QObject):
             df=df1,
             plotter=self.plotter,
             index=self.index,
-            Type=self.Type,
+            thermal_type=self.thermal_type,
             color="blue",
             temp_axis=self.temp_axis,
         )
@@ -152,7 +152,7 @@ class SegmentDTA(Segment, QtCore.QObject):
             df=df2,
             plotter=self.plotter,
             index=self.index + 1,
-            Type=self.Type,
+            thermal_type=self.thermal_type,
             color="blue",
             temp_axis=self.temp_axis,
         )

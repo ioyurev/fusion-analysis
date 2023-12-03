@@ -411,12 +411,14 @@ class Plotter(QtCore.QObject):
         self.signal_pick.emit(item)
         self.canvas.draw()
 
-    def addSegment(self, df: pd.DataFrame, index: int, Type: int, temp_axis: str):
+    def addSegment(
+        self, df: pd.DataFrame, index: int, thermal_type: int, temp_axis: str
+    ):
         segment = SegmentDTA(
             df=df,
             plotter=self,
             index=index,
-            Type=Type,
+            thermal_type=thermal_type,
             color="blue",
             temp_axis=temp_axis,
         )

@@ -6,7 +6,7 @@ from app.PropertiesWindows import (
     PeakPropertiesWindow,
     OnsetPropertiesWindow,
 )
-from app.libn2f import TYPE_HEAT, TYPE_COOL, TYPE_ISOTHERMAL
+from app.libfusiondata import ThermalType
 
 
 def update_child_items_state(item: QtWidgets.QTreeWidgetItem):
@@ -123,13 +123,13 @@ class SegmentItem(QtWidgets.QTreeWidgetItem):
     def __init__(self, parent: QtWidgets.QListWidget, artist: SegmentDTA):
         super().__init__(parent)
         self.artist = artist
-        if artist.Type == TYPE_HEAT:
+        if artist.thermal_type == ThermalType.HEAT:
             self.setIcon(0, QtGui.QIcon(":/icon_heat.png"))
-        elif artist.Type == TYPE_COOL:
+        elif artist.thermal_type == ThermalType.COOL:
             self.setIcon(0, QtGui.QIcon(":/icon_cool.png"))
-        elif artist.Type == TYPE_ISOTHERMAL:
+        elif artist.thermal_type == ThermalType.ISOTHERMAL:
             self.setIcon(0, QtGui.QIcon(":/icon_isothermal.png"))
-        self.setCheckState(0, QtCore.Qt.Checked)
+        self.setCheckState(0, QtCore.Qt.CheckState.Checked)
         t1 = round(artist.df[artist.temp_axis].values[0])
         t2 = round(artist.df[artist.temp_axis].values[-1])
         self.setText(0, f"{t1} - {t2}")

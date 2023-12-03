@@ -1,6 +1,6 @@
 from PySide6 import QtWidgets, QtCore, QtGui
 from app.Plotter import Plotter, SegmentDTA, Peak, OnsetLine, MyAnn
-from app.libn2f import n2f, TYPE_HEAT, TYPE_COOL, TYPE_ISOTHERMAL
+from app.libfusiondata import ThermalType
 from app.libs2f import s2f
 from app.libc2a import c2a
 
@@ -447,13 +447,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             t1 = round(df[string].values[0])
             t2 = round(df[string].values[-1])
             if t2 > t1:
-                Type = TYPE_HEAT
+                thermal_type = ThermalType.HEAT
             elif t2 < t1:
-                Type = TYPE_COOL
+                thermal_type = ThermalType.COOL
             elif t2 == t1:
-                Type = TYPE_ISOTHERMAL
+                thermal_type = ThermalType.ISOTHERMAL
             artist = self.plotter.addSegment(
-                df=df, index=index, Type=Type, temp_axis=string
+                df=df, index=index, thermal_type=thermal_type, temp_axis=string
             )
             artists.append(artist)
         self.treewidget_handler.init(
