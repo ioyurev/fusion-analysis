@@ -9,9 +9,8 @@ def apply_calibration(data: Data, df: pd.DataFrame):
     yn_sens = np.poly1d(data.cal.coeff_sens)
     df["Temp."] = yn_temp(data.df[HEADER_T1].values)
     df["Sens."] = yn_sens(data.df["Temp."].values)
-    df["DTA"] = (data.df[HEADER_T2].values - data.df[HEADER_T1].values) * df[
-        "Sens."
-    ].values
+    dt = data.df[HEADER_T2].values - data.df[HEADER_T1].values
+    df["DTA"] = dt / df["Sens."].values
 
 
 def c2a(path: str) -> MeasurementData:
