@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import pint
-from app.libfusiondata import MeasurementData
+from fusion_analysis.libfusiondata import MeasurementData
 
 UREG: pint.UnitRegistry = pint.UnitRegistry()
 UREG.default_format = "~"

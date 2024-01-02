@@ -1,4 +1,4 @@
-from app.helpers import (
+from fusion_analysis.helpers import (
     find_nearest,
     make_peakbaseline,
     np,
@@ -16,12 +16,12 @@ from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
 from matplotlib.axes._base import _AxesBase
 import pandas as pd
-from app.libn2f import UREG
+from fusion_analysis.libn2f import UREG
 from PySide6 import QtCore
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.Plotter import Plotter
+    from fusion_analysis.Plotter import Plotter
 
 
 PATH_EFFECT = [

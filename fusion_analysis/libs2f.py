@@ -1,4 +1,4 @@
-from app.libfusiondata import MeasurementData
+from fusion_analysis.libfusiondata import MeasurementData
 import pandas as pd
 import pint
 

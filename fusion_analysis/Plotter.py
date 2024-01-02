@@ -1,5 +1,5 @@
 from PySide6 import QtCore, QtWidgets
-from app.Segment import (
+from fusion_analysis.Segment import (
     SegmentDTA,
     SegmentDDTA,
     SegmentTemp,
@@ -19,8 +19,8 @@ from matplotlib.backends.backend_qt5agg import (
 from matplotlib.backend_bases import MouseEvent
 import itertools
 import pandas as pd
-from app.helpers import find_nearest, log_info
-from app.CustomWidgets import MySpinBox
+from fusion_analysis.helpers import find_nearest, log_info
+from fusion_analysis.CustomWidgets import MySpinBox
 import numpy as np
 
 colors = itertools.cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])

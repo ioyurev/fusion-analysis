@@ -1,13 +1,13 @@
 from PySide6 import QtWidgets, QtCore, QtGui
-from app.Plotter import Plotter, SegmentDTA, Peak, OnsetLine, MyAnn
-from app.libfusiondata import ThermalType
-from app.libn2f import n2f
-from app.libs2f import s2f
-from app.libc2a import c2a
+from fusion_analysis.Plotter import Plotter, SegmentDTA, Peak, OnsetLine, MyAnn
+from fusion_analysis.libfusiondata import ThermalType
+from fusion_analysis.libn2f import n2f
+from fusion_analysis.libs2f import s2f
+from fusion_analysis.libc2a import c2a
 
 # from ConfigHandler import read_config, write_config
-from app.ConfigWindow import ConfigWindow
-from app.CustomWidgets import (
+from fusion_analysis.ConfigWindow import ConfigWindow
+from fusion_analysis.CustomWidgets import (
     RemoveAction,
     PropertiesAction,
     SegmentItem,
@@ -17,9 +17,9 @@ from app.CustomWidgets import (
     update_child_items_state,
 )
 from data_file.DataFile import pick_open_path
-from app.helpers import warning_message, error_message, log_info
+from fusion_analysis.helpers import warning_message, error_message, log_info
 from ui.MainWindow import Ui_MainWindow
-from app.AboutWindow import show_about
+from fusion_analysis.AboutWindow import show_about
 
 
 class TreeWidgetHandler(QtCore.QObject):

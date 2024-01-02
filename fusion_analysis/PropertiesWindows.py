@@ -1,5 +1,5 @@
 from PySide6 import QtWidgets, QtGui
-from app.Segment import SegmentDTA, Peak, OnsetLine
+from fusion_analysis.Segment import SegmentDTA, Peak, OnsetLine
 from matplotlib.colors import to_hex
 from ui.OnsetProperties import Ui_Dialog as Ui_OnsetDialog
 from ui.PeakProperties import Ui_Dialog as Ui_PeakDialog

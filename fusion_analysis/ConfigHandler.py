@@ -1,6 +1,6 @@
 import configparser
 import os
-from app.helpers import log_info
+from fusion_analysis.helpers import log_info
 
 _TRUE_STR = "True"
 DEFAULT_CONFIG_PATH = os.path.abspath("config.ini")

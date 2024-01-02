@@ -1,7 +1,7 @@
 import os
 import sys
 from PySide6 import QtWidgets, QtGui
-from app.Gui import MainWindow
+from fusion_analysis.Gui import MainWindow
 import warnings
 import logging
 import datetime

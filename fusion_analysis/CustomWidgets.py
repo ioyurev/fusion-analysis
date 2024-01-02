@@ -1,15 +1,15 @@
 from PySide6 import QtWidgets, QtGui, QtCore
-from app.Segment import SegmentDTA, Peak, OnsetLine
-from app.PropertiesWindows import (
+from fusion_analysis.Segment import SegmentDTA, Peak, OnsetLine
+from fusion_analysis.PropertiesWindows import (
     SegmentPropetiesWindow,
     PeakPropertiesWindow,
     OnsetPropertiesWindow,
 )
-from app.libfusiondata import ThermalType
+from fusion_analysis.libfusiondata import ThermalType
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.Plotter import Selector
+    from fusion_analysis.Plotter import Selector
 
 
 def update_child_items_state(item: QtWidgets.QTreeWidgetItem):
