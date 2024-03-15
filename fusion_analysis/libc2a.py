@@ -1,5 +1,11 @@
 from fusion_analysis.libfusiondata import MeasurementData
-from data_file.DataFile import file_to_data, HEADER_TIME, HEADER_T1, HEADER_T2, Data
+from fusion_analysis.DataFile import (
+    file_to_data,
+    HEADER_TIME,
+    HEADER_T1,
+    HEADER_T2,
+    Data,
+)
 import pandas as pd
 import numpy as np
 
