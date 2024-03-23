@@ -1,5 +1,5 @@
-from __version__ import VERSION
-from __hash__ import HASH
+from fusion_analysis.__version__ import VERSION
+from fusion_analysis.ui.__hash__ import HASH
 
 
 v = list([int(x) for x in VERSION.split(".")])

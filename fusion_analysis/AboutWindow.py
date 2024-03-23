@@ -1,11 +1,12 @@
 from PySide6 import QtWidgets, QtGui, QtCore
-from __version__ import VERSION
-from __hash__ import HASH
+from fusion_analysis.__version__ import VERSION
+from fusion_analysis.ui.__hash__ import HASH
 
 
-TEXT = (f"Fussion Analysis {VERSION}<br>"
-+ f'commit: <a href="https://gitflic.ru/project/i-o-yurev/fusion-analysis/commit/{HASH}">{HASH}</a><br>'
-+ """
+TEXT = (
+    f"Fussion Analysis {VERSION}<br>"
+    + f'commit: <a href="https://gitflic.ru/project/i-o-yurev/fusion-analysis/commit/{HASH}">{HASH}</a><br>'
+    + """
 <br>
 Программа для анализа измерений термического анализа<br>
 Автор: Юрьев И.О<br>
@@ -13,7 +14,8 @@ i.o.yurev@yandex.ru<br>
 Тюмень, 2023 г.<br>
 <br>
 <a href=\"https://www.flaticon.com/free-icons/melt\">Melt icon created by Vitaly Gorbachev - Flaticon</a>
-""")
+"""
+)
 
 
 class AboutWindow(QtWidgets.QDialog):

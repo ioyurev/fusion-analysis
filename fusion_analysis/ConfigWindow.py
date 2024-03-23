@@ -1,5 +1,5 @@
 from PySide6 import QtWidgets, QtGui
-from ui.Config import Ui_Dialog
+from .ui.Config import Ui_Dialog
 
 
 class ConfigWindow(QtWidgets.QDialog, Ui_Dialog):

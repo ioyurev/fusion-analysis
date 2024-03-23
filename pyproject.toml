@@ -34,7 +34,7 @@ tag_format = "$version"
 version_scheme = "semver"
 version = "0.0.1"
 version_files = [
-    "__version__.py",
+    "fusion-analysis/__version__.py",
     "pyproject.toml:version"
     ]
 update_changelog_on_bump = true

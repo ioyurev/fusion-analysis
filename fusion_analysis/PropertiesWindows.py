@@ -1,9 +1,9 @@
 from PySide6 import QtWidgets, QtGui
 from fusion_analysis.Segment import SegmentDTA, Peak, OnsetLine
 from matplotlib.colors import to_hex
-from ui.OnsetProperties import Ui_Dialog as Ui_OnsetDialog
-from ui.PeakProperties import Ui_Dialog as Ui_PeakDialog
-from ui.SegmentProperties import Ui_Dialog as Ui_SegmentDialog
+from .ui.OnsetProperties import Ui_Dialog as Ui_OnsetDialog
+from .ui.PeakProperties import Ui_Dialog as Ui_PeakDialog
+from .ui.SegmentProperties import Ui_Dialog as Ui_SegmentDialog
 
 
 class SegmentPropetiesWindow(QtWidgets.QDialog, Ui_SegmentDialog):

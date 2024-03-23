@@ -18,7 +18,7 @@ from fusion_analysis.CustomWidgets import (
 )
 from fusion_analysis.DataFile import pick_open_path
 from fusion_analysis.helpers import warning_message, error_message, log_info
-from ui.MainWindow import Ui_MainWindow
+from .ui.MainWindow import Ui_MainWindow
 from fusion_analysis.AboutWindow import show_about
 
 

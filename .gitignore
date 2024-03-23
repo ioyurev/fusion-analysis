@@ -5,6 +5,4 @@ deployment
 test.py
 pyinstaller
 logs
-ui/*.py
-resources_rc.py
-__hash__.py
+fusion_analysis/ui/*.py

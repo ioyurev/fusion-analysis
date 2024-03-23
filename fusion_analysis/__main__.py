@@ -5,6 +5,7 @@ from fusion_analysis.Gui import MainWindow
 import warnings
 import logging
 import datetime
+import fusion_analysis.ui.resources_rc  # noqa: F401
 
 
 def run():
@@ -39,3 +40,7 @@ def run():
     form = MainWindow(dpi=dpi, scale=scale)
     form.show()
     sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    run()
