@@ -1,14 +1,14 @@
-import os
 import sys
-from PySide6 import QtWidgets, QtGui
-from fusion_analysis.Gui import MainWindow
 import warnings
-import logging
-import datetime
+
+from loguru import logger as log
+from PySide6 import QtGui, QtWidgets
+
 import fusion_analysis.ui.resources_rc  # noqa: F401
+from fusion_analysis.Gui import MainWindow
 
 
-def run():
+def main():
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         try:
             import pyi_splash
@@ -21,18 +21,6 @@ def run():
     warnings.filterwarnings(
         "ignore", category=UserWarning, message="The figure layout has changed to tight"
     )
-
-    log_file = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.log")
-    logs_folder = f"{os.path.dirname(sys.argv[0])}\\logs"
-    if not os.path.exists(logs_folder):
-        os.makedirs(logs_folder)
-    logging.basicConfig(
-        level=logging.INFO,
-        filename=f"{logs_folder}\\{log_file}",
-        filemode="w",
-        format="%(asctime)s %(levelname)s %(message)s",
-    )
-
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle("Fusion")
     scale = QtGui.QWindow().devicePixelRatio()
@@ -43,4 +31,5 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    log.add("logs/{time}.log")
+    main()

@@ -1,25 +1,28 @@
-from PySide6 import QtWidgets, QtCore, QtGui
-from fusion_analysis.Plotter import Plotter, SegmentDTA, Peak, OnsetLine, MyAnn
-from fusion_analysis.libfusiondata import ThermalType
-from fusion_analysis.libn2f import n2f
-from fusion_analysis.libs2f import s2f
-from fusion_analysis.libc2a import c2a
+from loguru import logger as log
+from PySide6 import QtCore, QtGui, QtWidgets
+
+from fusion_analysis.AboutWindow import show_about
 
 # from ConfigHandler import read_config, write_config
 from fusion_analysis.ConfigWindow import ConfigWindow
 from fusion_analysis.CustomWidgets import (
-    RemoveAction,
-    PropertiesAction,
-    SegmentItem,
     DTAItem,
     MassItem,
+    PropertiesAction,
+    RemoveAction,
+    SegmentItem,
     TempItem,
     update_child_items_state,
 )
 from fusion_analysis.DataFile import pick_open_path
-from fusion_analysis.helpers import warning_message, error_message, log_info
+from fusion_analysis.helpers import error_message, warning_message
+from fusion_analysis.libc2a import c2a
+from fusion_analysis.libfusiondata import ThermalType
+from fusion_analysis.libn2f import n2f
+from fusion_analysis.libs2f import s2f
+from fusion_analysis.Plotter import MyAnn, OnsetLine, Peak, Plotter, SegmentDTA
+
 from .ui.MainWindow import Ui_MainWindow
-from fusion_analysis.AboutWindow import show_about
 
 
 class TreeWidgetHandler(QtCore.QObject):
@@ -61,7 +64,7 @@ def ask_mass():
         mass, ok = QtWidgets.QInputDialog.getDouble(
             None, "Введите массу", "Масса, мг:", decimals=1
         )
-    log_info(f"* Введенная масса: {mass}")
+    log.info(f"* Введенная масса: {mass}")
     return mass
 
 
@@ -75,7 +78,7 @@ def layoutSetEnabled(layout: QtWidgets.QLayout, enabled: bool):
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, dpi: float, scale: float):
         self.list_segments: list[SegmentItem] = []
-        log_info("* загрузка интерфейса")
+        log.info("* загрузка интерфейса")
         super().__init__()
         self.setupUi(self)
         self.setWindowIcon(QtGui.QIcon(":/icon.png"))
@@ -394,7 +397,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         if mode == 0:
             file_name = pick_open_path()
-            log_info("* импорт измерения Fusion Collection")
+            log.info("* импорт измерения Fusion Collection")
         elif mode in (1, 2):
             file_name, _ = QtWidgets.QFileDialog.getOpenFileName(
                 self,
@@ -404,9 +407,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 options=options,
             )
             if mode == 1:
-                log_info("* импорт измерения Netzsch")
+                log.info("* импорт измерения Netzsch")
             else:
-                log_info("* импорт измерения Setaram")
+                log.info("* импорт измерения Setaram")
 
         if file_name == "":
             return
@@ -421,7 +424,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         except Exception as e:
             error_message("Не удалось открыть измерение")
             raise e
-        log_info(f"* открыт файл {file_name}")
+        log.info(f"* открыт файл {file_name}")
         self.init_measurement()
 
     def init_measurement(self):

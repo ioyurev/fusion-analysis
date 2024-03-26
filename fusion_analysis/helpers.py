@@ -1,35 +1,19 @@
-from PySide6 import QtWidgets
-import numpy as np
-from typing import Callable
 import math
-import logging
+from typing import Callable
+
+import numpy as np
+from loguru import logger as log
+from PySide6 import QtWidgets
 
 LINEAR_TYPE = 0
 BEZIER_TYPE = 1
 
 
-def log_critical(message: str):
-    print(f"CRTICALL: {message}")
-    logging.critical(f"{message}")
-
-
-def log_warning(message: str):
-    print(f"WARNING: {message}")
-    logging.warning(f"{message}")
-
-
-def log_info(message: str):
-    print(f"INFO: {message}")
-    logging.info(f"{message}")
-
-
 def error_message(message):
-    log_critical(f"{message}")
     QtWidgets.QMessageBox.critical(None, "Ошибка", message)
 
 
 def warning_message(message):
-    log_warning(f"{message}")
     QtWidgets.QMessageBox.warning(None, "Предупреждение", message)
 
 
@@ -68,7 +52,7 @@ def calc_peakonset(
     is_onset: bool,
     peak_exo: int,
 ):
-    log_info(f"Ищем начало пика между {t1} и {t2}")
+    log.info(f"Ищем начало пика между {t1} и {t2}")
     i1 = find_nearest(data_t, t1)
     i2 = find_nearest(data_t, t2)
     if i1 > i2:
@@ -96,7 +80,7 @@ def calc_peakonset(
         max_iter=10,
     )
     bi = find_nearest(data_t, xi)
-    log_info(f"Начало пика найдено в точке {data_t[bi]}")
+    log.info(f"Начало пика найдено в точке {data_t[bi]}")
     return ci, bi
 
 
@@ -169,7 +153,7 @@ def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):
                 + t_expr(x) ** 2 * y3
             )
     else:
-        log_critical("\n* ERROR: none/wrong baselinetype provided\n")
+        log.critical("\n* ERROR: none/wrong baselinetype provided\n")
         return
     baseline_y = y_expr(np.asarray(xdata)[i1:i2])
     return baseline_y, y_expr
@@ -214,14 +198,14 @@ def newton(f, Df, x0, epsilon, max_iter):
     for n in range(0, max_iter):
         fxn = f(xn)
         if abs(fxn) < epsilon:
-            log_info(f"Found solution after {n} iterations.")
+            log.info(f"Found solution after {n} iterations.")
             return xn
         Dfxn = Df(xn)
         if Dfxn == 0:
-            log_warning("Zero derivative. No solution found.")
+            log.warning("Zero derivative. No solution found.")
             return None
         xn = xn - fxn / Dfxn
-    log_warning("Exceeded maximum iterations. No solution found.")
+    log.warning("Exceeded maximum iterations. No solution found.")
     return None
 
 

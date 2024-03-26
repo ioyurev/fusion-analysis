@@ -1,6 +1,7 @@
 import configparser
 import os
-from fusion_analysis.helpers import log_info
+
+from loguru import logger as log
 
 _TRUE_STR = "True"
 DEFAULT_CONFIG_PATH = os.path.abspath("config.ini")
@@ -33,12 +34,12 @@ def read_config():
     config = configparser.ConfigParser()
     if config.read(DEFAULT_CONFIG_PATH):
         dct = _parse_config(config=config)
-        log_info(f"* прочитан конфиг файл {DEFAULT_CONFIG_PATH}")
-        log_info(dct)
+        log.info(f"* прочитан конфиг файл {DEFAULT_CONFIG_PATH}")
+        log.info(dct)
         return dct
     else:
-        log_info("* конфиг файл не прочитан")
-        log_info("* применены параметры по умолчанию")
+        log.info("* конфиг файл не прочитан")
+        log.info("* применены параметры по умолчанию")
         write_config(DEFAULT_CONFIG)
         return DEFAULT_CONFIG
 
@@ -48,5 +49,5 @@ def write_config(dct: dict):
     config.read_dict(dct)
     with open(DEFAULT_CONFIG_PATH, "w") as f:
         config.write(f)
-    log_info(f"* записан конфиг файл {DEFAULT_CONFIG_PATH}")
-    log_info(dct.__repr__())
+    log.info(f"* записан конфиг файл {DEFAULT_CONFIG_PATH}")
+    log.info(dct.__repr__())

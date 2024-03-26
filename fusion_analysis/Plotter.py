@@ -1,27 +1,28 @@
-from PySide6 import QtCore, QtWidgets
-from fusion_analysis.Segment import (
-    SegmentDTA,
-    SegmentDDTA,
-    SegmentTemp,
-    SegmentMass,
-    Peak,
-    MyAnn,
-    OnsetLine,
-)
+import itertools
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from loguru import logger as log
 from matplotlib.axes import Axes
 from matplotlib.axes._base import _AxesBase
-from matplotlib.lines import Line2D
-from matplotlib.backends.backend_qt5agg import (
-    FigureCanvasQTAgg as FigureCanvas,
-    NavigationToolbar2QT as NavigationToolbar,
-)
 from matplotlib.backend_bases import MouseEvent
-import itertools
-import pandas as pd
-from fusion_analysis.helpers import find_nearest, log_info
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.lines import Line2D
+from PySide6 import QtCore, QtWidgets
+
 from fusion_analysis.CustomWidgets import MySpinBox
-import numpy as np
+from fusion_analysis.helpers import find_nearest
+from fusion_analysis.Segment import (
+    MyAnn,
+    OnsetLine,
+    Peak,
+    SegmentDDTA,
+    SegmentDTA,
+    SegmentMass,
+    SegmentTemp,
+)
 
 colors = itertools.cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])
 
@@ -87,7 +88,7 @@ class Plotter(QtCore.QObject):
     selectMode: int  # 0 - peaktool, 1 - onsettool
 
     def __init__(self, parent, dpi, scale) -> None:
-        log_info("* инициализация плоттера")
+        log.info("* инициализация плоттера")
         super().__init__(parent)
         self.fig = plt.figure(dpi=dpi)
         self.scale = scale
@@ -500,7 +501,7 @@ class Plotter(QtCore.QObject):
     def apply_split(self):
         if self.picked_segment:
             x = self.spinbox_t.value()
-            log_info(f"Разделение сегмента {self.picked_segment.index} на {x}")
+            log.info(f"Разделение сегмента {self.picked_segment.index} на {x}")
             segment1, segment2 = self.picked_segment.split(x=x)
             start_i = self.picked_segment.index
             end_i = len(self.segments_dta)
@@ -636,7 +637,7 @@ class Plotter(QtCore.QObject):
             if self.picked_segment:
                 t1 = np.array(self.selector1.get_xdata())[0]
                 t2 = np.array(self.selector2.get_xdata())[0]
-                log_info(f"Выделяем пик между {t1!r} и {t2!r}")
+                log.info(f"Выделяем пик между {t1!r} и {t2!r}")
                 peak = self.picked_segment.addPeak(
                     t1=t1,
                     t2=t2,
