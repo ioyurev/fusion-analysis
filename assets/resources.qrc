@@ -1,5 +1,6 @@
 <RCC>
   <qresource>
+    <file>about_text.html</file>
     <file>icon.png</file>
     <file>end.png</file>
     <file>icon_cool.png</file>

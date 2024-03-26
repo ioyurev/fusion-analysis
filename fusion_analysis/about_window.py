@@ -1,21 +1,8 @@
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from .__version__ import VERSION
+from .helpers import read_text_from_compiled_qrc_file as get_text
 from .ui.__hash__ import HASH
-
-TEXT = (
-    f"Fussion Analysis {VERSION}<br>"
-    + f'commit: <a href="https://gitflic.ru/project/i-o-yurev/fusion-analysis/commit/{HASH}">{HASH}</a><br>'
-    + """
-<br>
-Программа для анализа измерений термического анализа<br>
-Автор: Юрьев И.О<br>
-i.o.yurev@yandex.ru<br>
-Тюмень, 2023 г.<br>
-<br>
-<a href=\"https://www.flaticon.com/free-icons/melt\">Melt icon created by Vitaly Gorbachev - Flaticon</a>
-"""
-)
 
 
 class AboutWindow(QtWidgets.QDialog):
@@ -33,7 +20,9 @@ class AboutWindow(QtWidgets.QDialog):
         layout.addWidget(label_icon)
         label_text = QtWidgets.QLabel()
         label_text.setTextFormat(QtCore.Qt.RichText)
-        label_text.setText(TEXT)
+        label_text.setText(
+            get_text(":/about_text.html").format(hash=HASH, version=VERSION)
+        )
         label_text.setOpenExternalLinks(True)
         layout.addWidget(label_text)
         self.setLayout(layout)

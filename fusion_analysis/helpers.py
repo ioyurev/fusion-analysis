@@ -3,10 +3,20 @@ from typing import Callable
 
 import numpy as np
 from loguru import logger as log
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 LINEAR_TYPE = 0
 BEZIER_TYPE = 1
+
+
+def read_text_from_compiled_qrc_file(filepath: str):
+    file = QtCore.QFile(filepath)
+    if file.open(QtCore.QFile.OpenModeFlag.ReadOnly | QtCore.QFile.OpenModeFlag.Text):
+        text = file.readAll().data().decode("utf-8")
+        file.close()
+        return text
+    else:
+        raise RuntimeError(f"Не удалось открыть файл {filepath}")
 
 
 def error_message(message):
