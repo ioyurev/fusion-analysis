@@ -1,27 +1,29 @@
-from fusion_analysis.helpers import (
+from typing import TYPE_CHECKING
+
+import matplotlib.patheffects as path_effects
+import pandas as pd
+from matplotlib.axes import Axes
+from matplotlib.axes._base import _AxesBase
+from matplotlib.lines import Line2D
+from matplotlib.patches import Polygon
+from matplotlib.text import Annotation
+from PySide6 import QtCore
+
+from .helpers import (
+    PolyArea,
+    baseline_temp,
+    calc_peakonset,
+    derivative_data,
     find_nearest,
     make_peakbaseline,
     np,
-    derivative_data,
-    PolyArea,
     sround,
-    calc_peakonset,
-    baseline_temp,
     xand_gate,
 )
-import matplotlib.patheffects as path_effects
-from matplotlib.patches import Polygon
-from matplotlib.text import Annotation
-from matplotlib.lines import Line2D
-from matplotlib.axes import Axes
-from matplotlib.axes._base import _AxesBase
-import pandas as pd
-from fusion_analysis.libn2f import UREG
-from PySide6 import QtCore
-from typing import TYPE_CHECKING
+from .n2f import UREG
 
 if TYPE_CHECKING:
-    from fusion_analysis.Plotter import Plotter
+    from .plotter import Plotter
 
 
 PATH_EFFECT = [

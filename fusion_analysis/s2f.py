@@ -1,6 +1,7 @@
-from fusion_analysis.libfusiondata import MeasurementData
 import pandas as pd
 import pint
+
+from .measurement_data import MeasurementData
 
 HEADER_TEMP = "Temp."
 HEADER_TIME = "Time"

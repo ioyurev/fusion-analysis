@@ -12,9 +12,9 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.lines import Line2D
 from PySide6 import QtCore, QtWidgets
 
-from fusion_analysis.CustomWidgets import MySpinBox
-from fusion_analysis.helpers import find_nearest
-from fusion_analysis.Segment import (
+from .custom_widgets import MySpinBox
+from .helpers import find_nearest
+from .segment import (
     MyAnn,
     OnsetLine,
     Peak,

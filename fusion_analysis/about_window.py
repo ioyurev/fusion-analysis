@@ -1,7 +1,7 @@
-from PySide6 import QtWidgets, QtGui, QtCore
-from fusion_analysis.__version__ import VERSION
-from fusion_analysis.ui.__hash__ import HASH
+from PySide6 import QtCore, QtGui, QtWidgets
 
+from .__version__ import VERSION
+from .ui.__hash__ import HASH
 
 TEXT = (
     f"Fussion Analysis {VERSION}<br>"

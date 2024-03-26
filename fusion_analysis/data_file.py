@@ -1,9 +1,11 @@
-from fusion_analysis.CalibrationFile import Calibration, zipbuffer_to_cal
-from PySide6 import QtWidgets
-import pandas as pd
-import numpy as np
-import zipfile
 import io
+import zipfile
+
+import numpy as np
+import pandas as pd
+from PySide6 import QtWidgets
+
+from .calibration_file import Calibration, zipbuffer_to_cal
 
 VERSION = 1
 FILE_EXT_FILTER = "Файл измерения Fusion(*.fus-mdt)"

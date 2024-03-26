@@ -1,11 +1,12 @@
 from loguru import logger as log
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from fusion_analysis.AboutWindow import show_about
+from .about_window import show_about
+from .c2a import c2a
 
 # from ConfigHandler import read_config, write_config
-from fusion_analysis.ConfigWindow import ConfigWindow
-from fusion_analysis.CustomWidgets import (
+from .config_window import ConfigWindow
+from .custom_widgets import (
     DTAItem,
     MassItem,
     PropertiesAction,
@@ -14,14 +15,12 @@ from fusion_analysis.CustomWidgets import (
     TempItem,
     update_child_items_state,
 )
-from fusion_analysis.DataFile import pick_open_path
-from fusion_analysis.helpers import error_message, warning_message
-from fusion_analysis.libc2a import c2a
-from fusion_analysis.libfusiondata import ThermalType
-from fusion_analysis.libn2f import n2f
-from fusion_analysis.libs2f import s2f
-from fusion_analysis.Plotter import MyAnn, OnsetLine, Peak, Plotter, SegmentDTA
-
+from .data_file import pick_open_path
+from .helpers import error_message, warning_message
+from .measurement_data import ThermalType
+from .n2f import n2f
+from .plotter import MyAnn, OnsetLine, Peak, Plotter, SegmentDTA
+from .s2f import s2f
 from .ui.MainWindow import Ui_MainWindow
 
 

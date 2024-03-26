@@ -1,13 +1,8 @@
-from fusion_analysis.libfusiondata import MeasurementData
-from fusion_analysis.DataFile import (
-    file_to_data,
-    HEADER_TIME,
-    HEADER_T1,
-    HEADER_T2,
-    Data,
-)
-import pandas as pd
 import numpy as np
+import pandas as pd
+
+from .data_file import HEADER_T1, HEADER_T2, HEADER_TIME, Data, file_to_data
+from .measurement_data import MeasurementData
 
 
 def apply_calibration(data: Data, df: pd.DataFrame):
