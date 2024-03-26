@@ -9,9 +9,12 @@ from .calibration_file import Calibration, zipbuffer_to_cal
 
 VERSION = 1
 FILE_EXT_FILTER = "Файл измерения Fusion(*.fus-mdt)"
-HEADER_TIME = "Time/s"
-HEADER_T1 = "T1/mV"
-HEADER_T2 = "T2/mV"
+
+
+class Header:
+    TIME = "Time/s"
+    T1 = "T1/mV"
+    T2 = "T2/mV"
 
 
 def pick_open_path():
@@ -35,9 +38,9 @@ def zipbuffer_to_data(buffer: io.BytesIO):
     with zipfile.ZipFile(buffer, "r") as zipf:
         version = float(zipf.open("VERSION").read())
         df = pd.read_csv(zipf.open("data.csv"), sep=",", decimal=".")
-        tm_arr = df[HEADER_TIME].to_numpy()
-        t1_arr = df[HEADER_T1].to_numpy()
-        t2_arr = df[HEADER_T2].to_numpy()
+        tm_arr = df[Header.TIME].to_numpy()
+        t1_arr = df[Header.T1].to_numpy()
+        t2_arr = df[Header.T2].to_numpy()
         if "calibration.fus-cal" in zipf.namelist():
             cal = zipbuffer_to_cal(zipf.open("calibration.fus-cal"))
         else:
@@ -67,9 +70,9 @@ class Data:
         self.version = version
         self.cal = cal
         self.df = pd.DataFrame()
-        self.df[HEADER_TIME] = time_array
-        self.df[HEADER_T1] = t1_array
-        self.df[HEADER_T2] = t2_array
+        self.df[Header.TIME] = time_array
+        self.df[Header.T1] = t1_array
+        self.df[Header.T2] = t2_array
         self.info = dict()
         self.info["version"] = self.version
         # self.info['time'] = str(datetime.now())
