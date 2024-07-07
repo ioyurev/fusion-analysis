@@ -9,6 +9,10 @@ LINEAR_TYPE = 0
 BEZIER_TYPE = 1
 
 
+def np_min_wo_infnan(array):
+    return np.nanmin(array[array != -np.inf])
+
+
 def read_text_from_compiled_qrc_file(filepath: str):
     file = QtCore.QFile(filepath)
     if file.open(QtCore.QFile.OpenModeFlag.ReadOnly | QtCore.QFile.OpenModeFlag.Text):
@@ -70,7 +74,7 @@ def calc_peakonset(
     if xand_gate(is_onset, peak_exo):
         bt = data_ddta[i1:i2].max()
     else:
-        bt = data_ddta[i1:i2].min()
+        bt = np_min_wo_infnan(data_ddta[i1:i2])
     ci = np.where(data_ddta[i1:i2] == bt)[0][0] + i1
     xt = data_t[ci]
     yt = data_dta[ci]

@@ -1,7 +1,10 @@
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
 from .data_file import Data, Header, file_to_data
+from .filtered_data_file import FilteredData
 from .measurement_data import MeasurementData
 
 
@@ -14,7 +17,7 @@ def apply_calibration(data: Data, df: pd.DataFrame):
     df["DTA"] = dt / df["Sens."].values
 
 
-def c2a(path: str) -> MeasurementData:
+def c2a(path: Path) -> MeasurementData:
     data = file_to_data(path)
     units = dict()
     df = pd.DataFrame()
@@ -29,6 +32,20 @@ def c2a(path: str) -> MeasurementData:
     data.info["EXO"] = "+"
     units["Time"] = "s"
     units["DTA"] = "mV"
+    return MeasurementData(
+        segments=[df], info=data.info, units=units, hasMassData=False
+    )
+
+
+def fc2a(path: str) -> MeasurementData:
+    data = FilteredData.from_file(path)
+    df = pd.DataFrame()
+    units = dict()
+    for col in data.df.columns:
+        mes, unit = col.split("/")
+        units[mes] = unit
+        df[mes] = data.df[col].values
+    data.info["EXO"] = "+"
     return MeasurementData(
         segments=[df], info=data.info, units=units, hasMassData=False
     )

@@ -120,7 +120,7 @@ class PropertiesAction(QtGui.QAction):
                     else:
                         label_time = ""
                     if self.obj.label_temp_enabled:
-                        label_temp = f"{self.obj.info[self.obj.temp_axis]} {self.obj.units[self.obj.temp_axis]}"
+                        label_temp = f"{round(self.obj.info[self.obj.temp_axis], 3)} {self.obj.units[self.obj.temp_axis]}"
                         if self.obj.label_time_enabled:
                             label_temp = f", {label_temp}"
                     else:

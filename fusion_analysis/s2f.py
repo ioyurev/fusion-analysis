@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 import pint
 
@@ -15,7 +17,7 @@ UREG: pint.UnitRegistry = pint.UnitRegistry()
 UREG.default_format = "~"
 
 
-def s2f(path: str, startmass: float) -> MeasurementData:
+def s2f(path: Path, startmass: float) -> MeasurementData:
     rawdf = pd.read_csv(
         path, sep="\t", encoding="mbcs", skiprows=1, usecols=[0, 1, 2, 3], decimal=","
     )

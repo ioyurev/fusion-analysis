@@ -611,6 +611,7 @@
     <addaction name="action_open"/>
     <addaction name="menu_import"/>
     <addaction name="action_close"/>
+    <addaction name="action_filter"/>
     <addaction name="action_about"/>
    </widget>
    <widget class="QMenu" name="menu_editor">
@@ -654,6 +655,11 @@
   <action name="action_about">
    <property name="text">
     <string>О программе</string>
+   </property>
+  </action>
+  <action name="action_filter">
+   <property name="text">
+    <string>Фильтрация</string>
    </property>
   </action>
  </widget>

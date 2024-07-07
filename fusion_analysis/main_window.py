@@ -1,8 +1,10 @@
+from pathlib import Path
+
 from loguru import logger as log
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from .about_window import show_about
-from .c2a import c2a
+from .c2a import c2a, fc2a
 
 # from ConfigHandler import read_config, write_config
 from .config_window import ConfigWindow
@@ -15,7 +17,9 @@ from .custom_widgets import (
     TempItem,
     update_child_items_state,
 )
-from .data_file import pick_open_path
+from .data_file import pick_open_path as pick_fus_mdt
+from .denoise_window import DenoiseWindow
+from .filtered_data_file import pick_open_path as pick_fus_fmdt
 from .helpers import error_message, warning_message
 from .measurement_data import ThermalType
 from .n2f import n2f
@@ -109,7 +113,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.action_netzsch.triggered.connect(lambda: self.on_click_open(mode=1))
         self.action_setaram.triggered.connect(lambda: self.on_click_open(mode=2))
         self.action_close.triggered.connect(self.on_click_close)
-        # self.action_config.triggered.connect(self.on_click_config)
+        self.action_filter.triggered.connect(self.open_filter)
 
         # контекстное меню
         self.cm = QtWidgets.QMenu(self)
@@ -181,6 +185,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.comboboxes_is_set = False
         self.peaktool_initialized = False
         self.button_pressed = False
+
+    def open_filter(self):
+        path = pick_fus_mdt()
+        if path == "":
+            return
+        self.denoise_window = DenoiseWindow()
+        self.denoise_window.open_measurement(path)
+        self.denoise_window.show()
 
     def on_checkbox_temp_changed(self, state: int):
         self.plotter.on_checkbox_temp(state == 2)
@@ -392,10 +404,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             mode (int): 0 - измерение Fusion Collection, 1 - измерение Netzsch, 2 - измерение Setaram
         """
         options = QtWidgets.QFileDialog.Option(0x10)
-        file_name = ""
 
         if mode == 0:
-            file_name = pick_open_path()
+            path = pick_fus_fmdt()
             log.info("* импорт измерения Fusion Collection")
         elif mode in (1, 2):
             file_name, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -405,25 +416,28 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 "All Files (*);;Text Files (*.txt)",
                 options=options,
             )
+            path = Path(file_name)
             if mode == 1:
                 log.info("* импорт измерения Netzsch")
             else:
                 log.info("* импорт измерения Setaram")
 
-        if file_name == "":
+        if path.exists() is False:
             return
-
         try:
             if mode == 0:
-                self.measurement_data = c2a(file_name)
+                if path.suffix.endswith(".fus-fmdt"):
+                    self.measurement_data = fc2a(path)
+                else:
+                    self.measurement_data = c2a(path)
             elif mode == 1:
-                self.measurement_data = n2f(file_name)
+                self.measurement_data = n2f(path)
             elif mode == 2:
-                self.measurement_data = s2f(file_name, startmass=ask_mass())
+                self.measurement_data = s2f(path, startmass=ask_mass())
         except Exception as e:
             error_message("Не удалось открыть измерение")
             raise e
-        log.info(f"* открыт файл {file_name}")
+        log.info(f"* открыт файл {path}")
         self.init_measurement()
 
     def init_measurement(self):

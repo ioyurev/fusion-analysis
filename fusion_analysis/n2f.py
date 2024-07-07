@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pint
@@ -70,7 +72,7 @@ def data_to_segment(df: pd.DataFrame, hasMassData: bool) -> pd.DataFrame:
     return segment
 
 
-def n2f(filepath) -> MeasurementData:
+def n2f(filepath: Path) -> MeasurementData:
     with open(filepath) as f:
         lines = f.readlines()
         info, units, df = _split_lines(lines)

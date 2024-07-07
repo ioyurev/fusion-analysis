@@ -1,5 +1,6 @@
 import io
 import zipfile
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -29,7 +30,7 @@ def pick_save_path():
     )[0]
 
 
-def file_to_zipbuffer(path):
+def file_to_zipbuffer(path: Path):
     with open(path, "rb") as f:
         return io.BytesIO(f.read())
 
@@ -50,7 +51,7 @@ def zipbuffer_to_data(buffer: io.BytesIO):
     )
 
 
-def file_to_data(path: str):
+def file_to_data(path: Path):
     return zipbuffer_to_data(file_to_zipbuffer(path))
 
 

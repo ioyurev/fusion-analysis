@@ -443,9 +443,7 @@ class OnsetLine(Line2D):
         self.ci = ci
         self.bi = bi
         self.info = dict()
-        self.info[self.temp_axis] = int(
-            round(self.peak.df_baseline[self.temp_axis][bi], 0)
-        )
+        self.info[self.temp_axis] = self.peak.df_baseline[self.temp_axis][bi]
         self.info["Time"] = round(self.peak.df_baseline["Time"][bi], 5)
         self.info["DTA"] = round(self.peak.df_baseline["DTA"][bi], 5)
         self.units = {
@@ -466,7 +464,7 @@ class OnsetLine(Line2D):
         )
         self.ann = MyAnn(
             parent=self,
-            text=f"{self.t}: {self.info[xaxis]} {self.units[xaxis]}",
+            text=f"{self.t}: {round(self.info[xaxis], 3)} {self.units[xaxis]}",
             xy=xy,
             xytext=xy,
         )
