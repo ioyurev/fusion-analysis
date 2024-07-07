@@ -87,11 +87,10 @@ class Plotter(QtCore.QObject):
     combobox_baselinetype: QtWidgets.QComboBox
     selectMode: int  # 0 - peaktool, 1 - onsettool
 
-    def __init__(self, parent, dpi, scale) -> None:
+    def __init__(self, parent) -> None:
         log.info("* инициализация плоттера")
         super().__init__(parent)
-        self.fig = plt.figure(dpi=dpi)
-        self.scale = scale
+        self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111)
         self.ax_ddta = self.ax.twinx()
         self.ax_ddta.set_visible(False)
