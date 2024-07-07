@@ -1,6 +1,5 @@
 if not exist fusion_analysis\ui mkdir fusion_analysis\ui
 if not exist fusion_analysis\ui\__init__.py cd . > fusion_analysis\ui\__init__.py
-python devtools/git_hash.py
 pyside6-uic.exe assets/MainWindow.ui > fusion_analysis/ui/MainWindow.py
 pyside6-uic.exe assets/Config.ui > fusion_analysis/ui/Config.py
 pyside6-uic.exe assets/OnsetProperties.ui > fusion_analysis/ui/OnsetProperties.py
