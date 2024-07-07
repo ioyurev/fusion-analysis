@@ -2,7 +2,7 @@ import sys
 import warnings
 
 from loguru import logger as log
-from PySide6 import QtWidgets
+from PySide6 import QtGui, QtWidgets
 
 import fusion_analysis.ui.resources_rc  # noqa: F401
 from fusion_analysis.main_window import MainWindow
@@ -22,7 +22,8 @@ def main():
         "ignore", category=UserWarning, message="The figure layout has changed to tight"
     )
     app = QtWidgets.QApplication(sys.argv)
-    form = MainWindow()
+    scale = QtGui.QWindow().devicePixelRatio()
+    form = MainWindow(scale=scale)
     form.show()
     sys.exit(app.exec())
 

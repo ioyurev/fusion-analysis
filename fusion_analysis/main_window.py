@@ -79,7 +79,7 @@ def layoutSetEnabled(layout: QtWidgets.QLayout, enabled: bool):
 
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
-    def __init__(self):
+    def __init__(self, scale):
         self.list_segments: list[SegmentItem] = []
         log.info("* загрузка интерфейса")
         super().__init__()
@@ -90,7 +90,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.config = read_config()
 
         # плоттер
-        self.plotter = Plotter(self)
+        self.plotter = Plotter(self, scale=scale)
         self.plotter.spinbox_t = self.spinbox_t
         self.plotter.spinbox_T1 = self.spinbox_T1
         self.plotter.spinbox_T2 = self.spinbox_T2
