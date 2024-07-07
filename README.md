@@ -12,7 +12,7 @@ python 3.11
 # Установка
 ```r
 git clone https://gitflic.ru/project/i-o-yurev/fusion-analysis.git
-cd fusion-collection
+cd fusion-analysis
 poetry install
 ```
 
