@@ -40,9 +40,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         remove_widgets_in_layout(self.plot_layout)
         remove_widgets_in_layout(self.segments_tree_layout)
         self.segments_tree_layout.addWidget(self.analyzer.segments_tree)
+
+        self.plot_layout.addWidget(self.analyzer.toolbar)
         self.plot_layout.addWidget(self.analyzer.plotter.canvas)
         self.plot_layout.addWidget(self.analyzer.plotter.toolbar)
-        self.analyzer.plotter.tight_layout()
 
         self.combobox_xaxis.currentIndexChanged.connect(self.analyzer.switch_xaxis)
         self.combobox_xaxis.setEnabled(True)
+        self.analyzer.plotter.tight_layout()

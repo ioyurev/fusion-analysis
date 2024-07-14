@@ -7,6 +7,7 @@ from .converters import n2f
 from .plotter import Plotter
 from .segment import Segment
 from .segment_table_item import SegmentTableItem
+from .toolbar import Toolbar
 
 
 class Analyzer(QtCore.QObject):
@@ -15,6 +16,7 @@ class Analyzer(QtCore.QObject):
     def __init__(self, segments: list[Segment], parent):
         super().__init__(parent)
         self.segments = segments
+        self.toolbar = Toolbar(parent=parent)
         self.plotter = Plotter(parent=parent, segments=segments)
         self.plotter.selection_changed.connect(self.plotter_selection_changed)
         self.segments_tree = QtWidgets.QTreeWidget(parent=parent)
@@ -51,7 +53,6 @@ class Analyzer(QtCore.QObject):
             selected = self.segments_tree.selectedItems()
             if len(selected) > 0:
                 item: SegmentTableItem = selected[0]
-                # if item.segment
                 index = item.segment.index
                 self.select_segment(index)
 
@@ -65,6 +66,9 @@ class Analyzer(QtCore.QObject):
             segment.set_selected(False)
         if index > -1:
             self.segments[index].set_selected(True)
+            self.toolbar.segment_selected()
+        else:
+            self.toolbar.none_selected()
         self.selection_includes_treewidget = True
         self.plotter.canvas.draw()
 

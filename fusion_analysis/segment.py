@@ -1,7 +1,11 @@
 from loguru import logger as log
 
 from .converters.netzsch import NetzschSegmentData
-from .plotter import SegmentHandlerDTA, SegmentHandlerMass, SegmentHandlerTemp
+from .plotter.segment_artist import (
+    SegmentHandlerDTA,
+    SegmentHandlerMass,
+    SegmentHandlerTemp,
+)
 from .segment_data import SegmentData
 from .segment_table_item import SegmentTableItem
 
