@@ -1,5 +1,4 @@
 import sys
-import warnings
 
 from loguru import logger as log
 from PySide6 import QtGui, QtWidgets
@@ -8,23 +7,22 @@ import fusion_analysis.ui.resources_rc  # noqa: F401
 from fusion_analysis.main_window import MainWindow
 
 
-def main():
+def close_splash():
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         try:
             import pyi_splash
 
-            pyi_splash.update_text("UI Loaded ...")
             pyi_splash.close()
         except ModuleNotFoundError as e:
-            print(e)
+            log.exception(e)
 
-    warnings.filterwarnings(
-        "ignore", category=UserWarning, message="The figure layout has changed to tight"
-    )
+
+def main():
     app = QtWidgets.QApplication(sys.argv)
     scale = QtGui.QWindow().devicePixelRatio()
     form = MainWindow(scale=scale)
     form.show()
+    close_splash()
     sys.exit(app.exec())
 
 

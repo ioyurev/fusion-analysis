@@ -1,4 +1,4 @@
-# from pathlib import Path
+from pathlib import Path
 
 # import numpy as np
 # import pandas as pd
@@ -17,7 +17,10 @@
 #     df["DTA"] = dt / df["Sens."].values
 
 
-# def c2a(path: Path):
+def c2a(path: Path):
+    pass
+
+
 #     data = file_to_data(path)
 #     units = dict()
 #     df = pd.DataFrame()
