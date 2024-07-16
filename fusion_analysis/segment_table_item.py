@@ -11,12 +11,8 @@ class SegmentTableItem(QtWidgets.QTreeWidgetItem):
         super().__init__(parent)
         self.segment = segment
         self.setCheckState(0, QtCore.Qt.CheckState.Checked)
-        if segment.data.emf is not None:
-            t1 = segment.data.emf[0]
-            t2 = segment.data.emf[-1]
-        if segment.data.temp is not None:
-            t1 = int(round(segment.data.temp[0], 0))
-            t2 = int(round(segment.data.temp[-1], 0))
+        t1 = segment.data.min_temp
+        t2 = segment.data.max_temp
         self.setText(0, f"{t1} - {t2}")
 
     def set_selected(self, b: bool):

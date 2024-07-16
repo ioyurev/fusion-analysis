@@ -115,7 +115,7 @@ def find_nearest(array, value):
 
 
 def derivative_data(xdata, ydata):
-    return np.insert(np.diff(ydata) / np.diff(xdata), 0, 0, axis=0)
+    return np.gradient(ydata, xdata)
 
 
 def make_peakbaseline(baselinetype, i1, i2, xdata, ydata):

@@ -1,5 +1,6 @@
 <RCC>
   <qresource>
+    <file>xswitch.png</file>
     <file>filter.png</file>
     <file>about_text.html</file>
     <file>icon.png</file>

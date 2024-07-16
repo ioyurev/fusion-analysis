@@ -25,26 +25,33 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         # self.showMaximized()
 
-        self.action_netzsch.triggered.connect(self.open_netzsch)
+        self.action_open.triggered.connect(lambda: self.open_measurement(mode=0))
+        self.action_netzsch.triggered.connect(lambda: self.open_measurement(mode=1))
 
     def resizeEvent(self, event):
         if hasattr(self, "analyzer"):
             self.analyzer.plotter.fig.tight_layout()
         super().resizeEvent(event)
 
-    def open_netzsch(self):
-        filename = get_open_filename(filter="(*.txt)")
+    def open_measurement(self, mode: int):
+        if mode == 0:
+            filename = get_open_filename(filter="(*.fus-mdt)")
+        elif mode == 1:
+            filename = get_open_filename(filter="(*.txt)")
         if filename == "":
             return
-        self.analyzer = Analyzer.from_netzsch(Path(filename), parent=self)
-        remove_widgets_in_layout(self.plot_layout)
+
+        if mode == 0:
+            self.analyzer = Analyzer.from_collection(Path(filename), parent=self)
+        elif mode == 1:
+            self.analyzer = Analyzer.from_netzsch(Path(filename), parent=self)
+
         remove_widgets_in_layout(self.segments_tree_layout)
         self.segments_tree_layout.addWidget(self.analyzer.segments_tree)
 
+        remove_widgets_in_layout(self.plot_layout)
         self.plot_layout.addWidget(self.analyzer.toolbar)
         self.plot_layout.addWidget(self.analyzer.plotter.canvas)
         self.plot_layout.addWidget(self.analyzer.plotter.toolbar)
 
-        self.combobox_xaxis.currentIndexChanged.connect(self.analyzer.switch_xaxis)
-        self.combobox_xaxis.setEnabled(True)
         self.analyzer.plotter.tight_layout()

@@ -5,6 +5,10 @@ class Toolbar(QtWidgets.QToolBar):
     def __init__(self, parent):
         super().__init__(parent)
         # self.setContentsMargins(0, 0, 0, 0)
+        self.action_xswitch = QtGui.QAction("Смена оси X", self)
+        self.action_xswitch.setIcon(QtGui.QIcon(":/xswitch.png"))
+        self.addAction(self.action_xswitch)
+
         self.action_filter = QtGui.QAction("Фильтрация", self)
         self.action_filter.setIcon(QtGui.QIcon(":/filter.png"))
         self.addAction(self.action_filter)
