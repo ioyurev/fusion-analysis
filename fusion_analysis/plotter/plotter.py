@@ -20,6 +20,7 @@ class Plotter(QtCore.QObject):
         self.fig = plt.figure()
         self.canvas = FigureCanvas(self.fig)
         self.toolbar = NavigationToolbar(self.canvas, parent=parent)
+        self.toolbar.home = self.home
 
         # self.canvas.mpl_connect("button_release_event", self.on_button_release)
         # self.canvas.mpl_connect("motion_notify_event", self.on_move)
@@ -68,6 +69,11 @@ class Plotter(QtCore.QObject):
 
         self.update_all_axes_limits()
         self.update_axes_spines_position()
+
+    def home(self):
+        self.update_all_axes_limits()
+        self.toolbar.set_history_buttons()
+        self.canvas.draw()
 
     def tight_layout(self):
         try:

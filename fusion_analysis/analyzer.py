@@ -5,7 +5,7 @@ from PySide6 import QtCore, QtWidgets
 
 from .converters import c2a, n2f
 from .filter_window import FilterWindow
-from .plotter import Plotter
+from .plotter.plotter import Plotter
 from .segment import Segment
 from .segment_table_item import SegmentTableItem
 from .toolbar import Toolbar
