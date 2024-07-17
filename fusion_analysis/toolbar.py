@@ -9,6 +9,8 @@ class Toolbar(QtWidgets.QToolBar):
         self.action_xswitch.setIcon(QtGui.QIcon(":/xswitch.png"))
         self.addAction(self.action_xswitch)
 
+        self.addSeparator()
+
         self.action_filter = QtGui.QAction("Фильтрация", self)
         self.action_filter.setIcon(QtGui.QIcon(":/filter.png"))
         self.addAction(self.action_filter)
@@ -16,6 +18,8 @@ class Toolbar(QtWidgets.QToolBar):
         self.action_split = QtGui.QAction("Разделить", self)
         self.action_split.setIcon(QtGui.QIcon(":/split.png"))
         self.addAction(self.action_split)
+
+        self.addSeparator()
 
         self.action_peak = QtGui.QAction("Пик", self)
         self.action_peak.setIcon(QtGui.QIcon(":/peak.png"))
