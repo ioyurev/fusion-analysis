@@ -1,5 +1,6 @@
 import numpy as np
 from loguru import logger as log
+from PySide6 import QtCore
 
 from .converters.collection import CollectionData
 from .converters.netzsch import NetzschSegmentData
@@ -12,10 +13,12 @@ from .segment_data import FilteredData, SegmentData
 from .segment_table_item import SegmentTableItem
 
 
-class Segment:
+class Segment(QtCore.QObject):
     filtered_data = None
+    updated_artists = QtCore.Signal()
 
     def __init__(self, segment_data: SegmentData, index: int):
+        super().__init__()
         self.index = index
         self.has_mass = segment_data.mass is not None
         self.is_selected = False
@@ -35,6 +38,8 @@ class Segment:
         self.artist_temp.filtered_data = self.filtered_data
         self.artist_dta.set_filter()
         self.artist_temp.set_filter()
+        log.debug(f"Отфильтрован сегмент {self.index}, окно={window}")
+        self.updated_artists.emit()
 
     def set_selected(self, b: bool):
         if self.is_enabled:

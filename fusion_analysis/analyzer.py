@@ -63,7 +63,6 @@ class Analyzer(QtCore.QObject):
                 window=fw.avg_window,
             )
         )
-        self.plotter.canvas.draw()
 
     @QtCore.Slot()
     def treewidget_item_changed(self, item: SegmentTableItem):

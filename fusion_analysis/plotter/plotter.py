@@ -60,6 +60,7 @@ class Plotter(QtCore.QObject):
         self.items: list[SegmentArtist] = []
 
         for segment in self.segments:
+            segment.updated_artists.connect(self.canvas.draw)
             segment.artist_dta.add_to_ax(self.ax_dta)
             segment.artist_temp.add_to_ax(self.ax_temp)
             if self.has_mass:
