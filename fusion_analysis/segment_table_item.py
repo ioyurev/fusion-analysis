@@ -7,12 +7,12 @@ if TYPE_CHECKING:
 
 
 class SegmentTableItem(QtWidgets.QTreeWidgetItem):
-    def __init__(self, segment: "Segment", parent=None):
-        super().__init__(parent)
+    def __init__(self, segment: "Segment"):
+        super().__init__()
         self.segment = segment
         self.setCheckState(0, QtCore.Qt.CheckState.Checked)
-        t1 = segment.data.min_temp
-        t2 = segment.data.max_temp
+        t1 = segment.data.temp[0]
+        t2 = segment.data.temp[-1]
         self.setText(0, f"{t1} - {t2}")
 
     def set_selected(self, b: bool):

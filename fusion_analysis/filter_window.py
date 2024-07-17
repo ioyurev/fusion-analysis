@@ -17,6 +17,7 @@ def moving_average(data: np.ndarray, window: int):
 
 class FilterWindow(QtWidgets.QDialog, Ui_Dialog):
     layout_is_set = False
+    avg_window = 1
 
     def __init__(self, segment: Segment, parent):
         super().__init__(parent)

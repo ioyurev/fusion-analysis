@@ -49,10 +49,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.analyzer = Analyzer.from_netzsch(Path(filename), parent=self)
 
         remove_widgets_in_layout(self.segments_tree_layout)
-        self.segments_tree_layout.addWidget(self.analyzer.segments_tree)
+        self.segments_tree_layout.addWidget(self.analyzer.segments_tree_widget)
 
         remove_widgets_in_layout(self.plot_layout)
         self.plot_layout.addWidget(self.analyzer.toolbar)
+        self.plot_layout.addWidget(self.analyzer.button_box)
         self.plot_layout.addWidget(self.analyzer.plotter.canvas)
         self.plot_layout.addWidget(self.analyzer.plotter.toolbar)
 

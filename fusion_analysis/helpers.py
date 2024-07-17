@@ -108,7 +108,7 @@ def PolyArea(vertices):
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
 
-def find_nearest(array, value):
+def find_nearest(array, value) -> int:
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return idx

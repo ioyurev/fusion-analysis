@@ -5,13 +5,19 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from PySide6 import QtCore
 
+from ..helpers import find_nearest
 from ..segment import Segment
 from .segment_artist import SegmentArtist
+from .selector import SelectorArtist
 
 
 class Plotter(QtCore.QObject):
     selection_changed = QtCore.Signal(int)
     is_time_xaxis = True
+    items: list[SegmentArtist | SelectorArtist] = []
+    selector: SelectorArtist | None = None
+    cid_btn_move: int | None = None
+    segment_to_split: Segment
 
     def __init__(self, segments: list[Segment], has_mass: bool, parent=None):
         super().__init__(parent)
@@ -26,7 +32,9 @@ class Plotter(QtCore.QObject):
 
         # self.canvas.mpl_connect("button_release_event", self.on_button_release)
         # self.canvas.mpl_connect("motion_notify_event", self.on_move)
-        self.canvas.mpl_connect("button_press_event", self.on_button_press)
+        self.cid_btn_press = self.canvas.mpl_connect(
+            "button_press_event", self.on_button_press_segments
+        )
 
         self.ax_dta = self.fig.add_subplot(111)
         self.ax_mass: plt.Axes = self.ax_dta.twinx()
@@ -57,21 +65,75 @@ class Plotter(QtCore.QObject):
         self.ax_temp.tick_params(colors="red", axis="y")
         self.ax_temp.spines["left"].set_visible(False)
 
-        self.items: list[SegmentArtist] = []
-
         for segment in self.segments:
-            segment.updated_artists.connect(self.canvas.draw)
-            segment.artist_dta.add_to_ax(self.ax_dta)
-            segment.artist_temp.add_to_ax(self.ax_temp)
-            if self.has_mass:
-                segment.artist_mass.add_to_ax(self.ax_mass)
-
-            self.items.append(segment.artist_dta.line)
-            # self.items.append(segment.artist_temp.line)
-            # self.items.append(segment.artist_mass.line)
+            self.add_segment(segment)
 
         self.update_all_axes_limits()
         self.update_axes_spines_position()
+
+    def add_segment(self, s: Segment):
+        s.updated_artists.connect(self.canvas.draw)
+        s.artist_dta.add_to_ax(self.ax_dta)
+        s.artist_temp.add_to_ax(self.ax_temp)
+        if self.has_mass:
+            s.artist_mass.add_to_ax(self.ax_mass)
+        if s.filtered_data is not None:
+            s.set_filter()
+        self.items.append(s.artist_dta.line)
+        self.items.append(s.artist_temp.line)
+        if self.has_mass:
+            self.items.append(s.artist_mass.line)
+
+    def remove_segment(self, s: Segment):
+        s.remove()
+        self.items.remove(s.artist_dta.line)
+        self.items.remove(s.artist_temp.line)
+        if self.has_mass:
+            self.items.remove(s.artist_mass.line)
+
+    def start_split_tool(self):
+        self.segment_to_split: Segment = self.picked_segment  # type: ignore
+        xlim = self.ax_dta.get_xlim()
+        x_center = (xlim[0] + xlim[1]) / 2
+        xdata = self.segment_to_split.artist_dta.line.get_xdata()
+        i = find_nearest(array=xdata, value=x_center)
+        x1 = self.segment_to_split.artist_dta.min_x()
+        x2 = self.segment_to_split.artist_dta.max_x()
+        selector = SelectorArtist(x=xdata[i], limit_x1=x1, limit_x2=x2, ax=self.ax_dta)
+        self.items.append(selector)
+        self.canvas.mpl_disconnect(self.cid_btn_press)
+        self.cid_btn_press = self.canvas.mpl_connect(
+            "button_press_event", self.on_button_press_selector
+        )
+        self.cid_btn_move = self.canvas.mpl_connect(
+            "motion_notify_event", self.on_mouse_move_selector
+        )
+
+    def stop_split_tool(self):
+        self.canvas.mpl_disconnect(self.cid_btn_move)
+        self.canvas.mpl_disconnect(self.cid_btn_press)
+        self.cid_btn_press = self.canvas.mpl_connect(
+            "button_press_event", self.on_button_press_segments
+        )
+        self.selector = None
+        for item in self.items:
+            if isinstance(item, SelectorArtist):
+                x = item.get_xdata()[0]
+                item.remove()
+                self.items.remove(item)
+                return x
+
+    def on_mouse_move_selector(self, event: MouseEvent):
+        if self.selector is None:
+            return
+        if not event.inaxes:
+            return
+        x = event.xdata
+        if not ((self.selector.limit_x1 < x) and (x < self.selector.limit_x2)):
+            return
+        if event.button == 1:
+            self.selector.set_xdata([x, x])
+            self.canvas.draw()
 
     def home(self):
         self.update_all_axes_limits()
@@ -85,19 +147,27 @@ class Plotter(QtCore.QObject):
         except RuntimeError as _:
             pass
 
-    def on_button_press(self, event: MouseEvent):
-        if not event.inaxes:
-            return
-        picked = [item for item in self.items if item if item.contains(event)[0]]
-        if not picked:
+    def on_button_press_segments(self, event: MouseEvent):
+        item = self.pick(event)
+        if item is None:
             self.selection_changed.emit(-1)
             self.picked_segment = None
         else:
-            item = picked[0]
             self.selection_changed.emit(item.index)
             self.picked_segment = self.segments[item.index]
-        # self.on_pick(item, event)
-        # self.holding_item = item
+
+    def on_button_press_selector(self, event: MouseEvent):
+        self.selector: SelectorArtist | None = self.pick(event=event)
+
+    def pick(self, event: MouseEvent):
+        if not event.inaxes:
+            return None
+        picked = [item for item in self.items if item if item.contains(event)[0]]
+        if not picked:
+            item = None
+        else:
+            item = picked[0]
+        return item
 
     def update_axes_spines_position(self):
         shift = 0
