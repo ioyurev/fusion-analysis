@@ -4,7 +4,9 @@ from loguru import logger as log
 from PySide6 import QtGui, QtWidgets
 
 import fusion_analysis.ui.resources_rc  # noqa: F401
+from fusion_analysis.__version__ import VERSION
 from fusion_analysis.main_window import MainWindow
+from fusion_analysis.ui.__hash__ import HASH
 
 
 def close_splash():
@@ -18,6 +20,8 @@ def close_splash():
 
 
 def main():
+    log.info(f"Fusion Analysis v{VERSION}")
+    log.info(f"Commit {HASH}")
     app = QtWidgets.QApplication(sys.argv)
     scale = QtGui.QWindow().devicePixelRatio()
     form = MainWindow(scale=scale)
