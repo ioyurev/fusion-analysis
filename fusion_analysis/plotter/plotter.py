@@ -21,6 +21,8 @@ class Plotter(QtCore.QObject):
         self.canvas = FigureCanvas(self.fig)
         self.toolbar = NavigationToolbar(self.canvas, parent=parent)
         self.toolbar.home = self.home
+        self.toolbar._actions["configure_subplots"].setVisible(False)
+        self.toolbar._actions["edit_parameters"].setVisible(False)
 
         # self.canvas.mpl_connect("button_release_event", self.on_button_release)
         # self.canvas.mpl_connect("motion_notify_event", self.on_move)
