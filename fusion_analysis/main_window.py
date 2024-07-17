@@ -2,6 +2,7 @@ from pathlib import Path
 
 from PySide6 import QtWidgets
 
+from .about_window import show_about
 from .analyzer import Analyzer
 from .ui.MainWindow import Ui_MainWindow
 
@@ -27,6 +28,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.action_open.triggered.connect(lambda: self.open_measurement(mode=0))
         self.action_netzsch.triggered.connect(lambda: self.open_measurement(mode=1))
+        self.action_about.triggered.connect(lambda: show_about(parent=self))
 
     def resizeEvent(self, event):
         if hasattr(self, "analyzer"):

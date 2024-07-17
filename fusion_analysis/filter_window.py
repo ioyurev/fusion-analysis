@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 from .helpers import derivative_data
 from .segment import Segment
@@ -20,6 +20,7 @@ class FilterWindow(QtWidgets.QDialog, Ui_Dialog):
 
     def __init__(self, segment: Segment, parent):
         super().__init__(parent)
+        self.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
         self.setupUi(self)
         self.segment = segment
         self.fig = plt.figure()

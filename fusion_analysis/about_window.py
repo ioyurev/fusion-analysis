@@ -6,8 +6,9 @@ from .ui.__hash__ import HASH
 
 
 class AboutWindow(QtWidgets.QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent):
         super().__init__(parent)
+        self.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
         self.setWindowTitle("О программе")
         self.setWindowIcon(QtGui.QIcon(":/icon.png"))
         layout = QtWidgets.QVBoxLayout()
@@ -30,11 +31,5 @@ class AboutWindow(QtWidgets.QDialog):
         self.setFixedSize(self.size())
 
 
-def show_about():
-    AboutWindow().exec()
-
-
-if __name__ == "__main__":
-    app = QtWidgets.QApplication()
-    show_about()
-    app.exec()
+def show_about(parent):
+    AboutWindow(parent=parent).exec()
