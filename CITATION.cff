@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this software in your research, please cite it using the metadata below."
+type: software
+title: "Fusion Analysis"
+abstract: "Post-processing, peak integration, phase transition analysis, and VFR thermomicroscopy video synchronization software for thermal analysis (VTA, DTA, DSC, TGA)."
+authors:
+  - family-names: "Yurev"
+    given-names: "Ilya O."
+    email: "i.o.yurev@yandex.ru"
+version: 0.3.0
+date-released: "2026-04-16"
+license: GPL-3.0-or-later
+url: "https://github.com/ioyurev/fusion-analysis"
+repository-code: "https://gitflic.ru/project/i-o-yurev/fusion-analysis"

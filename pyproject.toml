@@ -1,43 +1,47 @@
-[tool.poetry]
+[project]
 name = "fusion-analysis"
-version = "0.1.0"
-description = ""
-authors = ["Ilya Yurev <i.o.yurev@yandex.ru>"]
+version = "0.3.0"
+description = "Приложение для обработки и анализа кривых термического анализа (ВТА, ДТА, ТГ)"
+authors = [{ name = "Ilya O. Yurev", email = "i.o.yurev@yandex.ru" }]
+license = { text = "GPL-3.0-or-later" }
 readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "ffmpeg-progress-yield>=0.7.8",
+    "ffmpeg-python>=0.2.0",
+    "fusion-common",
+    "loguru>=0.7.3",
+    "numpy>=2.2.0",
+    "opencv-python>=4.10.0",
+    "pydantic>=2.11.0",
+    "pyqtgraph>=0.13.7",
+    "pyside6>=6.9.0",
+    "xlsxwriter>=3.2.0",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.11,<3.13"
-PySide6 = "^6.6.0"
-numpy = "^1.26.2,<2"
-pandas = "^2.1.3"
-Pint = "^0.22"
-matplotlib = "^3.8.2"
-isort = "^5.13.2"
-loguru = "^0.7.2"
+[project.scripts]
+fusion-analysis = "fusion_analysis.__main__:main"
 
-[tool.poetry.group.dev.dependencies]
-pre-commit = "^3.5.0"
-ruff = "^0.1.6"
-autoflake = "^2.2.1"
-pyinstaller = "^6.2.0"
-commitizen = "^3.12.0"
-mypy = "^1.7.1"
-Pillow = "^10.1.0"
-types-pyinstaller = "^6.2.0.1"
-pandas-stubs = "^2.1.1.230928"
+[dependency-groups]
+dev = [
+    "mypy>=1.15.0",
+    "pre-commit>=4.2.0",
+    "pyinstaller>=6.13.0",
+    "pytest>=9.0.0",
+    "ruff>=0.11.0",
+    "vulture>=2.14",
+]
+
+[tool.uv.sources]
+fusion-common = { git = "ssh://git@gitflic.ru/i-o-yurev/fusion-common.git" }
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.commitizen]
-name = "cz_conventional_commits"
-tag_format = "$version"
-version_scheme = "semver"
-version = "0.1.0"
-version_files = [
-    "fusion_analysis/__version__.py",
-    "pyproject.toml:version"
-    ]
-update_changelog_on_bump = true
-major_version_zero = true
+[tool.hatch.build.targets.wheel]
+packages = ["fusion_analysis"]
+
+[tool.vulture]
+min_confidence = 60
+paths = ["fusion_analysis", "tests", "vulture_whitelist.py"]

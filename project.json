@@ -1,0 +1,75 @@
+{
+  "title": "Fusion Analysis — обработка и анализ термограмм (ВТА, ДТА, ТГ)",
+  "priority_patterns": [
+    "README.md",
+    "AGENTS.md",
+    "fusion_analysis/__main__.py",
+    "fusion_analysis/main_window.py"
+  ],
+  "always_ignore": [
+    "*.fus",
+    "*.fusa",
+    "*.fus-mdt",
+    "*.fus-fmdt",
+    "uv.lock",
+    ".python-version",
+    "CLAUDE.md",
+    "GEMINI.md",
+    ".claude/**",
+    ".vscode/**",
+    "fusion_analysis/assets/*.svg",
+    "assets/*.svg"
+  ],
+  "categories": [
+    {
+      "name": "Fusion-Analysis: документация и руководство",
+      "patterns": [
+        "README.md",
+        "CHANGELOG.md",
+        "AGENTS.md",
+        "CITATION.cff",
+        "LICENSE*",
+        "fusion_analysis/docs/*.md"
+      ],
+      "default": false,
+      "description": "Описание приложения, история изменений, ролевые инструкции и лицензия GPLv3",
+      "tags": ["project", "docs"]
+    },
+    {
+      "name": "Fusion-Analysis: ядро и интерфейс (Qt / PySide6)",
+      "patterns": [
+        "fusion_analysis/*.py",
+        "fusion_analysis/video_overlay/*.py"
+      ],
+      "default": false,
+      "description": "Анализ сегментов, пиков и онсетов, сглаживание, видео-оверлей ВТА, импорт форматов и GUI",
+      "tags": ["project", "programming"]
+    },
+    {
+      "name": "Fusion-Analysis: тесты и утилиты",
+      "patterns": [
+        "tests/*.py"
+      ],
+      "default": false,
+      "description": "Модульные тесты импортеров форматов, сглаживания, базовых линий и пиков",
+      "tags": ["project", "programming"]
+    },
+    {
+      "name": "Fusion-Analysis: сборка и среда",
+      "patterns": [
+        "pyproject.toml",
+        "mypy.ini",
+        "vulture_whitelist.py",
+        ".panache.toml",
+        ".pre-commit-config.yaml",
+        ".github/workflows/*.yml",
+        "*.cmd",
+        ".gitattributes",
+        ".gitignore"
+      ],
+      "default": false,
+      "description": "Конфигурация пакета uv, линтеров, vulture, pre-commit и скрипты компиляции UI и сборки",
+      "tags": ["project", "config"]
+    }
+  ]
+}
