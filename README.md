@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24275025.svg)](https://doi.org/10.5281/zenodo.24275025)
+
 # Fusion Analysis
 
 <p align="center">
@@ -42,7 +44,7 @@
 
 Если вы используете **Fusion Analysis** в научной работе, пожалуйста, процитируйте программу (метаданные приведены в файле [`CITATION.cff`](CITATION.cff)):
 
-> *Yurev I. O.* Fusion Analysis: Post-processing, peak analysis, and video synchronization software for thermal analysis (VTA, DTA, DSC, TGA) [Computer software]. — 2026. — URL: <https://github.com/ioyurev/fusion-analysis>.
+> *Yurev, I. O.* (2026). Fusion Analysis [Computer software]. <https://doi.org/10.5281/zenodo.24275025>
 
 ## Лицензия
 

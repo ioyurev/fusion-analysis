@@ -448,6 +448,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 ),
                 repo_slug="fusion-analysis",
                 icon_bg_color=ANALYSIS_ICON_BG,
+                zenodo_doi="10.5281/zenodo.24275025",
                 parent=self,
             )
         )
