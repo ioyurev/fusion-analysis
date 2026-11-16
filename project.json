@@ -25,7 +25,6 @@
       "name": "Fusion-Analysis: документация и руководство",
       "patterns": [
         "README.md",
-        "CHANGELOG.md",
         "AGENTS.md",
         "CITATION.cff",
         "LICENSE*",
