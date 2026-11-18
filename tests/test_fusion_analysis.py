@@ -1,9 +1,16 @@
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
+from fusion_common import (
+    ChannelDescriptor,
+    MeasurementManifest,
+    MeasurementRecord,
+    save_fus,
+)
+
 from fusion_analysis.config import read_config, write_config
 from fusion_analysis.helpers import (
     BEZIER_TYPE,
@@ -19,12 +26,9 @@ from fusion_analysis.importers import (
     load_fusion_measurement,
     save_measurement_analysis,
 )
-from fusion_common import (
-    ChannelDescriptor,
-    MeasurementManifest,
-    MeasurementRecord,
-    save_fus,
-)
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_config_roundtrip_fixes_color_slice_bug(tmp_path: Path) -> None:
@@ -303,9 +307,10 @@ def test_hildal_perepezko_nonuniform_melting_and_tau_metrics() -> None:
 def test_segment_add_peak_and_onset_Creation() -> None:
     import sys
 
+    from PySide6.QtWidgets import QApplication, QWidget
+
     from fusion_analysis.measurement_data import ThermalType
     from fusion_analysis.plotter import Plotter
-    from PySide6.QtWidgets import QApplication, QWidget
 
     _app = QApplication.instance() or QApplication(sys.argv)
     host = QWidget()

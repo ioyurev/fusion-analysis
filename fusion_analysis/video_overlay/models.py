@@ -106,9 +106,16 @@ class OverlayConfig(BaseModel):
         path = get_appdata_path("fusion-analysis") / "overlay_config.json"
         if path.exists():
             try:
-                return cls.model_validate_json(path.read_text(encoding="utf-8"))
+                cfg = cls.model_validate_json(path.read_text(encoding="utf-8"))
             except (OSError, ValueError) as exc:
-                log.bind(error=str(exc)).warning("Using default overlay_config")
+                log.opt(exception=True).bind(path=str(path), error=repr(exc)).warning(
+                    "Using default overlay_config"
+                )
+            else:
+                log.bind(path=str(path), **cfg.model_dump()).info(
+                    "Loaded video overlay configuration"
+                )
+                return cfg
         cfg = cls()
         cfg.save()
         return cfg
@@ -117,6 +124,9 @@ class OverlayConfig(BaseModel):
         path = get_appdata_path("fusion-analysis") / "overlay_config.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(self.model_dump_json(indent=2), encoding="utf-8")
+        log.bind(path=str(path), **self.model_dump()).info(
+            "Saved video overlay configuration"
+        )
 
 
 overlay_config = OverlayConfig.load()

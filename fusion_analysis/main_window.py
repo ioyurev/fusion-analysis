@@ -16,6 +16,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from fusion_analysis.config import (
     APPDATA_PATH,
+    DEFAULT_CONFIG_PATH,
     AnalysisConfig,
     read_config,
     write_config,
@@ -419,6 +420,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self._build_ui()
 
         self.config: AnalysisConfig = read_config()
+        log.bind(
+            version=VERSION,
+            scale=scale,
+            config_path=str(DEFAULT_CONFIG_PATH),
+            **self.config.model_dump(mode="json"),
+        ).info("Fusion Analysis MainWindow initialized")
         controls = PlotterControls(
             spinbox_t=self.spinbox_t,
             spinbox_T1=self.spinbox_T1,
@@ -580,7 +587,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tab_widget.setVisible(False)
 
         analysis_page = self.takeCentralWidget()
-        assert analysis_page is not None
+        if analysis_page is None:
+            raise RuntimeError("Central widget is missing")
         self.mode_tabs = QtWidgets.QTabWidget(self)
         self.video_overlay_tab = VideoOverlayTab(parent=self)
         self.mode_tabs.addTab(
@@ -651,6 +659,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.plotter.apply_live_smoothing(ch, prev_w)
         elif apply:
             self._sync_smoothed_to_record()
+            log.bind(
+                channel=self._active_smooth_ch,
+                window=int(self.spinbox_smooth_win.value()),
+                smoothing_windows=dict(self.measurement_data.smoothing_windows),
+            ).info("Applied channel smoothing")
         self.plotter.clear_smoothing_ghost()
         self.tab_widget.setVisible(False)
         layoutSetEnabled(self.leftpanel, True)
@@ -702,11 +715,17 @@ class MainWindow(QtWidgets.QMainWindow):
         if apply and self._active_deriv_ch:
             x_col = self.combobox_xaxis.currentText() or "Time"
             order = 2 if self.combobox_derivative_order.currentIndex() == 1 else 1
-            self.measurement_data.compute_derivative_channel(
+            d_col = self.measurement_data.compute_derivative_channel(
                 y_col=self._active_deriv_ch, x_col=x_col, order=order
             )
             self.plotter.add_derivative_for_channel(self._active_deriv_ch, order=order)
             self._refresh_segments_tree()
+            log.bind(
+                source_channel=self._active_deriv_ch,
+                x_axis=x_col,
+                order=order,
+                derivative_channel=d_col,
+            ).info("Added derivative channel")
         elif (
             self._preview_deriv_col
             and self._preview_deriv_col not in self._preexisting_derivs
@@ -738,12 +757,24 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         try:
             saved = save_measurement_analysis(self.measurement_data, target)
+            log.bind(
+                target_path=str(saved),
+                source_path=(
+                    str(self.measurement_data.source_path)
+                    if self.measurement_data.source_path is not None
+                    else None
+                ),
+                segments=len(self.plotter.segments_dta),
+                smoothing_windows=dict(self.measurement_data.smoothing_windows),
+            ).info("Saved analysis project (.fusa)")
             self.statusBar().showMessage(
                 f"Проект анализа сохранён в {saved.name}", 5000
             )
         except Exception as exc:  # noqa: BLE001
             error_message(f"Не удалось сохранить анализ (.fusa): {exc}")
-            log.bind(error=str(exc)).error("Failed to save .fusa")
+            log.opt(exception=True).bind(
+                target_path=str(target), error=repr(exc)
+            ).error("Failed to save .fusa")
 
     def _on_exo_direction_toggled(self, checked: bool) -> None:
         if not self.measurement_is_opened:
@@ -791,10 +822,10 @@ class MainWindow(QtWidgets.QMainWindow):
             elif isinstance(item, CurveItem):
                 item.artist.set_visible(state)
                 update_child_items_state(item)
-                self.plotter._sync_aux_axes_visibility()
+                self.plotter.sync_aux_axes_visibility()
             elif isinstance(item, (PeakItem, OnsetItem)):
                 item.artist.set_visible(state)
-            self.plotter._sync_aux_axes_visibility()
+            self.plotter.sync_aux_axes_visibility()
             self.plotter.autoscale(redraw=False)
             self.treewidget_paused = False
             self.plotter.canvas.draw()
@@ -837,7 +868,7 @@ class MainWindow(QtWidgets.QMainWindow):
         layoutSetEnabled(self.leftpanel, True)
         self.treewidget_paused = False
 
-    def splittool_check_is_valid(self):
+    def splittool_check_is_valid(self) -> bool:
         if self.plotter.picked_segment is None:
             warning_message("Cегмент не выбран.")
             return False
@@ -848,7 +879,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return False
         return True
 
-    def on_click_splittool_start(self):
+    def on_click_splittool_start(self) -> None:
         if self.splittool_check_is_valid():
             self.plotter.splittool_start()
             self.tab_widget.setVisible(True)
@@ -946,8 +977,18 @@ class MainWindow(QtWidgets.QMainWindow):
             self.plotter.config = self.config.Plotter
             self.plotter.apply_antialias(self.config.Plotter.antialias)
             write_config(self.config)
+            log.bind(
+                config_path=str(DEFAULT_CONFIG_PATH),
+                **self.config.model_dump(mode="json"),
+            ).info("Updated analysis configuration from Settings dialog")
 
     def on_click_close(self) -> None:
+        closed_path = (
+            str(self.measurement_data.source_path)
+            if self.measurement_is_opened
+            and self.measurement_data.source_path is not None
+            else None
+        )
         self.comboboxes_is_set = False
         self.action_open.setEnabled(True)
         self.action_save_analysis.setEnabled(False)
@@ -963,6 +1004,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.combobox_xaxis.clear()
         self.plotter.on_close()
         self.checkbox_exo_up.setVisible(False)
+        log.bind(path=closed_path).info("Closed measurement")
 
     def on_click_open(
         self,
@@ -995,9 +1037,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.measurement_data = import_setaram_txt(path, startmass=mass_val)
         except Exception as exc:  # noqa: BLE001
             error_message(f"Не удалось открыть измерение: {exc}")
-            log.bind(path=str(path), error=str(exc)).error("Failed to open measurement")
+            log.opt(exception=True).bind(
+                path=str(path), source=str(source), error=repr(exc)
+            ).error("Failed to open measurement")
             return
-        log.bind(path=str(path)).info("Measurement opened")
+        log.bind(path=str(path), source=str(source)).info("Measurement opened")
         self.init_measurement()
 
     def init_measurement(self) -> None:
@@ -1029,6 +1073,35 @@ class MainWindow(QtWidgets.QMainWindow):
             f"<b>Образец:</b> {smp} | <b>Прибор:</b> {inst} | <b>Масса:</b> {mass_s}<br>"
             f"<b>Тигель:</b> {cruc} | <b>Атмосфера:</b> {atm} | <b>Оператор:</b> {op}"
         )
+        points_total = sum(
+            len(seg.get("Time", [])) for seg in self.measurement_data.segments
+        )
+        log.bind(
+            path=(
+                str(self.measurement_data.source_path)
+                if self.measurement_data.source_path is not None
+                else None
+            ),
+            source_format=(
+                self.measurement_data.record.source_format
+                if self.measurement_data.record is not None
+                else None
+            ),
+            sample=smp,
+            operator=op,
+            instrument=inst,
+            sample_mass_mg=mass,
+            crucible=cruc,
+            atmosphere=atm,
+            exo=self.measurement_data.exo,
+            has_massdata=self.measurement_data.has_massdata,
+            has_tempdata=self.measurement_data.has_tempdata,
+            channels=list(self.measurement_data.available_channels),
+            units=dict(self.measurement_data.units),
+            segments=len(self.measurement_data.segments),
+            points_total=points_total,
+            smoothing_windows=dict(self.measurement_data.smoothing_windows),
+        ).info("Initialized measurement in curve analysis tab")
         self.setWindowTitle(f"Fusion Analysis — {smp}")
         self.plotter.deriv_channel = str(
             self.measurement_data.analysis_state.get("deriv_channel", primary_y)
@@ -1142,5 +1215,5 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.treewidget_segments.clearSelection()
                 self.treewidget_segments.blockSignals(False)
 
-    def on_split_done(self, tpl: tuple[SegmentDTA, SegmentDTA, int]):
+    def on_split_done(self, _tpl: tuple[SegmentDTA, SegmentDTA, int]) -> None:
         self.treewidget_handler.on_split()

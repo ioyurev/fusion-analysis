@@ -1,11 +1,19 @@
 from __future__ import annotations
 
 from enum import Enum, StrEnum
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from fusion_common import ChannelKey, MeasurementRecord
+
+from fusion_analysis.helpers import (
+    centered_moving_average,
+    derivative_data,
+    second_derivative_data,
+)
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class AxisChannel(StrEnum):
@@ -15,12 +23,6 @@ class AxisChannel(StrEnum):
     EMF = "EMF"
     MASS = "Mass"
 
-
-from fusion_analysis.helpers import (
-    centered_moving_average,
-    derivative_data,
-    second_derivative_data,
-)
 
 SegmentTable = dict[str, np.ndarray]
 

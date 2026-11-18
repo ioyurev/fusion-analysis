@@ -700,8 +700,10 @@ def import_netzsch_txt(filepath: Path) -> MeasurementData:
     segments: list[SegmentTable] = []
     if is_multi and "Segment" in table:
         seg_col = table["Segment"]
-        for seg_num in np.unique(seg_col):
-            segments.append(_extract_segment(table, seg_col == seg_num, has_mass))
+        segments.extend(
+            _extract_segment(table, seg_col == seg_num, has_mass)
+            for seg_num in np.unique(seg_col)
+        )
     else:
         segments.append(_extract_segment(table, None, has_mass))
     return MeasurementData(

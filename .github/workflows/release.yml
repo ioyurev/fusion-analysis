@@ -39,6 +39,13 @@ jobs:
             choco install pandoc --no-progress -y
           }
 
+      - name: Download FFmpeg 9.0 GPL Shared binaries
+        shell: pwsh
+        run: |
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip"
+          Invoke-WebRequest -Uri $url -OutFile ffmpeg_shared.zip
+          Expand-Archive -Path ffmpeg_shared.zip -DestinationPath ffmpeg_extracted -Force
+
       - name: Build PyInstaller bundle, HTML manual, ZIP and Inno Setup installer
         shell: pwsh
         run: |
@@ -49,6 +56,11 @@ jobs:
           uv run fusion-packaging version-file --package fusion-analysis --product "Fusion Analysis" --description "Fusion Analysis" --version-from .. --out version_text_file
           uv run pyi-set_version version_text_file dist/fusion-analysis/fusion-analysis.exe
           uv run fusion-docs --package fusion_analysis --out-dir dist/fusion-analysis
+          $ffDest = New-Item -ItemType Directory -Force -Path "dist/fusion-analysis/ffmpeg"
+          $ffBin = Get-ChildItem -Path "../ffmpeg_extracted/*/bin" -Directory | Select-Object -First 1
+          Copy-Item "$($ffBin.FullName)/ffmpeg.exe" $ffDest
+          Copy-Item "$($ffBin.FullName)/ffprobe.exe" $ffDest
+          Copy-Item "$($ffBin.FullName)/*.dll" $ffDest
           uv run fusion-packaging zip-dist --package fusion-analysis --version-from .. --dist-root dist
           uv run fusion-packaging installer --package fusion-analysis --product "Fusion Analysis" --version-from .. --dist-root dist --icon icon.ico
           Pop-Location

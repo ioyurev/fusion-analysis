@@ -7,6 +7,7 @@ uv run pyinstaller ../fusion_analysis/__main__.py --noconsole -i icon.ico --spla
 uv run fusion-packaging version-file --package fusion-analysis --product "Fusion Analysis" --description "Fusion Analysis" --version-from .. --out version_text_file || exit /b 1
 uv run pyi-set_version version_text_file dist/fusion-analysis/fusion-analysis.exe || exit /b 1
 uv run fusion-docs --package fusion_analysis --out-dir dist/fusion-analysis || exit /b 1
+uv run python -c "import shutil; from pathlib import Path; ff = shutil.which('ffmpeg'); d = Path('dist/fusion-analysis/ffmpeg'); d.mkdir(parents=True, exist_ok=True); b = Path(ff).resolve().parent if ff else None; [shutil.copy2(p, d / p.name) for p in b.iterdir() if p.name in ('ffmpeg.exe', 'ffprobe.exe') or p.suffix.lower() == '.dll'] if b else None" || exit /b 1
 uv run fusion-packaging zip-dist --package fusion-analysis --version-from .. --dist-root dist || exit /b 1
 uv run fusion-packaging installer --package fusion-analysis --product "Fusion Analysis" --version-from .. --dist-root dist --icon icon.ico || exit /b 1
 pause

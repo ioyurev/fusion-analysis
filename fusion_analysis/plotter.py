@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pyqtgraph as pg
@@ -9,8 +9,6 @@ from fusion_common import resolve_ui_icon
 from loguru import logger as log
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from .config import PlotterSettings
-from .custom_widgets import MySpinBox
 from .helpers import centered_moving_average, compute_padded_limits, find_nearest
 from .measurement_data import SegmentTable, ThermalType, raw_key_for
 from .segment import (
@@ -21,6 +19,10 @@ from .segment import (
     SegmentDTA,
     to_qcolor,
 )
+
+if TYPE_CHECKING:
+    from .config import PlotterSettings
+    from .custom_widgets import MySpinBox
 
 
 @dataclass(frozen=True)
@@ -179,7 +181,8 @@ class Plotter(QtCore.QObject):
 
         self.canvas = PlotCanvas(self)
         p_item = self.canvas.getPlotItem()
-        assert p_item is not None
+        if p_item is None:
+            raise RuntimeError("PlotItem is missing")
         self.main_plot = p_item
         self.main_vb = self.main_plot.vb
 
@@ -488,10 +491,10 @@ class Plotter(QtCore.QObject):
             return self.combobox_xaxis.currentText()
         return "Time"
 
-    def _sync_aux_axes_visibility(self) -> None:
+    def sync_aux_axes_visibility(self) -> None:
         xaxis = self.getCurrentXaxis()
         for ch_name, (ax, vb) in list(self.extra_axes.items()):
-            if ch_name == self.current_yaxis or ch_name == xaxis:
+            if ch_name in (self.current_yaxis, xaxis):
                 ax.setVisible(False)
                 vb.setVisible(False)
                 continue
@@ -532,7 +535,7 @@ class Plotter(QtCore.QObject):
         for segment in self.segments_dta:
             segment.set_axes(xaxis=xaxis, yaxis=yaxis)
             self._reattach_segment_curves(segment)
-        self._sync_aux_axes_visibility()
+        self.sync_aux_axes_visibility()
         self._sync_aux_viewboxes()
         self.autoscale()
 
@@ -555,7 +558,7 @@ class Plotter(QtCore.QObject):
             d_curve.attach_to(vb)
             if d_curve not in self.items:
                 self.items.append(d_curve)
-        self._sync_aux_axes_visibility()
+        self.sync_aux_axes_visibility()
         self._sync_aux_viewboxes()
         self.autoscale()
         return col_name
@@ -569,7 +572,7 @@ class Plotter(QtCore.QObject):
                     self.items.remove(c_seg)
             seg.df.pop(col_name, None)
             seg.df.pop(raw_key_for(col_name), None)
-        self._sync_aux_axes_visibility()
+        self.sync_aux_axes_visibility()
         self.autoscale()
 
     def show_smoothing_ghost(self, channel: str) -> None:
@@ -646,7 +649,7 @@ class Plotter(QtCore.QObject):
         )
         if self.config is not None:
             self.apply_antialias(self.config.antialias)
-        self._sync_aux_axes_visibility()
+        self.sync_aux_axes_visibility()
         self._sync_aux_viewboxes()
         self.autoscale()
 
@@ -654,7 +657,7 @@ class Plotter(QtCore.QObject):
         self.picked_peak = None
         self.picked_curve = None
         self.picked_segment = None
-        self._sync_aux_axes_visibility()
+        self.sync_aux_axes_visibility()
         self.signal_pick.emit(None)
 
     def resolve_segment_color(self, thermal_type: Any) -> Any:
@@ -748,7 +751,7 @@ class Plotter(QtCore.QObject):
             self._reattach_segment_curves(seg_new)
         self.segments_dta[start_i] = segment2
         self.segments_dta.insert(start_i, segment1)
-        self._sync_aux_axes_visibility()
+        self.sync_aux_axes_visibility()
         self.signal_split.emit((segment1, segment2, start_i))
 
     def onsettool_done(self, apply: bool) -> None:
@@ -936,7 +939,7 @@ class Plotter(QtCore.QObject):
         self.picked_segment = None
 
         seg_list = state.get("segments", [])
-        for seg, meta in zip(self.segments_dta, seg_list):
+        for seg, meta in zip(self.segments_dta, seg_list, strict=False):
             curves_meta = meta.get("curves", {})
             if not curves_meta:
                 curves_meta = {
@@ -984,5 +987,5 @@ class Plotter(QtCore.QObject):
                 dy_val = float(c_meta.get("dy", 0.0))
                 if abs(dy_val) > 1e-9:
                     c_seg.shifty(dy_val * 10.0)
-        self._sync_aux_axes_visibility()
+        self.sync_aux_axes_visibility()
         self.autoscale()

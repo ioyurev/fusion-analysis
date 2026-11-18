@@ -6,6 +6,8 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
+from PySide6.QtWidgets import QApplication
+
 from fusion_analysis.video_overlay import (
     AlignedData,
     FrameRenderer,
@@ -18,7 +20,6 @@ from fusion_analysis.video_overlay import (
     update_video_info_with_timeline,
 )
 from fusion_analysis.video_overlay.ffmpeg_pipe import VideoContext
-from PySide6.QtWidgets import QApplication
 
 
 def _make_data(t_start: float, t_end: float, n: int = 200) -> VideoMeasurementData:
@@ -74,7 +75,8 @@ def test_aligned_data_interpolation_and_excel_export(tmp_path: Path) -> None:
 
     xlsx_path = tmp_path / "export.xlsx"
     data.to_excel(xlsx_path)
-    assert xlsx_path.exists() and xlsx_path.stat().st_size > 1000
+    assert xlsx_path.exists()
+    assert xlsx_path.stat().st_size > 1000
 
 
 def test_timeline_overlap_modes_and_vfr_properties() -> None:
@@ -87,7 +89,8 @@ def test_timeline_overlap_modes_and_vfr_properties() -> None:
     data_part = _make_data(20.0, 80.0)
     tl_part = build_timeline_selection(data_part, video_full)
     assert tl_part.status is OverlapStatus.PARTIAL
-    assert tl_part.video_trimmed_at_start and tl_part.video_trimmed_at_end
+    assert tl_part.video_trimmed_at_start
+    assert tl_part.video_trimmed_at_end
     upd_v = update_video_info_with_timeline(video_full, tl_part)
     assert upd_v.used_start_sec == pytest.approx(20.0, abs=0.2)
     info_al = build_aligned_info(data_part, upd_v, tl_part)
@@ -118,7 +121,8 @@ def test_timeline_overlap_modes_and_vfr_properties() -> None:
 def test_vfr_setpts_and_frame_renderer() -> None:
     _app = QApplication.instance() or QApplication(sys.argv)
     script = build_vfr_setpts_script_content(np.array([0.0, 0.5, 1.0, 2.5]))
-    assert script.startswith("setpts=(") and script.endswith(")/TB")
+    assert script.startswith("setpts=(")
+    assert script.endswith(")/TB")
 
     data = _make_data(0.0, 4.0, 5)
     mock_ctx = MagicMock(spec=VideoContext)
@@ -136,7 +140,8 @@ def test_vfr_setpts_and_frame_renderer() -> None:
     img = np.zeros((480, 640, 3), dtype=np.uint8)
     frame = renderer.render_overlay(img, 2)
     assert frame is not None
-    assert frame.size.width == 640 and frame.size.height == 480
+    assert frame.size.width == 640
+    assert frame.size.height == 480
 
 
 def test_main_window_contains_curves_and_video_overlay_tabs() -> None:

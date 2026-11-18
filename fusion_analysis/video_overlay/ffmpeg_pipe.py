@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 from dataclasses import dataclass, field
@@ -14,9 +15,38 @@ from typing import Any
 import cv2
 import ffmpeg  # type: ignore[import-untyped]
 import numpy as np
+from loguru import logger as log
 
 from fusion_analysis.video_overlay.models import RectangleGeometry, VideoInfo
 from fusion_analysis.video_overlay.timeline import compute_real_fps
+
+
+@lru_cache(maxsize=4)
+def resolve_ffmpeg_binary(name: str = "ffmpeg") -> str:
+    """Ищет бинарник ffmpeg/ffprobe сначала рядом с программой, затем в системном PATH."""
+    exe_name = f"{name}.exe" if sys.platform.startswith("win") else name
+    exe_dir = Path(sys.executable).resolve().parent
+    candidates = [
+        exe_dir / exe_name,
+        exe_dir / "ffmpeg" / exe_name,
+        Path.cwd() / exe_name,
+        Path.cwd() / "ffmpeg" / exe_name,
+    ]
+    for cand in candidates:
+        if cand.is_file():
+            log.bind(binary=name, path=str(cand), source="bundled").info(
+                "Resolved bundled FFmpeg binary"
+            )
+            return str(cand)
+    from_path = shutil.which(name)
+    if from_path:
+        log.bind(binary=name, path=from_path, source="PATH").info(
+            "Resolved system FFmpeg binary"
+        )
+        return from_path
+    raise FileNotFoundError(
+        f"Исполняемый файл '{exe_name}' не найден ни в папке программы, ни в PATH."
+    )
 
 
 def build_codec_args(codec: str, crf: int, preset: str) -> list[str]:
@@ -61,7 +91,8 @@ def _extract_pts_ms(packets: list[dict[str, Any]]) -> list[int]:
 
 class FFmpeg:
     def get_video_stream_info(self, video_path: Path | str) -> dict[str, Any]:
-        probe = ffmpeg.probe(str(video_path))
+        ffprobe_bin = resolve_ffmpeg_binary("ffprobe")
+        probe = ffmpeg.probe(str(video_path), cmd=ffprobe_bin)
         streams: list[dict[str, Any]] = probe.get("streams", [])
         return next(s for s in streams if s.get("codec_type") == "video")
 
@@ -74,9 +105,10 @@ class FFmpeg:
         if not resolved.is_file():
             raise FileNotFoundError(f"Видеофайл не найден: {resolved}")
 
+        ffprobe_bin = resolve_ffmpeg_binary("ffprobe")
         proc = subprocess.Popen(
             [
-                "ffprobe",
+                ffprobe_bin,
                 "-v",
                 "error",
                 "-select_streams",
@@ -148,21 +180,28 @@ def build_video_info(
 
 @dataclass
 class VideoContext:
-    """Контекст чтения кадров из видеофайла с кэшированием и пропуском малых шагов."""
+    """Контекст чтения кадров из видеофайла с кэшированием и быстрым seek в ОЗУ для .asf."""
 
     cap: cv2.VideoCapture
     fps: float
     total_frames: int
     width: int
     height: int
+    path: Path = field(default_factory=Path)
+    timestamps_sec: np.ndarray | None = None
     _last_index: int = field(default=-1, init=False)
     _last_img: np.ndarray | None = field(default=None, init=False)
 
     @classmethod
-    def open(cls, path: str | Path) -> VideoContext:
-        cap = cv2.VideoCapture(str(path))
+    def open(
+        cls,
+        path: str | Path,
+        timestamps_sec: np.ndarray | None = None,
+    ) -> VideoContext:
+        p = Path(path)
+        cap = cv2.VideoCapture(str(p))
         if not cap.isOpened():
-            raise RuntimeError(f"Не удалось открыть видеофайл: {path}")
+            raise RuntimeError(f"Не удалось открыть видеофайл: {p}")
         fps_val = float(cap.get(cv2.CAP_PROP_FPS))
         return cls(
             cap=cap,
@@ -170,14 +209,63 @@ class VideoContext:
             total_frames=max(0, int(cap.get(cv2.CAP_PROP_FRAME_COUNT))),
             width=max(0, int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))),
             height=max(0, int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))),
+            path=p,
+            timestamps_sec=timestamps_sec,
         )
+
+    def _seek_frame_in_ram_pipe(self, index: int) -> np.ndarray | None:
+        """Декодирует одиночный кадр по времени напрямую в ОЗУ через пайп ffmpeg без создания файлов на диске."""
+        if self.timestamps_sec is not None and 0 <= index < len(self.timestamps_sec):
+            t0 = float(self.timestamps_sec[0])  # noqa: MI001
+            t_sec = max(0.0, float(self.timestamps_sec[index]) - t0)
+        else:
+            t_sec = max(0.0, index / max(1.0, self.fps))
+        expected_bytes = self.width * self.height * 3
+        if expected_bytes <= 0 or not self.path.is_file():
+            return None
+        try:
+            ffmpeg_bin = resolve_ffmpeg_binary("ffmpeg")
+            proc = subprocess.run(
+                [
+                    ffmpeg_bin,
+                    "-v",
+                    "error",
+                    "-ss",
+                    f"{t_sec:.3f}",
+                    "-i",
+                    str(self.path),
+                    "-frames:v",
+                    "1",
+                    "-f",
+                    "rawvideo",
+                    "-pix_fmt",
+                    "bgr24",
+                    "pipe:1",
+                ],
+                capture_output=True,
+                check=False,
+            )
+            if len(proc.stdout) == expected_bytes:
+                frame = (
+                    np.frombuffer(proc.stdout, dtype=np.uint8)
+                    .reshape((self.height, self.width, 3))
+                    .copy()
+                )
+                self._last_index = index
+                self._last_img = frame
+                return frame
+        except (OSError, subprocess.SubprocessError) as exc:
+            log.bind(index=index, error=repr(exc)).warning(
+                "RAM pipe frame seek failed, falling back to OpenCV"
+            )
+        return None
 
     def read_frame(self, index: int) -> np.ndarray | None:
         if index == self._last_index and self._last_img is not None:
-            return self._last_img.copy()
+            return self._last_img
 
         diff = index - self._last_index
-        if 0 < diff <= 60:
+        if 0 < diff <= 45:
             img = None
             for _ in range(diff):
                 ret, frame = self.cap.read()  # noqa: PU001
@@ -189,14 +277,19 @@ class VideoContext:
             if img is not None:
                 self._last_index = index
                 self._last_img = img
-                return img.copy()
+                return img
+
+        if index > 0 and self.path.suffix.lower() in (".asf", ".wmv"):
+            piped = self._seek_frame_in_ram_pipe(index)
+            if piped is not None:
+                return piped
 
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, index)
         ret, img = self.cap.read()  # noqa: PU001
         if ret and img is not None:
             self._last_index = index
             self._last_img = img
-            return img.copy()
+            return img
         return None
 
     def close(self) -> None:
@@ -208,8 +301,9 @@ class VideoContext:
 @lru_cache(maxsize=32)
 def is_codec_working(codec_name: str) -> bool:
     try:
+        ffmpeg_bin = resolve_ffmpeg_binary("ffmpeg")
         cmd = [
-            "ffmpeg",
+            ffmpeg_bin,
             "-y",
             "-f",
             "rawvideo",
@@ -240,9 +334,10 @@ def is_codec_working(codec_name: str) -> bool:
         )
         raw_frame = b"\x00" * (640 * 480 * 3)
         p.communicate(input=raw_frame * 5, timeout=3)
-        return p.returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False
+    else:
+        return p.returncode == 0
 
 
 @lru_cache(maxsize=1)

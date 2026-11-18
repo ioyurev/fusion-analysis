@@ -169,19 +169,19 @@ class CurveSegment(_BaseCurveItem):
 
     @property
     def plotter(self) -> Plotter:
-        return self.parent_segment._plotter
+        return self.parent_segment._plotter  # noqa: SLF001 — внутреннее поле SegmentDTA в общей иерархии
 
     @property
     def df(self) -> SegmentTable:
-        return self.parent_segment._df
+        return self.parent_segment._df  # noqa: SLF001 — внутреннее поле SegmentDTA в общей иерархии
 
     @property
     def temp_axis(self) -> str:
-        return self.parent_segment._temp_axis
+        return self.parent_segment._temp_axis  # noqa: SLF001 — внутреннее поле SegmentDTA в общей иерархии
 
     @property
     def xaxis(self) -> str:
-        return self.parent_segment._xaxis
+        return self.parent_segment._xaxis  # noqa: SLF001 — внутреннее поле SegmentDTA в общей иерархии
 
     def shifty(self, dy: float) -> None:
         step = dy / 10.0
@@ -703,6 +703,10 @@ class Peak:
             x_arr, self.df_baseline["DTA"] - self._y_shift, skipFiniteCheck=True
         )
 
+    @property
+    def y_shift(self) -> float:
+        return self._y_shift
+
     def shifty(self, dy: float) -> None:
         if dy != 0.0:
             self._y_shift += dy
@@ -865,8 +869,8 @@ class OnsetLine(_BaseCurveItem):
     def updateXdata(self, xaxis: str) -> None:
         self.xb = self.info[xaxis]
         xc = float(self.peak.df[xaxis][self.ci])
-        yb = float(self.peak.df_baseline["DTA"][self.bi]) - self.peak._y_shift
-        yc = float(self.peak.df["DTA"][self.ci]) - self.peak._y_shift
+        yb = float(self.peak.df_baseline["DTA"][self.bi]) - self.peak.y_shift
+        yc = float(self.peak.df["DTA"][self.ci]) - self.peak.y_shift
         self.set_data([self.xb, xc], [yb, yc])
         self.ann.updateXdata(xaxis)
 

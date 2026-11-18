@@ -27,6 +27,22 @@ def compute_real_fps(timestamps_sec: np.ndarray) -> float | None:
     return (len(timestamps_sec) - 1) / duration
 
 
+def _balanced_sum(terms: list[str]) -> str:
+    """Группирует слагаемые в сбалансированное бинарное дерево скобок глубины O(log2 N) для парсера FFmpeg 9.0+."""
+    if not terms:
+        return "0"
+    cur = list(terms)
+    while len(cur) > 1:
+        nxt: list[str] = []
+        for i in range(0, len(cur), 2):
+            if i + 1 < len(cur):
+                nxt.append(f"({cur[i]}+{cur[i + 1]})")
+            else:
+                nxt.append(cur[i])
+        cur = nxt
+    return cur[0]  # noqa: MI001
+
+
 def build_vfr_setpts_script_content(timestamps_sec: np.ndarray) -> str:
     """Генерирует скрипт фильтра setpts для FFmpeg с сохранением точных VFR PTS меток."""
     n_frames = len(timestamps_sec)
@@ -50,7 +66,7 @@ def build_vfr_setpts_script_content(timestamps_sec: np.ndarray) -> str:
         parts.append(f"gte(N\\,{n0})*lt(N\\,{n1})*({t0_val:.4f}+(N-{n0})*{slope:.6f})")
     *_, final_ts = timestamps_sec
     parts.append(f"gte(N\\,{n_frames - 1})*{float(final_ts):.4f}")
-    return f"setpts=({'+'.join(parts)})/TB"
+    return f"setpts=({_balanced_sum(parts)})/TB"
 
 
 @dataclass(frozen=True)

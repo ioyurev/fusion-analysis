@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from PySide6 import QtGui, QtWidgets
 
-from fusion_analysis.config import AnalysisConfig
+if TYPE_CHECKING:
+    from fusion_analysis.config import AnalysisConfig
 
 
 def _rgb_floats_to_hex(rgb: list[float]) -> str:
-    r_f, g_f, b_f, *_ = (rgb + [0.0, 0.0, 0.0])[:3]
+    r_f, g_f, b_f, *_ = [*rgb, 0.0, 0.0, 0.0][:3]
     return QtGui.QColor(int(255 * r_f), int(255 * g_f), int(255 * b_f)).name()
 
 

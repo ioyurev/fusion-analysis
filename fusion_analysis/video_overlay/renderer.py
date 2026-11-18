@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import contextlib
 import subprocess
+import threading
 import time
 import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
-from typing import NamedTuple
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 from loguru import logger as log
@@ -16,6 +18,7 @@ from fusion_analysis.video_overlay.ffmpeg_pipe import (
     TempDirManager,
     VideoContext,
     build_codec_args,
+    resolve_ffmpeg_binary,
 )
 from fusion_analysis.video_overlay.models import (
     BG_ALPHA,
@@ -34,6 +37,9 @@ from fusion_analysis.video_overlay.timeline import (
     AlignedData,
     build_vfr_setpts_script_content,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class FrameSize(NamedTuple):
@@ -264,7 +270,10 @@ class GraphOverlay:
             painter.setClipRect(left_m, top_m, plot_w, plot_h)
             painter.setPen(QtGui.QPen(yellow, float(overlay_config.graph.line_width)))
             poly = QtGui.QPolygonF(
-                [QtCore.QPointF(float(px), float(py)) for px, py in zip(xs, ys)]
+                [
+                    QtCore.QPointF(float(px), float(py))
+                    for px, py in zip(xs, ys, strict=True)
+                ]
             )
             painter.drawPolyline(poly)
             painter.setClipping(False)
@@ -462,8 +471,9 @@ class CVProcessor(QtCore.QObject):
         script_file.write_text(script_text, encoding="utf-8")
 
         enc = overlay_config.video_encoding
+        ffmpeg_bin = resolve_ffmpeg_binary("ffmpeg")
         cmd = [
-            "ffmpeg",
+            ffmpeg_bin,
             "-y",
             "-threads",
             "1",
@@ -479,7 +489,7 @@ class CVProcessor(QtCore.QObject):
             "1000",
             "-i",
             "-",
-            "-filter_script:v",
+            "-/filter:v",
             str(script_file),
             "-c:v",
             enc.codec,
@@ -490,7 +500,32 @@ class CVProcessor(QtCore.QObject):
             "vfr",
             str(self.path_output),
         ]
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+        log.bind(
+            ffmpeg=ffmpeg_bin,
+            codec=enc.codec,
+            resolution=f"{out_w}x{out_h}",
+            frames=len(self.timeline.source_frame_indices),
+            output=str(self.path_output),
+            cmd=" ".join(cmd),
+        ).info("Starting FFmpeg video export process")
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        stderr_lines: list[str] = []
+
+        def _read_stderr() -> None:
+            if proc.stderr is None:
+                return
+            for raw_ln in proc.stderr:
+                decoded = raw_ln.decode("utf-8", errors="replace").rstrip()
+                if decoded:
+                    stderr_lines.append(decoded)
+
+        stderr_thread = threading.Thread(target=_read_stderr, daemon=True)
+        stderr_thread.start()
+
         num_threads = max(1, enc.render_threads)
         batch_size = max(4, num_threads * 2)
         source_indices = self.timeline.source_frame_indices
@@ -528,18 +563,42 @@ class CVProcessor(QtCore.QObject):
                         if self.is_interrupted:
                             break
                         if frame is not None and proc.stdin is not None:
-                            proc.stdin.write(frame.image.tobytes())
+                            try:
+                                proc.stdin.write(frame.image.tobytes())
+                            except BrokenPipeError as pipe_exc:
+                                stderr_thread.join(timeout=2.0)
+                                tail = "\n".join(stderr_lines[-25:])
+                                raise RuntimeError(
+                                    f"Процесс FFmpeg неожиданно завершился при записи кадра {idx}.\n"
+                                    f"Вывод FFmpeg (stderr):\n{tail}"
+                                ) from pipe_exc
                             self.progress_signal.emit(
                                 ProcessProgress(value=idx, frame=frame)
                             )
         finally:
             if proc.stdin is not None:
-                proc.stdin.close()
+                with contextlib.suppress(OSError):
+                    proc.stdin.close()
             if self.is_interrupted:
                 proc.terminate()
-            proc.wait()
+            rc = proc.wait()
+            stderr_thread.join(timeout=2.0)
             script_file.unlink(missing_ok=True)
             video_ctx.close()
+            if not self.is_interrupted and rc != 0:
+                tail = "\n".join(stderr_lines[-25:])
+                raise RuntimeError(
+                    f"FFmpeg завершился с кодом ошибки {rc}.\n"
+                    f"Вывод FFmpeg (stderr):\n{tail}"
+                )
+
+
+@dataclass(frozen=True)
+class _ValidatedExportInputs:
+    video_in: Path
+    video_out: Path
+    data: VideoMeasurementData
+    timeline: TimelineSelection
 
 
 class VideoExportPipeline(QtCore.QThread):
@@ -562,26 +621,35 @@ class VideoExportPipeline(QtCore.QThread):
         if self.cv_agent is not None:
             self.cv_agent.stop()
 
+    def _validated_inputs(self) -> _ValidatedExportInputs:
+        if (
+            self.video_path_input is None
+            or self.video_path_output is None
+            or self.data is None
+            or self.timeline is None
+            or self.timeline.status is OverlapStatus.NONE
+        ):
+            raise ValueError(
+                "Не заданы входные данные или отсутствует пересечение шкал."
+            )
+        return _ValidatedExportInputs(
+            video_in=self.video_path_input,
+            video_out=self.video_path_output,
+            data=self.data,
+            timeline=self.timeline,
+        )
+
     def run(self) -> None:
         try:
-            if (
-                self.video_path_input is None
-                or self.video_path_output is None
-                or self.data is None
-                or self.timeline is None
-                or self.timeline.status is OverlapStatus.NONE
-            ):
-                raise ValueError(
-                    "Не заданы входные данные или отсутствует пересечение шкал."
-                )
+            inputs = self._validated_inputs()
             self.stage_finished.emit(
-                (max(1, self.timeline.kept_frames - 1), "1/1", "frame")
+                (max(1, inputs.timeline.kept_frames - 1), "1/1", "frame")
             )
             self.cv_agent = CVProcessor(
-                video_path=self.video_path_input,
-                data=self.data,
-                path_output=self.video_path_output,
-                timeline=self.timeline,
+                video_path=inputs.video_in,
+                data=inputs.data,
+                path_output=inputs.video_out,
+                timeline=inputs.timeline,
                 crop_rect=self.crop_rect,
             )
             self.cv_agent.progress_signal.connect(self.stage_progress.emit)
@@ -589,7 +657,9 @@ class VideoExportPipeline(QtCore.QThread):
             self.cv_agent.run()
             self.work_finished.emit(ProcessResult(is_success=True))
         except Exception as exc:  # noqa: BLE001
-            log.bind(error=str(exc)).error("Video export pipeline failed")
+            log.opt(exception=True).bind(error=repr(exc)).error(
+                "Video export pipeline failed"
+            )
             self.work_finished.emit(
                 ProcessResult(is_success=False, traceback_msg=traceback.format_exc())
             )

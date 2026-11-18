@@ -1,5 +1,7 @@
 """Vulture whitelist for Qt/Matplotlib virtual hooks and Pydantic fields in fusion-analysis."""
 
+from PySide6 import QtWidgets
+
 from fusion_analysis.main_window import MainWindow
 from fusion_analysis.measurement_data import AxisChannel
 from fusion_analysis.segment import Peak
@@ -15,9 +17,7 @@ from fusion_analysis.video_overlay.models import (
 from fusion_analysis.video_overlay.widgets import (
     AspectRatioLabel,
     CropSelectionDialog,
-    PreviewWorker,
 )
-from PySide6 import QtWidgets
 
 _HOOKS = (
     QtWidgets.QWidget.mousePressEvent,
@@ -35,9 +35,6 @@ _HOOKS = (
     AxisChannel.MASS,
     OnsetPropertiesWindow.exec,
     Peak.t_peak,
-    PreviewWorker.init_video,
-    PreviewWorker.request_frame,
-    PreviewWorker.cleanup,
     TEXT_COLOR_BGR,
     BG_COLOR_BGR,
     Alignment.CENTER,

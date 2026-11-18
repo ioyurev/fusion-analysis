@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 from PySide6 import QtWidgets
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
 
 LINEAR_TYPE = 0
 BEZIER_TYPE = 1

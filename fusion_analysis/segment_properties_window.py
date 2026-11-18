@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pyqtgraph as pg
@@ -8,12 +8,14 @@ from fusion_common import resolve_ui_icon
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from fusion_analysis.helpers import fraser_suzuki_curve
-from fusion_analysis.segment import (
-    CurveSegment,
-    OnsetLine,
-    Peak,
-    SegmentDTA,
-)
+
+if TYPE_CHECKING:
+    from fusion_analysis.segment import (
+        CurveSegment,
+        OnsetLine,
+        Peak,
+        SegmentDTA,
+    )
 
 
 def color_to_qcolor(c: Any) -> QtGui.QColor:
@@ -434,6 +436,5 @@ class SummaryTableDialog(QtWidgets.QDialog):
 
     def _copy_tsv(self) -> None:
         lines = ["\t".join(SUMMARY_TABLE_HEADERS)]
-        for r in self.rows:
-            lines.append("\t".join(r))
+        lines.extend("\t".join(r) for r in self.rows)
         QtGui.QGuiApplication.clipboard().setText("\n".join(lines))

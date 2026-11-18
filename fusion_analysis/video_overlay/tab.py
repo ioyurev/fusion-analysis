@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-import shutil
 import time
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import numpy as np
 from fusion_common import MeasurementRecord, resolve_ui_icon
 from loguru import logger as log
 from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtMultimedia import QMediaPlayer
 
 from fusion_analysis.importers import ALL_SUPPORTED_FILTER
 from fusion_analysis.video_overlay.ffmpeg_pipe import (
     FFmpeg,
     TempDirManager,
     build_video_info,
+    resolve_ffmpeg_binary,
 )
 from fusion_analysis.video_overlay.models import (
     LoadedVideoMeasurement,
@@ -34,36 +35,38 @@ from fusion_analysis.video_overlay.timeline import (
     update_video_info_with_timeline,
 )
 from fusion_analysis.video_overlay.widgets import (
-    AspectRatioLabel,
     CropSelectionDialog,
     LiveSyncPlotWidget,
     OverlaySettingsDialog,
-    PreviewWorker,
     SessionInfoWidget,
+    VideoPlayerView,
 )
+
+QtCore.QLoggingCategory.setFilterRules("qt.multimedia.ffmpeg*=false")
 
 
 class VideoOverlayTab(QtWidgets.QWidget):
-    """Нативный видеоплеер термомикроскопии ВТА с синхронным графиком и экспортом MP4 с оверлеем."""
-
-    worker_request_signal = QtCore.Signal(int, object, object)
+    """Нативный видеоплеер термомикроскопии ВТА на QMediaPlayer с синхронным графиком и экспортом MP4."""
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.session = OverlaySessionState()
         self.aligned_data: AlignedData | None = None
         self.pipeline = VideoExportPipeline(self)
-        self.preview_thread: QtCore.QThread | None = None
-        self.worker: PreviewWorker | None = None
         self.current_fps: float = 25.0
         self.preview_total_frames: int = 0
         self.render_start_time: float | None = None
         self.current_render_fps: float = 0.0
+        self._seek_on_load_pending: bool = False
 
-        self.play_timer = QtCore.QTimer(self)
-        self.play_timer.timeout.connect(self._on_play_tick)
-
+        self.media_player = QMediaPlayer(self)
         self._build_ui()
+        self.media_player.setVideoOutput(self.video_preview.video_item)
+        self.media_player.playbackStateChanged.connect(self._on_playback_state_changed)
+        self.media_player.mediaStatusChanged.connect(self._on_media_status_changed)
+        self.media_player.positionChanged.connect(self._on_media_position_changed)
+        self.media_player.errorOccurred.connect(self._on_media_error)
+
         self.pipeline.stage_progress.connect(self._on_stage_progress)
         self.pipeline.stage_finished.connect(self._on_stage_finished)
         self.pipeline.fps_updated.connect(self._on_fps_updated)
@@ -167,8 +170,7 @@ class VideoOverlayTab(QtWidgets.QWidget):
         )
         preview_layout.addWidget(self.lbl_telemetry)
 
-        self.video_preview = AspectRatioLabel()
-        self.video_preview.setStyleSheet("background-color: rgb(0, 0, 0);")
+        self.video_preview = VideoPlayerView(self)
         preview_layout.addWidget(self.video_preview, 1)
 
         transport_row = QtWidgets.QHBoxLayout()
@@ -201,7 +203,7 @@ class VideoOverlayTab(QtWidgets.QWidget):
         ):
             self.cb_play_speed.addItem(spd_label, spd_mult)
         self.cb_play_speed.setCurrentIndex(1)
-        self.cb_play_speed.currentIndexChanged.connect(self._update_timer_interval)
+        self.cb_play_speed.currentIndexChanged.connect(self._on_play_speed_changed)
 
         self.slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         self.slider.setRange(0, 0)
@@ -237,12 +239,15 @@ class VideoOverlayTab(QtWidgets.QWidget):
         self.session.measurement = loaded
         self.pipeline.data = loaded.data
         self.edit_data.setText(str(loaded.data.path))
+        info_dict = asdict(loaded.info)
+        info_dict["path"] = str(loaded.info.path)
+        log.bind(**info_dict).info("Loaded measurement data into Video Overlay tab")
         self._refresh_timeline_and_aligned()
         self._refresh_info_panel()
         self._update_telemetry_and_cursor(self.slider.value())
 
     def _pick_data_file(self) -> None:
-        fname, _ = QtWidgets.QFileDialog.getOpenFileName(  # noqa: PU001 — Qt QFileDialog tuple
+        fname, _ = QtWidgets.QFileDialog.getOpenFileName(  # noqa: PU001
             self,
             "Открыть файл измерения для видео-оверлея",
             "",
@@ -254,21 +259,28 @@ class VideoOverlayTab(QtWidgets.QWidget):
             loaded = load_video_measurement(Path(fname))
             self._apply_loaded_measurement(loaded)
         except Exception as exc:  # noqa: BLE001
+            log.opt(exception=True).bind(path=fname, error=repr(exc)).error(
+                "Failed to load measurement file in Video Overlay tab"
+            )
             QtWidgets.QMessageBox.critical(
-                self, "Ошибка чтения данных", f"Не удалось загрузить файл: {exc}"
+                self,
+                "Ошибка чтения данных",
+                f"Не удалось загрузить файл: {exc}",
             )
 
     def _pick_video_file(self) -> None:
         for bin_name in ("ffmpeg", "ffprobe"):
-            if shutil.which(bin_name) is None:
+            try:
+                resolve_ffmpeg_binary(bin_name)
+            except FileNotFoundError as exc:
                 QtWidgets.QMessageBox.critical(
                     self,
                     "FFmpeg не найден",
-                    f"Утилита '{bin_name}' не найдена в PATH.",
+                    str(exc),
                 )
                 return
 
-        fname, _ = QtWidgets.QFileDialog.getOpenFileName(  # noqa: PU001 — Qt QFileDialog tuple
+        fname, _ = QtWidgets.QFileDialog.getOpenFileName(  # noqa: PU001
             self,
             "Выбрать видеофайл ВТА",
             "",
@@ -285,27 +297,40 @@ class VideoOverlayTab(QtWidgets.QWidget):
             self.btn_crop.setEnabled(True)
             self.btn_reset_crop.setEnabled(False)
             self.edit_video.setText(str(v_path))
-            if h > 0:
-                self.video_preview.set_aspect_ratio(w, h)
-            self.session.video_info = build_video_info(v_path, crop_rect=None)
+            vinfo = build_video_info(v_path, crop_rect=None)
+            self.session.video_info = vinfo
+            log.bind(
+                path=str(vinfo.path),
+                input_width=vinfo.input_width,
+                input_height=vinfo.input_height,
+                fps_nominal=round(vinfo.fps_nominal, 3),
+                real_fps=(
+                    round(vinfo.real_fps, 3) if vinfo.real_fps is not None else None
+                ),
+                total_frames=vinfo.total_frames,
+                duration_sec=round(vinfo.duration_sec, 3),
+                codec_name=vinfo.codec_name,
+                pix_fmt=vinfo.pix_fmt,
+                timestamps_available=vinfo.timestamps_available,
+                first_timestamp_sec=vinfo.first_timestamp_sec,
+                last_timestamp_sec=vinfo.last_timestamp_sec,
+            ).info("Loaded video stream in Video Overlay tab")
+            self.video_preview.clear_export_pixmap()
+            self.video_preview.set_video_geometry(w, h, crop_rect=None)
             self._refresh_timeline_and_aligned()
             self._refresh_info_panel()
-            self._start_preview_worker(str(v_path))
+            self._load_media_player_source(v_path)
         except Exception as exc:  # noqa: BLE001
+            log.opt(exception=True).bind(path=str(v_path), error=repr(exc)).error(
+                "Failed to open video file in Video Overlay tab"
+            )
             QtWidgets.QMessageBox.critical(
-                self, "Ошибка видеофайла", f"Не удалось открыть видео: {exc}"
+                self,
+                "Ошибка видеофайла",
+                f"Не удалось открыть видео: {exc}",
             )
 
-    def _start_preview_worker(self, video_path: str) -> None:
-        self._stop_preview_worker()
-        self.preview_thread = QtCore.QThread(self)
-        self.worker = PreviewWorker(video_path)
-        self.worker.moveToThread(self.preview_thread)
-        self.preview_thread.started.connect(self.worker.init_video)
-        self.worker_request_signal.connect(self.worker.request_frame)
-        self.worker.frame_ready.connect(self._on_frame_ready)
-        self.preview_thread.start()
-
+    def _load_media_player_source(self, video_path: Path) -> None:
         if self.session.video_info is not None:
             self.preview_total_frames = max(0, self.session.video_info.total_frames)
             self.current_fps = max(
@@ -316,40 +341,112 @@ class VideoOverlayTab(QtWidgets.QWidget):
                 ),
             )
         self._refresh_slider_range()
+        self._seek_on_load_pending = True
+        self.media_player.setSource(
+            QtCore.QUrl.fromLocalFile(str(video_path.resolve()))
+        )
+        self.slider.blockSignals(True)
         self.slider.setValue(0)
-        self._request_preview_update(0)
+        self.slider.blockSignals(False)
+        self._update_telemetry_and_cursor(0)
 
-    def _stop_preview_worker(self) -> None:
-        self._stop_playback()
-        if self.preview_thread is not None and self.preview_thread.isRunning():
-            if self.worker is not None:
-                self.worker.cleanup()
-            self.preview_thread.quit()
-            self.preview_thread.wait(2000)
-        self.preview_thread = None
-        self.worker = None
+    def _active_timestamps_sec(self) -> np.ndarray | None:
+        tl = self.pipeline.timeline
+        if (
+            tl is not None
+            and tl.status is not OverlapStatus.NONE
+            and len(tl.kept_timestamps_sec) > 0
+        ):
+            return tl.kept_timestamps_sec
+        if (
+            self.session.video_info is not None
+            and len(self.session.video_info.timestamps_sec) > 0
+        ):
+            return self.session.video_info.timestamps_sec
+        return None
 
-    def _request_preview_update(self, frame_index: int) -> None:
-        self._update_telemetry_and_cursor(frame_index)
-        if self.worker is None:
+    def _video_first_ts_sec(self) -> float:
+        if (
+            self.session.video_info is not None
+            and self.session.video_info.first_timestamp_sec is not None
+        ):
+            return float(self.session.video_info.first_timestamp_sec)
+        return 0.0
+
+    def _frame_index_to_ms(self, frame_index: int) -> int:
+        ts = self._active_timestamps_sec()
+        if ts is not None and len(ts) > 0:
+            clamped = max(0, min(len(ts) - 1, int(frame_index)))
+            rel_s = max(0.0, float(ts[clamped]) - self._video_first_ts_sec())
+            return round(rel_s * 1000.0)
+        return round((max(0, frame_index) / max(1.0, self.current_fps)) * 1000.0)
+
+    def _ms_to_frame_index(self, pos_ms: int) -> int:
+        ts = self._active_timestamps_sec()
+        if ts is not None and len(ts) > 0:
+            abs_s = self._video_first_ts_sec() + (max(0, pos_ms) / 1000.0)
+            idx = int(np.searchsorted(ts, abs_s, side="left"))
+            return max(0, min(len(ts) - 1, idx))
+        max_i = max(0, self.slider.maximum())
+        idx = round((max(0, pos_ms) / 1000.0) * self.current_fps)
+        return max(0, min(max_i, idx))
+
+    def _on_media_status_changed(self, status: QMediaPlayer.MediaStatus) -> None:
+        if (
+            status == QMediaPlayer.MediaStatus.LoadedMedia
+            and self._seek_on_load_pending
+        ):
+            self._seek_on_load_pending = False
+            self.media_player.pause()
+            self.media_player.setPosition(self._frame_index_to_ms(0))
+        elif status == QMediaPlayer.MediaStatus.EndOfMedia:
+            self.media_player.pause()
+
+    def _on_playback_state_changed(self, state: QMediaPlayer.PlaybackState) -> None:
+        is_playing = state == QMediaPlayer.PlaybackState.PlayingState
+        self.btn_play.setIcon(
+            resolve_ui_icon(
+                QtGui.QIcon.ThemeIcon.MediaPlaybackPause
+                if is_playing
+                else QtGui.QIcon.ThemeIcon.MediaPlaybackStart,
+                QtWidgets.QStyle.StandardPixmap.SP_MediaPause
+                if is_playing
+                else QtWidgets.QStyle.StandardPixmap.SP_MediaPlay,
+            )
+        )
+        self.btn_play.setText("Пауза" if is_playing else "Пуск")
+
+    def _on_media_position_changed(self, pos_ms: int) -> None:
+        if not self.slider.isEnabled():
             return
-        self.worker_request_signal.emit(
-            frame_index,
-            self.pipeline.crop_rect,
-            self.pipeline.timeline,
+        ts = self._active_timestamps_sec()
+        if (
+            ts is not None
+            and len(ts) > 0
+            and self.media_player.playbackState()
+            == QMediaPlayer.PlaybackState.PlayingState
+        ):
+            max_ms = self._frame_index_to_ms(len(ts) - 1)
+            if pos_ms >= max_ms:
+                self.media_player.pause()
+        idx = self._ms_to_frame_index(pos_ms)
+        if not self.slider.isSliderDown():
+            self.slider.blockSignals(True)
+            self.slider.setValue(idx)
+            self.slider.blockSignals(False)
+        self._update_telemetry_and_cursor(idx)
+
+    def _on_media_error(self, error: QMediaPlayer.Error, error_str: str) -> None:
+        log.bind(error=str(error), message=error_str).error(
+            "QMediaPlayer playback error"
         )
 
-    @QtCore.Slot(object, int, float)
-    def _on_frame_ready(
-        self,
-        pixmap: QtGui.QPixmap,
-        _frame_idx: int,
-        _time_sec: float,
-    ) -> None:
-        self.video_preview.setPixmap(pixmap)
-
     def _on_slider_changed(self, val: int) -> None:
-        self._request_preview_update(val)
+        self.video_preview.clear_export_pixmap()
+        self._update_telemetry_and_cursor(val)
+        if self.media_player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
+            self.media_player.pause()
+        self.media_player.setPosition(self._frame_index_to_ms(val))
 
     def _step_frame(self, delta: int) -> None:
         self._stop_playback()
@@ -359,47 +456,22 @@ class VideoOverlayTab(QtWidgets.QWidget):
         self.slider.setValue(new_idx)
 
     def _toggle_playback(self) -> None:
-        if self.play_timer.isActive():
-            self._stop_playback()
+        self.video_preview.clear_export_pixmap()
+        if self.media_player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+            self.media_player.pause()
         else:
             if self.slider.value() >= self.slider.maximum():
                 self.slider.setValue(0)
-            self._update_timer_interval()
-            self.play_timer.start()
-            self.btn_play.setIcon(
-                resolve_ui_icon(
-                    QtGui.QIcon.ThemeIcon.MediaPlaybackPause,
-                    QtWidgets.QStyle.StandardPixmap.SP_MediaPause,
-                )
-            )
-            self.btn_play.setText("Пауза")
+            self._on_play_speed_changed()
+            self.media_player.play()
 
     def _stop_playback(self) -> None:
-        if self.play_timer.isActive():
-            self.play_timer.stop()
-        self.btn_play.setIcon(
-            resolve_ui_icon(
-                QtGui.QIcon.ThemeIcon.MediaPlaybackStart,
-                QtWidgets.QStyle.StandardPixmap.SP_MediaPlay,
-            )
-        )
-        self.btn_play.setText("Пуск")
+        if self.media_player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+            self.media_player.pause()
 
-    def _update_timer_interval(self) -> None:
+    def _on_play_speed_changed(self) -> None:
         mult = float(self.cb_play_speed.currentData() or 1.0)
-        eff_fps = max(1.0, self.current_fps * mult)
-        interval_ms = max(15, int(1000.0 / eff_fps))
-        self.play_timer.setInterval(interval_ms)
-
-    def _on_play_tick(self) -> None:
-        if not self.slider.isEnabled():
-            self._stop_playback()
-            return
-        nxt = self.slider.value() + 1
-        if nxt > self.slider.maximum():
-            self._stop_playback()
-            return
-        self.slider.setValue(nxt)
+        self.media_player.setPlaybackRate(mult)
 
     def _update_telemetry_and_cursor(self, idx: int) -> None:
         self.sync_plot.set_cursor_index(idx)
@@ -445,7 +517,6 @@ class VideoOverlayTab(QtWidgets.QWidget):
 
     def _refresh_timeline_and_aligned(self) -> None:
         if self.session.measurement is not None and self.session.video_info is None:
-            # Если загружены только данные измерения без видео — строим график по самим данным
             d = self.session.measurement.data
             self.aligned_data = AlignedData(
                 timestamps=d.time,
@@ -505,9 +576,15 @@ class VideoOverlayTab(QtWidgets.QWidget):
         if self.pipeline.video_path_input is None:
             return
         self._stop_playback()
+        ts_arr = (
+            self.session.video_info.timestamps_sec
+            if self.session.video_info is not None
+            else None
+        )
         dlg = CropSelectionDialog(
             self.pipeline.video_path_input,
             initial_rect=self.pipeline.crop_rect,
+            timestamps_sec=ts_arr,
             parent=self,
         )
         if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
@@ -515,27 +592,31 @@ class VideoOverlayTab(QtWidgets.QWidget):
 
     def _apply_crop(self, rect: RectangleGeometry) -> None:
         self.pipeline.crop_rect = rect
-        if rect.h > 0:
-            self.video_preview.set_aspect_ratio(rect.w, rect.h)
         if self.session.video_info is not None:
             self.session.video_info = replace(self.session.video_info, crop_rect=rect)
             self._refresh_info_panel()
+        self.video_preview.set_video_geometry(
+            self.session.video_info.input_width if self.session.video_info else 1920,
+            self.session.video_info.input_height if self.session.video_info else 1080,
+            crop_rect=rect,
+        )
         self.btn_reset_crop.setEnabled(True)
         if self.slider.isEnabled():
-            self._request_preview_update(self.slider.value())
+            self.media_player.setPosition(self._frame_index_to_ms(self.slider.value()))
 
     def _reset_crop(self) -> None:
         self.pipeline.crop_rect = None
         if self.session.video_info is not None:
             self.session.video_info = replace(self.session.video_info, crop_rect=None)
-            self.video_preview.set_aspect_ratio(
+            self.video_preview.set_video_geometry(
                 self.session.video_info.input_width,
                 self.session.video_info.input_height,
+                crop_rect=None,
             )
             self._refresh_info_panel()
         self.btn_reset_crop.setEnabled(False)
         if self.slider.isEnabled():
-            self._request_preview_update(self.slider.value())
+            self.media_player.setPosition(self._frame_index_to_ms(self.slider.value()))
 
     def _open_overlay_settings(self) -> None:
         OverlaySettingsDialog(parent=self).exec()
@@ -563,7 +644,7 @@ class VideoOverlayTab(QtWidgets.QWidget):
         self._stop_playback()
         if self.pipeline.data is None or self.pipeline.timeline is None:
             return
-        fname, _ = QtWidgets.QFileDialog.getSaveFileName(  # noqa: PU001 — Qt QFileDialog tuple
+        fname, _ = QtWidgets.QFileDialog.getSaveFileName(  # noqa: PU001
             self, "Сохранить видео с оверлеем", "", "Видео MP4 (*.mp4)"
         )
         if not fname:
@@ -596,7 +677,7 @@ class VideoOverlayTab(QtWidgets.QWidget):
         self.progressbar.setValue(progress.value)
         self._update_eta_label()
         if progress.frame is not None:
-            self.video_preview.setPixmap(progress.frame.to_pixmap())
+            self.video_preview.show_export_pixmap(progress.frame.to_pixmap())
 
     def _update_eta_label(self) -> None:
         if self.render_start_time is None:
@@ -618,6 +699,7 @@ class VideoOverlayTab(QtWidgets.QWidget):
         TempDirManager.cleanup()
         self._set_controls_enabled(True)
         self.progressbar.setValue(0)
+        self.video_preview.clear_export_pixmap()
         if res.is_success:
             self.lbl_eta.setText("Экспорт видео успешно завершён")
             QtWidgets.QMessageBox.information(
@@ -633,8 +715,8 @@ class VideoOverlayTab(QtWidgets.QWidget):
 
     def shutdown(self) -> None:
         self._stop_playback()
+        self.media_player.setSource(QtCore.QUrl())
         if self.pipeline.isRunning():
             self.pipeline.stop()
             self.pipeline.wait(5000)
-        self._stop_preview_worker()
         TempDirManager.cleanup()

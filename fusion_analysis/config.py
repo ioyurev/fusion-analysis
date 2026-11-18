@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from fusion_common import get_appdata_path
 from loguru import logger as log
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class PlotterSettings(BaseModel):
@@ -27,13 +29,16 @@ def read_config(path: Path | None = None) -> AnalysisConfig:
     target = path if path is not None else DEFAULT_CONFIG_PATH
     if target.exists():
         try:
-            return AnalysisConfig.model_validate_json(
-                target.read_text(encoding="utf-8")
-            )
+            cfg = AnalysisConfig.model_validate_json(target.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
-            log.bind(path=str(target), error=str(exc)).warning(
+            log.opt(exception=True).bind(path=str(target), error=repr(exc)).warning(
                 "Failed to read config.json, using default settings"
             )
+        else:
+            log.bind(path=str(target), **cfg.model_dump(mode="json")).info(
+                "Loaded analysis configuration"
+            )
+            return cfg
     default_cfg = AnalysisConfig()
     write_config(default_cfg, path=target)
     return default_cfg
@@ -48,3 +53,6 @@ def write_config(
     )
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(validated.model_dump_json(indent=2), encoding="utf-8")
+    log.bind(path=str(target), **validated.model_dump(mode="json")).info(
+        "Saved analysis configuration"
+    )
