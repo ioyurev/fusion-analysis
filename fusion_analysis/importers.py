@@ -8,12 +8,13 @@ from collections.abc import Callable
 from enum import StrEnum
 from io import TextIOWrapper
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import numpy as np
 from fusion_common import (
     AdditivePolynomialCalibration,
+    CalibrationType,
     ChannelDescriptor,
     CjcData,
     DirectPolynomialCalibration,
@@ -93,11 +94,11 @@ def load_vtaz(path: Path) -> MeasurementRecord:
 
         if ver_num >= 1.0:
             cal_raw = json.loads(zipf.read("calibration.json").decode("utf-8"))
-            cal_type_raw = cal_raw.get("calibration_type", "linear")
-            cal_type: Literal["offset", "linear", "quadratic", "piecewise"] = (
-                cal_type_raw
+            cal_type_raw = cal_raw.get("calibration_type", CalibrationType.LINEAR.value)
+            cal_type = (
+                CalibrationType(cal_type_raw)
                 if cal_type_raw in ("offset", "linear", "quadratic", "piecewise")
-                else "linear"
+                else CalibrationType.LINEAR
             )
             standards = [
                 Standard.model_validate(s) for s in cal_raw.get("standards", [])

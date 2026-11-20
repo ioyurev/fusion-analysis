@@ -1,6 +1,6 @@
 [project]
 name = "fusion-analysis"
-version = "0.3.2"
+version = "0.3.3"
 description = "Приложение для обработки и анализа кривых термического анализа (ВТА, ДТА, ТГ)"
 authors = [{ name = "Ilya O. Yurev", email = "i.o.yurev@yandex.ru" }]
 license = { text = "GPL-3.0-or-later" }
