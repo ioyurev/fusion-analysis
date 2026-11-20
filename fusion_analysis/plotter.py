@@ -928,18 +928,29 @@ class Plotter(QtCore.QObject):
             "segments": segments_meta,
         }
 
-    def restore_analysis_state(self, state: dict[str, Any]) -> None:
+    def restore_analysis_state(self, state: dict[str, Any]) -> list[str]:
+        warnings_out: list[str] = []
         if not state or not self.segments_dta:
-            return
+            return warnings_out
         for split_t in state.get("split_times", []):
-            target_seg = self.segments_dta[-1]  # noqa: MI001
-            self.picked_segment = target_seg
-            self.spinbox_t.setValue(float(split_t), block_signal=True)
-            self.apply_split()
+            try:
+                target_seg = self.segments_dta[-1]  # noqa: MI001
+                self.picked_segment = target_seg
+                self.spinbox_t.setValue(float(split_t), block_signal=True)
+                self.apply_split()
+            except (KeyError, TypeError, ValueError, IndexError) as exc:
+                log.bind(split_t=split_t, error=str(exc)).warning(
+                    "Failed to restore split point from analysis_state"
+                )
+                warnings_out.append(
+                    f"Не удалось восстановить точку разделения сегмента ({split_t}): {exc}"
+                )
         self.picked_segment = None
 
         seg_list = state.get("segments", [])
         for seg, meta in zip(self.segments_dta, seg_list, strict=False):
+            if not isinstance(meta, dict):
+                continue
             curves_meta = meta.get("curves", {})
             if not curves_meta:
                 curves_meta = {
@@ -950,29 +961,58 @@ class Plotter(QtCore.QObject):
                     }
                 }
             for ch_name, c_meta in curves_meta.items():
+                if not isinstance(c_meta, dict):
+                    continue
                 c_seg = seg.curves.get(ch_name)
                 if c_seg is None:
                     continue
                 if "color" in c_meta:
-                    c_seg.set_color(c_meta["color"])
+                    try:
+                        c_seg.set_color(c_meta["color"])
+                    except (TypeError, ValueError) as exc:
+                        warnings_out.append(
+                            f"Некорректный цвет кривой '{ch_name}': {exc}"
+                        )
                 if "visible" in c_meta:
                     c_seg.set_visible(bool(c_meta["visible"]))
                 for pk_meta in c_meta.get("peaks", []):
-                    peak = c_seg.addPeak(
-                        t1=float(pk_meta["t1"]),
-                        t2=float(pk_meta["t2"]),
-                        baseline_type=int(pk_meta.get("baseline_type", 0)),
-                    )
+                    try:
+                        peak = c_seg.addPeak(
+                            t1=float(pk_meta["t1"]),
+                            t2=float(pk_meta["t2"]),
+                            baseline_type=int(pk_meta.get("baseline_type", 0)),
+                        )
+                    except (KeyError, TypeError, ValueError, IndexError) as exc:
+                        log.bind(
+                            channel=ch_name,
+                            peak_meta=pk_meta,
+                            error=str(exc),
+                        ).warning("Failed to restore peak from analysis_state")
+                        warnings_out.append(
+                            f"Пик на канале '{ch_name}' пропущен: {exc}"
+                        )
+                        continue
                     peak.label_enabled = bool(pk_meta.get("label_enabled", True))
                     self.items.append(peak)
                     self.items.append(peak.ann)
                     for ol_meta in pk_meta.get("onsets", []):
-                        ol = OnsetLine(
-                            peak=peak,
-                            ci=int(ol_meta["ci"]),
-                            bi=int(ol_meta["bi"]),
-                            is_onset=bool(ol_meta.get("is_onset", True)),
-                        )
+                        try:
+                            ol = OnsetLine(
+                                peak=peak,
+                                ci=int(ol_meta["ci"]),
+                                bi=int(ol_meta["bi"]),
+                                is_onset=bool(ol_meta.get("is_onset", True)),
+                            )
+                        except (KeyError, TypeError, ValueError, IndexError) as exc:
+                            log.bind(
+                                channel=ch_name,
+                                onset_meta=ol_meta,
+                                error=str(exc),
+                            ).warning("Failed to restore onset from analysis_state")
+                            warnings_out.append(
+                                f"Линия начала/конца пика на канале '{ch_name}' пропущена: {exc}"
+                            )
+                            continue
                         ol.label_enabled = bool(ol_meta.get("label_enabled", True))
                         if "label_time_enabled" in ol_meta:
                             ol.label_time_enabled = bool(ol_meta["label_time_enabled"])
@@ -984,8 +1024,14 @@ class Plotter(QtCore.QObject):
                         ol.attach_to(c_seg.vb or self.main_vb)
                         self.items.append(ol)
                         self.items.append(ol.ann)
-                dy_val = float(c_meta.get("dy", 0.0))
-                if abs(dy_val) > 1e-9:
-                    c_seg.shifty(dy_val * 10.0)
+                try:
+                    dy_val = float(c_meta.get("dy", 0.0))
+                    if abs(dy_val) > 1e-9:
+                        c_seg.shifty(dy_val * 10.0)
+                except (TypeError, ValueError) as exc:
+                    warnings_out.append(
+                        f"Некорректный сдвиг по Y кривой '{ch_name}': {exc}"
+                    )
         self.sync_aux_axes_visibility()
         self.autoscale()
+        return warnings_out

@@ -8,6 +8,7 @@ from fusion_common import (
     ChannelDescriptor,
     MeasurementManifest,
     MeasurementRecord,
+    is_newer_version,
     save_fus,
 )
 
@@ -329,3 +330,65 @@ def test_segment_add_peak_and_onset_Creation() -> None:
     assert peak.ann is not None
     onset_line = peak.onset(t1=3.0, t2=5.0, is_onset=True)
     assert onset_line.ann is not None
+
+
+def test_restore_analysis_state_handles_newer_baseline_and_version_check() -> None:
+    import sys
+
+    from PySide6.QtWidgets import QApplication, QWidget
+
+    from fusion_analysis.measurement_data import ThermalType
+    from fusion_analysis.plotter import Plotter
+
+    assert is_newer_version("0.4.0", "0.3.2") is True
+    assert is_newer_version("v1.0", "0.3.2") is True
+    assert is_newer_version("0.3.2", "0.3.2") is False
+    assert is_newer_version("0.3.1", "0.3.2") is False
+    assert is_newer_version("", "0.3.2") is False
+
+    _app = QApplication.instance() or QApplication(sys.argv)
+    host = QWidget()
+    plotter = Plotter(host, scale=1.0)
+    plotter.units = {"Time": "min", "Temp.": "°C", "DTA": "mV"}
+    t_min = np.linspace(0.0, 10.0, 201)
+    temp_c = 100.0 + 50.0 * t_min
+    dta_mv = np.exp(-((t_min - 5.0) ** 2) / 0.5)
+    seg = plotter.addSegment(
+        df={"Time": t_min, "Temp.": temp_c, "DTA": dta_mv},
+        index=0,
+        thermal_type=ThermalType.HEAT,
+        temp_axis="Temp.",
+    )
+
+    future_state = {
+        "segments": [
+            {
+                "curves": {
+                    "DTA": {
+                        "peaks": [
+                            {
+                                "t1": 2.0,
+                                "t2": 8.0,
+                                "baseline_type": 0,
+                                "onsets": [
+                                    {"ci": 10, "bi": 5, "is_onset": True},
+                                    {"ci": 999999, "bi": 5, "is_onset": False},
+                                ],
+                            },
+                            {
+                                "t1": 2.0,
+                                "t2": 8.0,
+                                "baseline_type": 99,
+                                "onsets": [],
+                            },
+                        ]
+                    }
+                }
+            }
+        ]
+    }
+    warnings_list = plotter.restore_analysis_state(future_state)
+    assert len(warnings_list) == 2
+    assert len(seg.peaks) == 1
+    first_peak, *_ = seg.peaks
+    assert len(first_peak.onset_lines) == 1

@@ -5,6 +5,7 @@ from typing import Any
 
 from fusion_common import (
     ANALYSIS_ICON_BG,
+    is_newer_version,
     resolve_ui_icon,
     show_fusion_about,
     show_fusion_docs,
@@ -1042,7 +1043,14 @@ class MainWindow(QtWidgets.QMainWindow):
             ).error("Failed to open measurement")
             return
         log.bind(path=str(path), source=str(source)).info("Measurement opened")
-        self.init_measurement()
+        try:
+            self.init_measurement()
+        except Exception as exc:  # noqa: BLE001
+            self.on_click_close()
+            error_message(f"Не удалось отобразить измерение: {exc}")
+            log.opt(exception=True).bind(
+                path=str(path), source=str(source), error=repr(exc)
+            ).error("Failed to initialize measurement UI")
 
     def init_measurement(self) -> None:
         string = "Temp." if self.measurement_data.has_tempdata else "EMF"
@@ -1142,9 +1150,45 @@ class MainWindow(QtWidgets.QMainWindow):
         self.measurement_is_opened = True
 
         # переключаем кнопки
+        is_fusa_project = bool(self.measurement_data.analysis_state) or (
+            self.measurement_data.source_path is not None
+            and self.measurement_data.source_path.suffix.lower() == ".fusa"
+        )
+        file_sw = str(self.measurement_data.info.get("software_version") or "").strip()
+        is_newer_fusa = bool(
+            is_fusa_project and file_sw and is_newer_version(file_sw, VERSION)
+        )
         if self.measurement_data.analysis_state:
-            self.plotter.restore_analysis_state(self.measurement_data.analysis_state)
+            restore_warnings = self.plotter.restore_analysis_state(
+                self.measurement_data.analysis_state
+            )
             self._refresh_segments_tree()
+            if restore_warnings:
+                if is_newer_fusa:
+                    header = (
+                        f"Файл анализа создан в более новой версии Fusion Analysis "
+                        f"(v{file_sw.lstrip('v')}; текущая версия v{VERSION}). "
+                        "Часть разметки не удалось восстановить — обновите программу до последней версии:"
+                    )
+                else:
+                    header = "Часть разметки анализа не удалось восстановить:"
+                    details = "\n".join(f"• {msg}" for msg in restore_warnings[:10])
+                log.bind(
+                    file_software_version=file_sw,
+                    current_version=VERSION,
+                    warnings_count=len(restore_warnings),
+                ).warning("Partial restore of .fusa analysis_state")
+                warning_message(f"{header}\n\n{details}")
+            elif is_newer_fusa:
+                log.bind(
+                    file_software_version=file_sw,
+                    current_version=VERSION,
+                ).warning("Opened .fusa created by a newer Fusion Analysis version")
+        elif is_newer_fusa:
+            log.bind(
+                file_software_version=file_sw,
+                current_version=VERSION,
+            ).warning("Opened .fusa created by a newer Fusion Analysis version")
 
         self.action_open.setEnabled(False)
         self.action_save_analysis.setEnabled(True)
